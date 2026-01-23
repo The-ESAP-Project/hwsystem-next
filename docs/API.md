@@ -466,15 +466,16 @@ Authorization: Bearer <access_token>
 
 ## 六、作业管理
 
-### 6.1 GET /classes/{class_id}/homeworks
+### 6.1 GET /homeworks
 
-获取班级作业列表。
+获取作业列表。
 
-**权限**：班级成员
+**权限**：JWT
 
 **查询参数**：
 | 参数 | 类型 | 说明 |
 |------|------|------|
+| class_id | number | 班级 ID（必填） |
 | page | number | 页码 |
 | page_size | number | 每页数量 |
 | status | string | `upcoming`/`ongoing`/`ended` |
@@ -503,7 +504,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 6.2 POST /classes/{class_id}/homeworks
+### 6.2 POST /homeworks
 
 创建作业。
 
@@ -512,6 +513,7 @@ Authorization: Bearer <access_token>
 **请求**：
 ```json
 {
+    "class_id": 1,
     "title": "链表实现",
     "description": "实现单链表的基本操作",
     "max_score": 100.0,
@@ -544,13 +546,13 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 6.3 GET /classes/{class_id}/homeworks/{homework_id}
+### 6.3 GET /homeworks/{id}
 
 获取作业详情。
 
 **权限**：班级成员
 
-### 6.4 PUT /classes/{class_id}/homeworks/{homework_id}
+### 6.4 PUT /homeworks/{id}
 
 更新作业。
 
@@ -568,60 +570,26 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 6.5 DELETE /classes/{class_id}/homeworks/{homework_id}
+### 6.5 DELETE /homeworks/{id}
 
 删除作业。
 
 **权限**：班级教师
 
-### 6.6 GET /classes/{class_id}/homeworks/{homework_id}/stats
-
-获取作业统计。
-
-**权限**：班级教师 或 课代表
-
-**响应**：
-```json
-{
-    "homework_id": "...",
-    "total_students": 30,
-    "submitted_count": 25,
-    "graded_count": 20,
-    "late_count": 3,
-    "submission_rate": 83.33,
-    "average_score": 85.5,
-    "max_score_achieved": 98.0,
-    "min_score_achieved": 62.0,
-    "score_distribution": {
-        "90-100": 5,
-        "80-89": 8,
-        "70-79": 4,
-        "60-69": 2,
-        "0-59": 1
-    },
-    "not_submitted": [
-        {
-            "user_id": "...",
-            "username": "...",
-            "display_name": "..."
-        }
-    ]
-}
-```
-
 ---
 
 ## 七、提交管理
 
-### 7.1 GET /homeworks/{homework_id}/submissions
+### 7.1 GET /submissions
 
-获取所有提交列表（教师/课代表视图）。
+获取提交列表（教师/课代表视图）。
 
 **权限**：班级教师 或 课代表
 
 **查询参数**：
 | 参数 | 类型 | 说明 |
 |------|------|------|
+| homework_id | number | 作业 ID（必填） |
 | page | number | 页码 |
 | page_size | number | 每页数量 |
 | status | string | `pending`/`graded`/`late` |
@@ -654,7 +622,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 7.2 POST /homeworks/{homework_id}/submissions
+### 7.2 POST /submissions
 
 提交作业。
 
@@ -663,6 +631,7 @@ Authorization: Bearer <access_token>
 **请求**：
 ```json
 {
+    "homework_id": 1,
     "content": "这是我的作业内容...",
     "attachments": ["file_id_1"]
 }
@@ -732,13 +701,13 @@ Authorization: Bearer <access_token>
 
 **权限**：班级学生/课代表
 
-### 7.5 GET /homeworks/{homework_id}/submissions/{submission_id}
+### 7.5 GET /submissions/{id}
 
 获取提交详情。
 
 **权限**：提交者 或 班级教师
 
-### 7.6 DELETE /homeworks/{homework_id}/submissions/{submission_id}
+### 7.6 DELETE /submissions/{id}
 
 撤回提交。
 
@@ -753,7 +722,7 @@ Authorization: Bearer <access_token>
 
 ### 8.1 GET /submissions/{submission_id}/grade
 
-获取评分。
+获取提交的评分。
 
 **权限**：提交者 或 班级教师
 
@@ -775,7 +744,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 8.2 POST /submissions/{submission_id}/grade
+### 8.2 POST /grades
 
 创建评分。
 
@@ -784,6 +753,7 @@ Authorization: Bearer <access_token>
 **请求**：
 ```json
 {
+    "submission_id": 1,
     "score": 85.0,
     "comment": "Good work!"
 }
@@ -796,7 +766,7 @@ Authorization: Bearer <access_token>
 **错误**：
 - 如果已存在评分，返回 409 冲突
 
-### 8.3 PUT /submissions/{submission_id}/grade
+### 8.3 PUT /grades/{id}
 
 修改评分。
 

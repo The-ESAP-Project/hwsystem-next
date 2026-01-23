@@ -19,6 +19,12 @@ pub mod class_users;
 // 作业模块
 pub mod homeworks;
 
+// 提交模块
+pub mod submissions;
+
+// 评分模块
+pub mod grades;
+
 // 系统模块
 pub mod system;
 

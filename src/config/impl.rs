@@ -67,9 +67,61 @@ impl AppConfig {
     /// 初始化配置 (在应用启动时调用)
     pub fn init() -> Result<(), ConfigError> {
         let config = Self::load()?;
+
+        // 安全检查：生产环境必须配置强 JWT 密钥
+        if config.is_production() {
+            config.validate_security()?;
+        }
+
         APP_CONFIG
             .set(config)
             .map_err(|_| ConfigError::Message("Configuration already initialized".to_string()))?;
+        Ok(())
+    }
+
+    /// 验证安全配置
+    fn validate_security(&self) -> Result<(), ConfigError> {
+        // 检查 JWT 密钥
+        let default_secrets = [
+            "your-secret-key",
+            "secret",
+            "jwt-secret",
+            "changeme",
+            "default",
+            "development",
+            "test",
+        ];
+
+        if self.jwt.secret.is_empty() {
+            return Err(ConfigError::Message(
+                "JWT_SECRET must be set in production environment".to_string(),
+            ));
+        }
+
+        if self.jwt.secret.len() < 32 {
+            return Err(ConfigError::Message(
+                "JWT_SECRET must be at least 32 characters long in production".to_string(),
+            ));
+        }
+
+        if default_secrets
+            .iter()
+            .any(|&s| self.jwt.secret.eq_ignore_ascii_case(s))
+        {
+            return Err(ConfigError::Message(
+                "JWT_SECRET cannot use default/weak values in production".to_string(),
+            ));
+        }
+
+        // 检查 CORS 配置
+        if self.cors.allowed_origins.is_empty()
+            || self.cors.allowed_origins.contains(&"*".to_string())
+        {
+            eprintln!(
+                "WARNING: CORS allows all origins (*). Consider restricting to specific domains in production."
+            );
+        }
+
         Ok(())
     }
 

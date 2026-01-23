@@ -36,7 +36,7 @@ pub async fn create_class(
     // 创建班级
     match storage.create_class(class_data).await {
         Ok(class) => {
-            info!("Class {} created successfully by {}", class.class_name, uid);
+            info!("Class {} created successfully by {}", class.name, uid);
             Ok(HttpResponse::Created()
                 .json(ApiResponse::success(class, "Class created successfully")))
         }

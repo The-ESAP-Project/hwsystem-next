@@ -44,6 +44,19 @@ impl std::fmt::Display for SubmissionStatus {
     }
 }
 
+impl std::str::FromStr for SubmissionStatus {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "pending" => Ok(SubmissionStatus::Pending),
+            "graded" => Ok(SubmissionStatus::Graded),
+            "late" => Ok(SubmissionStatus::Late),
+            _ => Err(format!("Invalid submission status: {s}")),
+        }
+    }
+}
+
 /// 提交实体
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/submission.ts")]
@@ -51,7 +64,9 @@ pub struct Submission {
     pub id: i64,
     pub homework_id: i64,
     pub creator_id: i64,
-    pub content: String,
-    pub attachments: Option<String>,
+    pub version: i32,
+    pub content: Option<String>,
+    pub status: SubmissionStatus,
+    pub is_late: bool,
     pub submitted_at: chrono::DateTime<chrono::Utc>,
 }

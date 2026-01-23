@@ -65,7 +65,7 @@
 use crate::cache::{CacheResult, ObjectCache};
 use crate::config::AppConfig;
 use crate::models::users::entities::UserRole;
-use crate::models::{ErrorCode, users::entities};
+use crate::models::{ApiResponse, ErrorCode, users::entities};
 use crate::storage::Storage;
 use actix_service::{Service, Transform};
 use actix_web::{
@@ -96,11 +96,10 @@ fn create_error_response(status: StatusCode, message: &str) -> HttpResponse {
             .finish(),
         _ => HttpResponse::build(status)
             .insert_header((CONTENT_TYPE, "application/json; charset=utf-8"))
-            .json(serde_json::json!({
-                "code": ErrorCode::Unauthorized as i32,
-                "message": message,
-                "timestamp": chrono::Utc::now().to_rfc3339(),
-            })),
+            .json(ApiResponse::<()>::error_empty(
+                ErrorCode::Unauthorized,
+                message,
+            )),
     }
 }
 

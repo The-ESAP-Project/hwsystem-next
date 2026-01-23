@@ -111,6 +111,10 @@ async fn main() -> std::io::Result<()> {
             .configure(routes::configure_class_users_routes) //配置班级成员相关路由
             .configure(routes::configure_classes_routes) // 配置班级相关路由
             .configure(routes::configure_homeworks_routes) // 配置作业相关路由
+            .configure(routes::configure_submissions_routes) // 配置提交相关路由
+            .configure(routes::configure_grades_routes) // 配置评分相关路由
+            .configure(routes::configure_notifications_routes) // 配置通知相关路由
+            .configure(routes::configure_websocket_routes) // 配置 WebSocket 路由
             .configure(routes::configure_file_routes) // 配置文件相关路由
             .configure(routes::configure_system_routes) // 配置系统相关路由
             .configure(routes::configure_frontend_routes) // 配置前端静态资源路由（放在最后作为 fallback）

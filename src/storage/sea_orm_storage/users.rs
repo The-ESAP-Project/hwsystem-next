@@ -27,8 +27,8 @@ impl SeaOrmStorage {
             password_hash: Set(req.password),
             role: Set(req.role.to_string()),
             status: Set(UserStatus::Active.to_string()),
-            profile_name: Set(Some(req.profile.profile_name)),
-            avatar_url: Set(req.profile.avatar_url),
+            display_name: Set(req.display_name),
+            avatar_url: Set(req.avatar_url),
             created_at: Set(now),
             updated_at: Set(now),
             ..Default::default()
@@ -111,7 +111,7 @@ impl SeaOrmStorage {
                 Condition::any()
                     .add(Column::Username.contains(&pattern))
                     .add(Column::Email.contains(&pattern))
-                    .add(Column::ProfileName.contains(&pattern)),
+                    .add(Column::DisplayName.contains(&pattern)),
             );
         }
 
@@ -206,9 +206,12 @@ impl SeaOrmStorage {
             model.status = Set(status.to_string());
         }
 
-        if let Some(profile) = update.profile {
-            model.profile_name = Set(Some(profile.profile_name));
-            model.avatar_url = Set(profile.avatar_url);
+        if let Some(display_name) = update.display_name {
+            model.display_name = Set(Some(display_name));
+        }
+
+        if let Some(avatar_url) = update.avatar_url {
+            model.avatar_url = Set(Some(avatar_url));
         }
 
         model
@@ -227,5 +230,15 @@ impl SeaOrmStorage {
             .map_err(|e| HWSystemError::database_operation(format!("删除用户失败: {e}")))?;
 
         Ok(result.rows_affected > 0)
+    }
+
+    /// 统计用户数量
+    pub async fn count_users_impl(&self) -> Result<u64> {
+        let count = Users::find()
+            .count(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("统计用户数量失败: {e}")))?;
+
+        Ok(count)
     }
 }

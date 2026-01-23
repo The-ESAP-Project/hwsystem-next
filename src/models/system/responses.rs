@@ -10,3 +10,11 @@ pub struct SystemSettingsResponse {
     pub environment: String,             // 运行环境
     pub log_level: String,               // 日志级别
 }
+
+/// WebSocket 状态响应
+#[derive(Debug, Serialize, TS)]
+#[ts(export, export_to = "../frontend/src/types/generated/system.ts")]
+pub struct WebSocketStatusResponse {
+    pub online_users: usize,
+    pub status: String,
+}

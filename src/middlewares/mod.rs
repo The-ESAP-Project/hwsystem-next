@@ -1,3 +1,4 @@
+pub mod rate_limit;
 pub mod require_class_role;
 pub mod require_jwt;
 pub mod require_role;
@@ -6,6 +7,7 @@ use actix_web::{
     HttpResponse,
     http::{StatusCode, header::CONTENT_TYPE},
 };
+pub use rate_limit::RateLimit;
 pub use require_class_role::RequireClassRole;
 pub use require_jwt::RequireJWT;
 pub use require_role::RequireRole;

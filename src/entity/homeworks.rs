@@ -8,15 +8,13 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
     pub class_id: i64,
-    pub created_by: i64,
     pub title: String,
     #[sea_orm(column_type = "Text", nullable)]
-    pub content: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub attachments: Option<String>,
+    pub description: Option<String>,
     pub max_score: f64,
     pub deadline: Option<i64>,
-    pub allow_late_submission: bool,
+    pub allow_late: bool,
+    pub created_by: i64,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -37,6 +35,8 @@ pub enum Relation {
     Creator,
     #[sea_orm(has_many = "super::submissions::Entity")]
     Submissions,
+    #[sea_orm(has_many = "super::homework_files::Entity")]
+    HomeworkFiles,
 }
 
 impl Related<super::classes::Entity> for Entity {
@@ -57,6 +57,12 @@ impl Related<super::submissions::Entity> for Entity {
     }
 }
 
+impl Related<super::homework_files::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::HomeworkFiles.def()
+    }
+}
+
 impl ActiveModelBehavior for ActiveModel {}
 
 // 从数据库模型转换为业务模型
@@ -69,13 +75,12 @@ impl Model {
             id: self.id,
             class_id: self.class_id,
             title: self.title,
-            content: self.content,
-            attachments: self.attachments,
+            description: self.description,
             max_score: self.max_score,
             deadline: self
                 .deadline
                 .and_then(|ts| DateTime::<Utc>::from_timestamp(ts, 0)),
-            allow_late_submission: self.allow_late_submission,
+            allow_late: self.allow_late,
             created_by: self.created_by,
             created_at: DateTime::<Utc>::from_timestamp(self.created_at, 0).unwrap_or_default(),
             updated_at: DateTime::<Utc>::from_timestamp(self.updated_at, 0).unwrap_or_default(),

@@ -11,15 +11,13 @@ pub struct Homework {
     // 作业标题
     pub title: String,
     // 作业描述
-    pub content: Option<String>,
-    // 作业附件
-    pub attachments: Option<String>,
+    pub description: Option<String>,
     // 作业最高分数
     pub max_score: f64,
     // 作业截止时间
     pub deadline: Option<chrono::DateTime<chrono::Utc>>,
     // 是否允许迟交
-    pub allow_late_submission: bool,
+    pub allow_late: bool,
     // 创建者 ID
     pub created_by: i64,
     // 作业创建时间

@@ -10,8 +10,6 @@ pub struct Model {
     pub class_id: i64,
     pub user_id: i64,
     pub role: String,
-    pub profile_name: Option<String>,
-    pub updated_at: i64,
     pub joined_at: i64,
 }
 
@@ -55,12 +53,10 @@ impl Model {
             id: self.id,
             class_id: self.class_id,
             user_id: self.user_id,
-            profile_name: self.profile_name,
             role: self
                 .role
                 .parse::<ClassUserRole>()
                 .unwrap_or(ClassUserRole::Student),
-            updated_at: DateTime::<Utc>::from_timestamp(self.updated_at, 0).unwrap_or_default(),
             joined_at: DateTime::<Utc>::from_timestamp(self.joined_at, 0).unwrap_or_default(),
         }
     }

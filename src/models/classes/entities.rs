@@ -7,7 +7,7 @@ pub struct Class {
     // 班级ID
     pub id: i64,
     // 班级名称
-    pub class_name: String,
+    pub name: String,
     // 班级描述
     pub description: Option<String>,
     // 教师ID

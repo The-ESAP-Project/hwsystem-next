@@ -24,7 +24,7 @@ impl SeaOrmStorage {
 
         let model = ActiveModel {
             teacher_id: Set(req.teacher_id),
-            class_name: Set(req.class_name),
+            name: Set(req.name),
             description: Set(req.description),
             invite_code: Set(invite_code),
             created_at: Set(now),
@@ -80,7 +80,7 @@ impl SeaOrmStorage {
         if let Some(ref search) = query.search
             && !search.trim().is_empty()
         {
-            select = select.filter(Column::ClassName.contains(search.trim()));
+            select = select.filter(Column::Name.contains(search.trim()));
         }
 
         // 排序
@@ -134,8 +134,8 @@ impl SeaOrmStorage {
             ..Default::default()
         };
 
-        if let Some(class_name) = update.class_name {
-            model.class_name = Set(class_name);
+        if let Some(name) = update.name {
+            model.name = Set(name);
         }
 
         if let Some(description) = update.description {

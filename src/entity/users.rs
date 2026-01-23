@@ -12,9 +12,9 @@ pub struct Model {
     #[sea_orm(unique)]
     pub email: String,
     pub password_hash: String,
+    pub display_name: Option<String>,
     pub role: String,
     pub status: String,
-    pub profile_name: Option<String>,
     pub avatar_url: Option<String>,
     pub last_login: Option<i64>,
     pub created_at: i64,
@@ -35,6 +35,8 @@ pub enum Relation {
     Grades,
     #[sea_orm(has_many = "super::files::Entity")]
     Files,
+    #[sea_orm(has_many = "super::notifications::Entity")]
+    Notifications,
 }
 
 impl Related<super::classes::Entity> for Entity {
@@ -73,12 +75,18 @@ impl Related<super::files::Entity> for Entity {
     }
 }
 
+impl Related<super::notifications::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Notifications.def()
+    }
+}
+
 impl ActiveModelBehavior for ActiveModel {}
 
 // 从数据库模型转换为业务模型
 impl Model {
     pub fn into_user(self) -> crate::models::users::entities::User {
-        use crate::models::users::entities::{User, UserProfile, UserRole, UserStatus};
+        use crate::models::users::entities::{User, UserRole, UserStatus};
         use chrono::{DateTime, Utc};
 
         User {
@@ -91,13 +99,11 @@ impl Model {
                 .status
                 .parse::<UserStatus>()
                 .unwrap_or(UserStatus::Active),
-            profile: UserProfile {
-                profile_name: self.profile_name.unwrap_or_default(),
-                avatar_url: self.avatar_url,
-            },
+            display_name: self.display_name,
+            avatar_url: self.avatar_url,
             last_login: self
                 .last_login
-                .map(|ts| DateTime::<Utc>::from_timestamp(ts, 0).unwrap_or_default()),
+                .and_then(|ts| DateTime::<Utc>::from_timestamp(ts, 0)),
             created_at: DateTime::<Utc>::from_timestamp(self.created_at, 0).unwrap_or_default(),
             updated_at: DateTime::<Utc>::from_timestamp(self.updated_at, 0).unwrap_or_default(),
         }

@@ -1,0 +1,160 @@
+//! 评分存储操作
+
+use super::SeaOrmStorage;
+use crate::entity::grades::{ActiveModel, Column, Entity as Grades};
+use crate::errors::{HWSystemError, Result};
+use crate::models::{
+    PaginationInfo,
+    grades::{
+        entities::Grade,
+        requests::{CreateGradeRequest, GradeListQuery, UpdateGradeRequest},
+        responses::GradeListResponse,
+    },
+    submissions::entities::SubmissionStatus,
+};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set,
+};
+
+impl SeaOrmStorage {
+    /// 创建评分
+    pub async fn create_grade_impl(
+        &self,
+        grader_id: i64,
+        req: CreateGradeRequest,
+    ) -> Result<Grade> {
+        let now = chrono::Utc::now().timestamp();
+
+        let model = ActiveModel {
+            submission_id: Set(req.submission_id),
+            grader_id: Set(grader_id),
+            score: Set(req.score),
+            comment: Set(req.comment),
+            graded_at: Set(now),
+            updated_at: Set(now),
+            ..Default::default()
+        };
+
+        let result = model
+            .insert(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("创建评分失败: {e}")))?;
+
+        // 更新提交状态为已评分
+        self.update_submission_status_impl(req.submission_id, SubmissionStatus::GRADED)
+            .await?;
+
+        Ok(result.into_grade())
+    }
+
+    /// 通过 ID 获取评分
+    pub async fn get_grade_by_id_impl(&self, grade_id: i64) -> Result<Option<Grade>> {
+        let result = Grades::find_by_id(grade_id)
+            .one(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询评分失败: {e}")))?;
+
+        Ok(result.map(|m| m.into_grade()))
+    }
+
+    /// 通过提交 ID 获取评分
+    pub async fn get_grade_by_submission_id_impl(
+        &self,
+        submission_id: i64,
+    ) -> Result<Option<Grade>> {
+        let result = Grades::find()
+            .filter(Column::SubmissionId.eq(submission_id))
+            .one(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询评分失败: {e}")))?;
+
+        Ok(result.map(|m| m.into_grade()))
+    }
+
+    /// 更新评分
+    pub async fn update_grade_impl(
+        &self,
+        grade_id: i64,
+        update: UpdateGradeRequest,
+    ) -> Result<Option<Grade>> {
+        // 先检查评分是否存在
+        let existing = self.get_grade_by_id_impl(grade_id).await?;
+        if existing.is_none() {
+            return Ok(None);
+        }
+
+        let now = chrono::Utc::now().timestamp();
+
+        let mut model = ActiveModel {
+            id: Set(grade_id),
+            updated_at: Set(now),
+            ..Default::default()
+        };
+
+        if let Some(score) = update.score {
+            model.score = Set(score);
+        }
+
+        if let Some(comment) = update.comment {
+            model.comment = Set(Some(comment));
+        }
+
+        model
+            .update(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("更新评分失败: {e}")))?;
+
+        self.get_grade_by_id_impl(grade_id).await
+    }
+
+    /// 列出评分（分页）
+    pub async fn list_grades_with_pagination_impl(
+        &self,
+        query: GradeListQuery,
+    ) -> Result<GradeListResponse> {
+        let page = query.page.unwrap_or(1).max(1) as u64;
+        let size = query.size.unwrap_or(10).clamp(1, 100) as u64;
+
+        let mut select = Grades::find();
+
+        // 提交筛选
+        if let Some(submission_id) = query.submission_id {
+            select = select.filter(Column::SubmissionId.eq(submission_id));
+        }
+
+        // 评分者筛选
+        if let Some(grader_id) = query.grader_id {
+            select = select.filter(Column::GraderId.eq(grader_id));
+        }
+
+        // 排序
+        select = select.order_by_desc(Column::GradedAt);
+
+        // 分页查询
+        let paginator = select.paginate(&self.db, size);
+        let total = paginator
+            .num_items()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询评分总数失败: {e}")))?;
+
+        let pages = paginator
+            .num_pages()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询评分页数失败: {e}")))?;
+
+        let grades = paginator
+            .fetch_page(page - 1)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询评分列表失败: {e}")))?;
+
+        Ok(GradeListResponse {
+            items: grades.into_iter().map(|m| m.into_grade()).collect(),
+            pagination: PaginationInfo {
+                page: page as i64,
+                size: size as i64,
+                total: total as i64,
+                pages: pages as i64,
+            },
+        })
+    }
+}

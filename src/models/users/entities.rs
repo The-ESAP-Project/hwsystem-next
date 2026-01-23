@@ -76,8 +76,8 @@ impl std::str::FromStr for UserRole {
 #[ts(export, export_to = "../frontend/src/types/generated/user.ts")]
 pub enum UserStatus {
     Active,    // 活跃
-    Inactive,  // 非活跃
     Suspended, // 暂停
+    Banned,    // 封禁
 }
 
 impl<'de> Deserialize<'de> for UserStatus {
@@ -88,10 +88,10 @@ impl<'de> Deserialize<'de> for UserStatus {
         let s = String::deserialize(deserializer)?;
         match s.as_str() {
             "active" => Ok(UserStatus::Active),
-            "inactive" => Ok(UserStatus::Inactive),
             "suspended" => Ok(UserStatus::Suspended),
+            "banned" => Ok(UserStatus::Banned),
             _ => Err(serde::de::Error::custom(format!(
-                "无效的用户状态: '{s}'. 支持的状态: active, inactive, suspended"
+                "无效的用户状态: '{s}'. 支持的状态: active, suspended, banned"
             ))),
         }
     }
@@ -101,8 +101,8 @@ impl std::fmt::Display for UserStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             UserStatus::Active => write!(f, "active"),
-            UserStatus::Inactive => write!(f, "inactive"),
             UserStatus::Suspended => write!(f, "suspended"),
+            UserStatus::Banned => write!(f, "banned"),
         }
     }
 }
@@ -113,19 +113,11 @@ impl std::str::FromStr for UserStatus {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "active" => Ok(UserStatus::Active),
-            "inactive" => Ok(UserStatus::Inactive),
             "suspended" => Ok(UserStatus::Suspended),
+            "banned" => Ok(UserStatus::Banned),
             _ => Err(format!("Invalid user status: {s}")),
         }
     }
-}
-
-// 用户资料
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../frontend/src/types/generated/user.ts")]
-pub struct UserProfile {
-    pub profile_name: String,
-    pub avatar_url: Option<String>,
 }
 
 // 用户实体
@@ -140,7 +132,8 @@ pub struct User {
     pub password_hash: String,
     pub role: UserRole,
     pub status: UserStatus,
-    pub profile: UserProfile,
+    pub display_name: Option<String>,
+    pub avatar_url: Option<String>,
     pub last_login: Option<chrono::DateTime<chrono::Utc>>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,

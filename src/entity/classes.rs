@@ -7,10 +7,10 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
-    pub teacher_id: i64,
-    #[sea_orm(unique)]
-    pub class_name: String,
+    pub name: String,
+    #[sea_orm(column_type = "Text", nullable)]
     pub description: Option<String>,
+    pub teacher_id: i64,
     #[sea_orm(unique)]
     pub invite_code: String,
     pub created_at: i64,
@@ -59,7 +59,7 @@ impl Model {
 
         Class {
             id: self.id,
-            class_name: self.class_name,
+            name: self.name,
             description: self.description,
             teacher_id: self.teacher_id,
             invite_code: self.invite_code,

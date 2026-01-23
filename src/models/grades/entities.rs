@@ -11,4 +11,5 @@ pub struct Grade {
     pub score: f64,
     pub comment: Option<String>,
     pub graded_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
 }

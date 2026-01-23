@@ -17,7 +17,7 @@ pub struct ClassQueryParams {
 #[ts(export, export_to = "../frontend/src/types/generated/class.ts")]
 pub struct CreateClassRequest {
     pub teacher_id: i64,
-    pub class_name: String,
+    pub name: String,
     pub description: Option<String>,
 }
 
@@ -25,7 +25,7 @@ pub struct CreateClassRequest {
 #[derive(Debug, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/class.ts")]
 pub struct UpdateClassRequest {
-    pub class_name: Option<String>,
+    pub name: Option<String>,
     pub description: Option<String>,
     #[ts(skip)]
     pub _teacher_id: Option<i64>, // TODO: 未来计划实现班级转让

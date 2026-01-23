@@ -1,7 +1,7 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};
 use once_cell::sync::Lazy;
 
-use crate::middlewares;
+use crate::middlewares::{self, RateLimit};
 use crate::models::auth::requests::LoginRequest;
 use crate::models::users::requests::CreateUserRequest;
 use crate::services::AuthService;
@@ -38,8 +38,18 @@ pub async fn get_user(request: HttpRequest) -> ActixResult<HttpResponse> {
 pub fn configure_auth_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/v1/auth")
-            .route("/login", web::post().to(login))
-            .route("/register", web::post().to(register))
+            // 登录端点：5次/分钟/IP
+            .service(
+                web::resource("/login")
+                    .wrap(RateLimit::login())
+                    .route(web::post().to(login)),
+            )
+            // 注册端点：3次/分钟/IP
+            .service(
+                web::resource("/register")
+                    .wrap(RateLimit::register())
+                    .route(web::post().to(register)),
+            )
             .route("/refresh", web::post().to(refresh_token))
             .service(
                 web::scope("")

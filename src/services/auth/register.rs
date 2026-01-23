@@ -3,7 +3,7 @@ use argon2::Argon2;
 use argon2::password_hash::{PasswordHasher, SaltString, rand_core::OsRng};
 
 use crate::models::{ApiResponse, ErrorCode, users::requests::CreateUserRequest};
-use crate::utils::validate::{validate_email, validate_username};
+use crate::utils::validate::{validate_email, validate_password, validate_username};
 
 use super::AuthService;
 
@@ -34,6 +34,15 @@ pub async fn handle_register(
     if let Err(msg) = validate_email(&create_request.email) {
         return Ok(HttpResponse::BadRequest()
             .json(ApiResponse::error_empty(ErrorCode::UserEmailInvalid, msg)));
+    }
+
+    // 验证密码策略
+    let password_result = validate_password(&create_request.password);
+    if !password_result.is_valid {
+        return Ok(HttpResponse::BadRequest().json(ApiResponse::error_empty(
+            ErrorCode::PasswordPolicyViolation,
+            password_result.error_message(),
+        )));
     }
 
     // 3. 哈希密码合法性

@@ -1,8 +1,11 @@
 use crate::cache::{ObjectCache, register::get_object_cache_plugin};
 use crate::config::AppConfig;
+use crate::models::users::entities::UserRole;
+use crate::models::users::requests::CreateUserRequest;
 use crate::storage::Storage;
+use crate::utils::password::hash_password;
 use std::sync::Arc;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 pub struct StartupContext {
     pub storage: Arc<dyn Storage>,
@@ -68,6 +71,83 @@ async fn create_cache() -> Result<Arc<dyn ObjectCache>, Box<dyn std::error::Erro
     Err(format!("No cache backend available (tried: {cache_type})").into())
 }
 
+/// 生成随机密码
+fn generate_random_password(length: usize) -> String {
+    use rand::Rng;
+    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
+    let mut rng = rand::rng();
+    (0..length)
+        .map(|_| {
+            let idx = rng.random_range(0..CHARSET.len());
+            CHARSET[idx] as char
+        })
+        .collect()
+}
+
+/// 初始化默认管理员账号
+/// 如果数据库中没有任何用户，则创建一个默认的 admin 账号
+async fn seed_admin(storage: &Arc<dyn Storage>) {
+    // 检查是否已有用户
+    match storage.count_users().await {
+        Ok(count) if count > 0 => {
+            debug!(
+                "Database already has {} user(s), skipping admin seed",
+                count
+            );
+            return;
+        }
+        Ok(_) => {
+            info!("No users found in database, creating default admin account...");
+        }
+        Err(e) => {
+            warn!("Failed to count users: {}, skipping admin seed", e);
+            return;
+        }
+    }
+
+    // 获取密码：优先从环境变量，否则生成随机密码
+    let password = std::env::var("ADMIN_PASSWORD").unwrap_or_else(|_| {
+        let pwd = generate_random_password(16);
+        warn!("==========================================================");
+        warn!("  ADMIN PASSWORD NOT SET - USING GENERATED PASSWORD");
+        warn!("  Generated admin password: {}", pwd);
+        warn!("  Please save this password or set ADMIN_PASSWORD env var");
+        warn!("==========================================================");
+        pwd
+    });
+
+    // 哈希密码
+    let password_hash = match hash_password(&password) {
+        Ok(hash) => hash,
+        Err(e) => {
+            warn!("Failed to hash admin password: {}, skipping admin seed", e);
+            return;
+        }
+    };
+
+    // 创建管理员账号
+    let admin_request = CreateUserRequest {
+        username: "admin".to_string(),
+        email: "admin@localhost".to_string(),
+        password: password_hash,
+        role: UserRole::Admin,
+        display_name: Some("Administrator".to_string()),
+        avatar_url: None,
+    };
+
+    match storage.create_user(admin_request).await {
+        Ok(user) => {
+            info!(
+                "Default admin account created successfully (ID: {}, username: {})",
+                user.id, user.username
+            );
+        }
+        Err(e) => {
+            warn!("Failed to create admin account: {}", e);
+        }
+    }
+}
+
 /// 准备服务器启动的上下文
 /// 包括存储、缓存和路由配置等
 pub async fn prepare_server_startup() -> StartupContext {
@@ -84,6 +164,9 @@ pub async fn prepare_server_startup() -> StartupContext {
         .await
         .expect("Failed to create storage backend");
     warn!("Storage backend initialized and migrations completed");
+
+    // 初始化默认管理员账号（如果需要）
+    seed_admin(&storage).await;
 
     // 创建缓存实例
     let cache = create_cache().await.expect("Failed to create cache");

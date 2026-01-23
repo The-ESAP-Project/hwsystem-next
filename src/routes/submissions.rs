@@ -1,0 +1,117 @@
+use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};
+use once_cell::sync::Lazy;
+
+use crate::middlewares::{self, RequireJWT};
+use crate::models::submissions::requests::{CreateSubmissionRequest, SubmissionListQuery};
+use crate::models::{ApiResponse, ErrorCode};
+use crate::services::SubmissionService;
+
+// 懒加载的全局 SubmissionService 实例
+static SUBMISSION_SERVICE: Lazy<SubmissionService> = Lazy::new(SubmissionService::new_lazy);
+
+// 列出提交
+pub async fn list_submissions(
+    req: HttpRequest,
+    query: web::Query<SubmissionListQuery>,
+) -> ActixResult<HttpResponse> {
+    SUBMISSION_SERVICE
+        .list_submissions(&req, query.into_inner())
+        .await
+}
+
+// 创建提交
+pub async fn create_submission(
+    req: HttpRequest,
+    body: web::Json<CreateSubmissionRequest>,
+) -> ActixResult<HttpResponse> {
+    let user_id = match RequireJWT::extract_user_id(&req) {
+        Some(id) => id,
+        None => {
+            return Ok(HttpResponse::Unauthorized().json(ApiResponse::error_empty(
+                ErrorCode::Unauthorized,
+                "无法获取用户信息",
+            )));
+        }
+    };
+
+    SUBMISSION_SERVICE
+        .create_submission(&req, user_id, body.into_inner())
+        .await
+}
+
+// 获取提交详情
+pub async fn get_submission(req: HttpRequest, path: web::Path<i64>) -> ActixResult<HttpResponse> {
+    SUBMISSION_SERVICE
+        .get_submission(&req, path.into_inner())
+        .await
+}
+
+// 获取我的最新提交
+pub async fn get_my_latest_submission(
+    req: HttpRequest,
+    path: web::Path<i64>, // homework_id
+) -> ActixResult<HttpResponse> {
+    let user_id = match RequireJWT::extract_user_id(&req) {
+        Some(id) => id,
+        None => {
+            return Ok(HttpResponse::Unauthorized().json(ApiResponse::error_empty(
+                ErrorCode::Unauthorized,
+                "无法获取用户信息",
+            )));
+        }
+    };
+
+    SUBMISSION_SERVICE
+        .get_latest_submission(&req, path.into_inner(), user_id)
+        .await
+}
+
+// 获取我的提交历史
+pub async fn list_my_submissions(
+    req: HttpRequest,
+    path: web::Path<i64>, // homework_id
+) -> ActixResult<HttpResponse> {
+    let user_id = match RequireJWT::extract_user_id(&req) {
+        Some(id) => id,
+        None => {
+            return Ok(HttpResponse::Unauthorized().json(ApiResponse::error_empty(
+                ErrorCode::Unauthorized,
+                "无法获取用户信息",
+            )));
+        }
+    };
+
+    SUBMISSION_SERVICE
+        .list_user_submissions(&req, path.into_inner(), user_id)
+        .await
+}
+
+// 删除/撤回提交
+pub async fn delete_submission(
+    req: HttpRequest,
+    path: web::Path<i64>,
+) -> ActixResult<HttpResponse> {
+    SUBMISSION_SERVICE
+        .delete_submission(&req, path.into_inner())
+        .await
+}
+
+// 配置路由
+pub fn configure_submissions_routes(cfg: &mut web::ServiceConfig) {
+    cfg.service(
+        web::scope("/api/v1/submissions")
+            .wrap(middlewares::RequireJWT)
+            .route("", web::get().to(list_submissions))
+            .route("", web::post().to(create_submission))
+            .route("/{id}", web::get().to(get_submission))
+            .route("/{id}", web::delete().to(delete_submission)),
+    );
+
+    // 作业相关的提交路由
+    cfg.service(
+        web::scope("/api/v1/homeworks/{homework_id}/submissions")
+            .wrap(middlewares::RequireJWT)
+            .route("/my/latest", web::get().to(get_my_latest_submission))
+            .route("/my", web::get().to(list_my_submissions)),
+    );
+}

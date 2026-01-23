@@ -5,7 +5,10 @@
 mod class_users;
 mod classes;
 mod files;
+mod grades;
 mod homeworks;
+mod notifications;
+mod submissions;
 mod users;
 
 use crate::config::AppConfig;
@@ -126,7 +129,26 @@ use crate::models::{
         responses::ClassListResponse,
     },
     files::entities::File,
-    homeworks::{requests::HomeworkListQuery, responses::HomeworkListResponse},
+    grades::{
+        entities::Grade,
+        requests::{CreateGradeRequest, GradeListQuery, UpdateGradeRequest},
+        responses::GradeListResponse,
+    },
+    homeworks::{
+        entities::Homework,
+        requests::{CreateHomeworkRequest, HomeworkListQuery, UpdateHomeworkRequest},
+        responses::HomeworkListResponse,
+    },
+    notifications::{
+        entities::Notification,
+        requests::{CreateNotificationRequest, NotificationListQuery},
+        responses::NotificationListResponse,
+    },
+    submissions::{
+        entities::Submission,
+        requests::{CreateSubmissionRequest, SubmissionListQuery},
+        responses::SubmissionListResponse,
+    },
     users::{
         entities::User,
         requests::{CreateUserRequest, UpdateUserRequest, UserListQuery},
@@ -138,7 +160,10 @@ use async_trait::async_trait;
 
 #[async_trait]
 impl Storage for SeaOrmStorage {
+    // ============================================
     // 用户模块
+    // ============================================
+
     async fn create_user(&self, user: CreateUserRequest) -> Result<User> {
         self.create_user_impl(user).await
     }
@@ -175,15 +200,46 @@ impl Storage for SeaOrmStorage {
         self.delete_user_impl(id).await
     }
 
-    // 作业模块
-    async fn list_homeworks_with_pagination(
-        &self,
-        query: HomeworkListQuery,
-    ) -> Result<HomeworkListResponse> {
-        self.list_homeworks_with_pagination_impl(query).await
+    async fn count_users(&self) -> Result<u64> {
+        self.count_users_impl().await
     }
 
+    // ============================================
+    // 文件模块
+    // ============================================
+
+    async fn upload_file(
+        &self,
+        original_name: &str,
+        stored_name: &str,
+        file_size: &i64,
+        file_type: &str,
+        user_id: i64,
+    ) -> Result<File> {
+        self.upload_file_impl(original_name, stored_name, file_size, file_type, user_id)
+            .await
+    }
+
+    async fn get_file_by_token(&self, token: &str) -> Result<Option<File>> {
+        self.get_file_by_token_impl(token).await
+    }
+
+    async fn get_file_by_id(&self, id: i64) -> Result<Option<File>> {
+        self.get_file_by_id_impl(id).await
+    }
+
+    async fn increment_file_citation(&self, file_id: i64) -> Result<bool> {
+        self.increment_file_citation_impl(file_id).await
+    }
+
+    async fn decrement_file_citation(&self, file_id: i64) -> Result<bool> {
+        self.decrement_file_citation_impl(file_id).await
+    }
+
+    // ============================================
     // 班级模块
+    // ============================================
+
     async fn create_class(&self, class: CreateClassRequest) -> Result<Class> {
         self.create_class_impl(class).await
     }
@@ -215,7 +271,10 @@ impl Storage for SeaOrmStorage {
         self.delete_class_impl(class_id).await
     }
 
+    // ============================================
     // 班级用户模块
+    // ============================================
+
     async fn join_class(
         &self,
         user_id: i64,
@@ -276,20 +335,180 @@ impl Storage for SeaOrmStorage {
             .await
     }
 
-    // 文件模块
-    async fn upload_file(
+    // ============================================
+    // 作业模块
+    // ============================================
+
+    async fn create_homework(
         &self,
-        submission_token: &str,
-        file_name: &str,
-        file_size: &i64,
-        file_type: &str,
-        user_id: i64,
-    ) -> Result<File> {
-        self.upload_file_impl(submission_token, file_name, file_size, file_type, user_id)
+        created_by: i64,
+        req: CreateHomeworkRequest,
+    ) -> Result<Homework> {
+        self.create_homework_impl(created_by, req).await
+    }
+
+    async fn get_homework_by_id(&self, homework_id: i64) -> Result<Option<Homework>> {
+        self.get_homework_by_id_impl(homework_id).await
+    }
+
+    async fn list_homeworks_with_pagination(
+        &self,
+        query: HomeworkListQuery,
+    ) -> Result<HomeworkListResponse> {
+        self.list_homeworks_with_pagination_impl(query).await
+    }
+
+    async fn update_homework(
+        &self,
+        homework_id: i64,
+        update: UpdateHomeworkRequest,
+    ) -> Result<Option<Homework>> {
+        self.update_homework_impl(homework_id, update).await
+    }
+
+    async fn delete_homework(&self, homework_id: i64) -> Result<bool> {
+        self.delete_homework_impl(homework_id).await
+    }
+
+    async fn get_homework_file_ids(&self, homework_id: i64) -> Result<Vec<i64>> {
+        self.get_homework_file_ids_impl(homework_id).await
+    }
+
+    async fn set_homework_files(&self, homework_id: i64, file_ids: Vec<i64>) -> Result<()> {
+        self.set_homework_files_impl(homework_id, file_ids).await
+    }
+
+    // ============================================
+    // 提交模块
+    // ============================================
+
+    async fn create_submission(
+        &self,
+        creator_id: i64,
+        req: CreateSubmissionRequest,
+    ) -> Result<Submission> {
+        self.create_submission_impl(creator_id, req).await
+    }
+
+    async fn get_submission_by_id(&self, submission_id: i64) -> Result<Option<Submission>> {
+        self.get_submission_by_id_impl(submission_id).await
+    }
+
+    async fn get_latest_submission(
+        &self,
+        homework_id: i64,
+        creator_id: i64,
+    ) -> Result<Option<Submission>> {
+        self.get_latest_submission_impl(homework_id, creator_id)
             .await
     }
 
-    async fn get_file_by_token(&self, file_id: &str) -> Result<Option<File>> {
-        self.get_file_by_token_impl(file_id).await
+    async fn list_user_submissions(
+        &self,
+        homework_id: i64,
+        creator_id: i64,
+    ) -> Result<Vec<Submission>> {
+        self.list_user_submissions_impl(homework_id, creator_id)
+            .await
+    }
+
+    async fn list_submissions_with_pagination(
+        &self,
+        query: SubmissionListQuery,
+    ) -> Result<SubmissionListResponse> {
+        self.list_submissions_with_pagination_impl(query).await
+    }
+
+    async fn delete_submission(&self, submission_id: i64) -> Result<bool> {
+        self.delete_submission_impl(submission_id).await
+    }
+
+    async fn update_submission_status(&self, submission_id: i64, status: &str) -> Result<bool> {
+        self.update_submission_status_impl(submission_id, status)
+            .await
+    }
+
+    async fn get_submission_file_ids(&self, submission_id: i64) -> Result<Vec<i64>> {
+        self.get_submission_file_ids_impl(submission_id).await
+    }
+
+    async fn set_submission_files(&self, submission_id: i64, file_ids: Vec<i64>) -> Result<()> {
+        self.set_submission_files_impl(submission_id, file_ids)
+            .await
+    }
+
+    // ============================================
+    // 评分模块
+    // ============================================
+
+    async fn create_grade(&self, grader_id: i64, req: CreateGradeRequest) -> Result<Grade> {
+        self.create_grade_impl(grader_id, req).await
+    }
+
+    async fn get_grade_by_id(&self, grade_id: i64) -> Result<Option<Grade>> {
+        self.get_grade_by_id_impl(grade_id).await
+    }
+
+    async fn get_grade_by_submission_id(&self, submission_id: i64) -> Result<Option<Grade>> {
+        self.get_grade_by_submission_id_impl(submission_id).await
+    }
+
+    async fn update_grade(
+        &self,
+        grade_id: i64,
+        update: UpdateGradeRequest,
+    ) -> Result<Option<Grade>> {
+        self.update_grade_impl(grade_id, update).await
+    }
+
+    async fn list_grades_with_pagination(
+        &self,
+        query: GradeListQuery,
+    ) -> Result<GradeListResponse> {
+        self.list_grades_with_pagination_impl(query).await
+    }
+
+    // ============================================
+    // 通知模块
+    // ============================================
+
+    async fn create_notification(&self, req: CreateNotificationRequest) -> Result<Notification> {
+        self.create_notification_impl(req).await
+    }
+
+    async fn create_notifications_batch(
+        &self,
+        reqs: Vec<CreateNotificationRequest>,
+    ) -> Result<Vec<Notification>> {
+        self.create_notifications_batch_impl(reqs).await
+    }
+
+    async fn get_notification_by_id(&self, notification_id: i64) -> Result<Option<Notification>> {
+        self.get_notification_by_id_impl(notification_id).await
+    }
+
+    async fn list_notifications_with_pagination(
+        &self,
+        user_id: i64,
+        query: NotificationListQuery,
+    ) -> Result<NotificationListResponse> {
+        self.list_notifications_with_pagination_impl(user_id, query)
+            .await
+    }
+
+    async fn get_unread_notification_count(&self, user_id: i64) -> Result<i64> {
+        self.get_unread_notification_count_impl(user_id).await
+    }
+
+    async fn mark_notification_as_read(&self, notification_id: i64) -> Result<bool> {
+        self.mark_notification_as_read_impl(notification_id).await
+    }
+
+    async fn mark_all_notifications_as_read(&self, user_id: i64) -> Result<i64> {
+        self.mark_all_notifications_as_read_impl(user_id).await
+    }
+
+    async fn delete_notification(&self, notification_id: i64) -> Result<bool> {
+        self.delete_notification_impl(notification_id).await
     }
 }

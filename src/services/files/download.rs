@@ -35,7 +35,7 @@ pub async fn handle_download(
 
     let config = AppConfig::get();
     let upload_dir = &config.upload.dir;
-    let file_path = format!("{}/{}.bin", upload_dir, db_file.submission_token);
+    let file_path = format!("{}/{}", upload_dir, db_file.stored_name);
 
     if !Path::new(&file_path).exists() {
         return Ok(HttpResponse::NotFound()
@@ -68,10 +68,10 @@ pub async fn handle_download(
 
     // 使用数据库中的原始文件名
     Ok(HttpResponse::Ok()
-        .insert_header((header::CONTENT_TYPE, "application/octet-stream"))
+        .insert_header((header::CONTENT_TYPE, db_file.file_type.as_str()))
         .insert_header((
             header::CONTENT_DISPOSITION,
-            format!("attachment; filename=\"{}\"", db_file.file_name),
+            format!("attachment; filename=\"{}\"", db_file.original_name),
         ))
         .body(buf))
 }

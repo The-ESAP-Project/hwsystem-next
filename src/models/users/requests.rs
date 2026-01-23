@@ -1,4 +1,4 @@
-use super::entities::{UserProfile, UserRole, UserStatus};
+use super::entities::{UserRole, UserStatus};
 use crate::models::common::PaginationQuery;
 use serde::Deserialize;
 use ts_rs::TS;
@@ -23,7 +23,8 @@ pub struct CreateUserRequest {
     pub email: String,
     pub password: String,
     pub role: UserRole,
-    pub profile: UserProfile,
+    pub display_name: Option<String>,
+    pub avatar_url: Option<String>,
 }
 
 // 用户更新请求
@@ -34,7 +35,8 @@ pub struct UpdateUserRequest {
     pub password: Option<String>,
     pub role: Option<UserRole>,
     pub status: Option<UserStatus>,
-    pub profile: Option<UserProfile>,
+    pub display_name: Option<String>,
+    pub avatar_url: Option<String>,
 }
 
 // 用户列表查询参数（用于存储层）

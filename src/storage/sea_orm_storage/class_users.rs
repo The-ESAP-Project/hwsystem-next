@@ -32,8 +32,6 @@ impl SeaOrmStorage {
             class_id: Set(class_id),
             user_id: Set(user_id),
             role: Set(role.to_string()),
-            profile_name: Set(None),
-            updated_at: Set(now),
             joined_at: Set(now),
             ..Default::default()
         };
@@ -79,11 +77,8 @@ impl SeaOrmStorage {
             return Ok(None);
         }
 
-        let now = chrono::Utc::now().timestamp();
-
         let mut model = ActiveModel {
             id: Set(class_user_id),
-            updated_at: Set(now),
             ..Default::default()
         };
 
@@ -108,17 +103,9 @@ impl SeaOrmStorage {
         let page = query.page.unwrap_or(1).max(1) as u64;
         let size = query.size.unwrap_or(10).clamp(1, 100) as u64;
 
-        let mut select = ClassUsers::find().filter(Column::ClassId.eq(class_id));
-
-        // 搜索条件（按 profile_name 搜索）
-        if let Some(ref search) = query.search
-            && !search.trim().is_empty()
-        {
-            select = select.filter(Column::ProfileName.contains(search.trim()));
-        }
-
-        // 排序
-        select = select.order_by_desc(Column::JoinedAt);
+        let select = ClassUsers::find()
+            .filter(Column::ClassId.eq(class_id))
+            .order_by_desc(Column::JoinedAt);
 
         // 分页查询
         let paginator = select.paginate(&self.db, size);
@@ -184,7 +171,7 @@ impl SeaOrmStorage {
         if let Some(ref search) = query.search
             && !search.trim().is_empty()
         {
-            select = select.filter(ClassColumn::ClassName.contains(search.trim()));
+            select = select.filter(ClassColumn::Name.contains(search.trim()));
         }
 
         // 排序

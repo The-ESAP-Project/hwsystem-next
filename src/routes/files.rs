@@ -1,7 +1,7 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, middleware, web};
 use once_cell::sync::Lazy;
 
-use crate::middlewares;
+use crate::middlewares::{self, RateLimit};
 use crate::services::FileService;
 
 // 懒加载的全局 FileService 实例
@@ -28,7 +28,12 @@ pub fn configure_file_routes(cfg: &mut web::ServiceConfig) {
         web::scope("/api/v1/files")
             .wrap(middlewares::RequireJWT)
             .wrap(middleware::Compress::default())
-            .route("/upload", web::post().to(handle_upload))
+            // 文件上传：10次/分钟/用户
+            .service(
+                web::resource("/upload")
+                    .wrap(RateLimit::file_upload())
+                    .route(web::post().to(handle_upload)),
+            )
             .route("/download/{file_token}", web::get().to(handle_download)),
     );
 }

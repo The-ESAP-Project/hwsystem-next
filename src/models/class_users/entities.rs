@@ -73,8 +73,6 @@ pub struct ClassUser {
     pub id: i64,
     pub class_id: i64,
     pub user_id: i64,
-    pub profile_name: Option<String>,
     pub role: ClassUserRole,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
     pub joined_at: chrono::DateTime<chrono::Utc>,
 }

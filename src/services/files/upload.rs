@@ -36,11 +36,11 @@ pub async fn handle_upload(
     }
 
     // 文件相关信息
-    let mut submission_token = String::new();
-    let mut file_name = String::new();
+    let mut original_name = String::new();
     let mut file_size: i64 = 0;
     let mut file_uploaded = false;
     let mut file_type = String::new();
+    let mut stored_name = String::new();
 
     while let Ok(Some(mut field)) = payload.try_next().await {
         let content_disposition = field.content_disposition();
@@ -71,13 +71,13 @@ pub async fn handle_upload(
             }
 
             // 获取原始文件名
-            file_name = content_disposition
+            original_name = content_disposition
                 .and_then(|cd| cd.get_filename())
                 .map(|s| s.to_string())
                 .unwrap_or_default();
 
-            submission_token = format!("{}-{}", chrono::Utc::now().timestamp(), Uuid::new_v4());
-            let file_path = format!("{upload_dir}/{submission_token}.bin");
+            stored_name = format!("{}-{}.bin", chrono::Utc::now().timestamp(), Uuid::new_v4());
+            let file_path = format!("{upload_dir}/{stored_name}");
             let mut f = File::create(&file_path).map_err(|e| {
                 tracing::error!("{}", HWSystemError::file_operation(format!("{e}")));
                 actix_web::error::ErrorInternalServerError(HWSystemError::file_operation(
@@ -117,8 +117,8 @@ pub async fn handle_upload(
 
     let db_file = match storage
         .upload_file(
-            &submission_token,
-            &file_name,
+            &original_name,
+            &stored_name,
             &file_size,
             &file_type,
             user_id,
@@ -126,11 +126,11 @@ pub async fn handle_upload(
         .await
     {
         Ok(file) => FileUploadResponse {
-            submission_token: file.submission_token,
-            file_name: file.file_name,
+            download_token: file.download_token,
+            file_name: file.original_name,
             size: file.file_size,
             content_type: file.file_type,
-            uploaded_at: file.uploaded_at,
+            created_at: file.created_at,
         },
         Err(e) => {
             return Ok(

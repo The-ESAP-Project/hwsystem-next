@@ -1,3 +1,13 @@
+use serde_repr::{Deserialize_repr, Serialize_repr};
+use ts_rs::TS;
+
+// ErrorCode 使用 serde_repr 序列化为数字
+// 使用 #[ts(repr(enum))] 导出为 TypeScript 数字枚举
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr, TS)]
+#[ts(export, export_to = "../frontend/src/types/generated/error_code.ts")]
+#[ts(rename = "ErrorCode")]
+#[ts(repr(enum))]
+#[repr(i32)]
 pub enum ErrorCode {
     // 成功
     Success = 0, // 成功
@@ -5,14 +15,17 @@ pub enum ErrorCode {
     // 通用错误
     BadRequest = 1000,          // 错误的请求
     Unauthorized = 1001,        // 未授权访问
+    Forbidden = 1003,           // 禁止访问
     NotFound = 1004,            // 未找到资源
     InternalServerError = 1005, // 内部服务器错误
     NotImplemented = 1006,      // 未实现的功能
     Conflict = 1009,            // 冲突 (资源已存在)
+    RateLimitExceeded = 1029,   // 请求过于频繁
 
     // Auth 错误
-    AuthFailed = 2000,     // 身份验证失败
-    RegisterFailed = 2001, // 注册失败
+    AuthFailed = 2000,              // 身份验证失败
+    RegisterFailed = 2001,          // 注册失败
+    PasswordPolicyViolation = 2002, // 密码不符合策略要求
 
     // 文件相关错误
     FileNotFound = 3000,              // 文件未找到

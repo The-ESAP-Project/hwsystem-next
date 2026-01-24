@@ -212,11 +212,11 @@ impl SeaOrmStorage {
         if query.include_stats.unwrap_or(false) && !homeworks.is_empty() {
             let homework_ids: Vec<i64> = homeworks.iter().map(|h| h.id).collect();
 
-            // 获取每个作业所属班级的学生数（只统计学生，排除教师和助教）
+            // 获取每个作业所属班级的需要提交作业的人数（学生和课代表，排除教师）
             for hw in &homeworks {
                 let total_students = ClassUsers::find()
                     .filter(ClassUserColumn::ClassId.eq(hw.class_id))
-                    .filter(ClassUserColumn::Role.eq("student"))
+                    .filter(ClassUserColumn::Role.is_in(["student", "class_representative"]))
                     .count(&self.db)
                     .await
                     .map_err(|e| {

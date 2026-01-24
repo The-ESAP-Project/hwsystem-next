@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use super::GradeService;
 use crate::middlewares::RequireJWT;
+use crate::models::class_users::entities::ClassUserRole;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
 use crate::storage::Storage;
@@ -35,52 +36,60 @@ async fn check_grade_access_permission(
         }
     };
 
-    match current_user.role {
-        UserRole::Teacher => {
-            // 教师只能查看自己班级的评分
-            let homework = match storage.get_homework_by_id(submission.homework_id).await {
-                Ok(Some(hw)) => hw,
-                _ => {
-                    return Err(HttpResponse::NotFound()
-                        .json(ApiResponse::error_empty(ErrorCode::NotFound, "作业不存在")));
-                }
-            };
-
-            let class = match storage.get_class_by_id(homework.class_id).await {
-                Ok(Some(c)) => c,
-                _ => {
-                    return Err(HttpResponse::NotFound().json(ApiResponse::error_empty(
-                        ErrorCode::ClassNotFound,
-                        "班级不存在",
-                    )));
-                }
-            };
-
-            if class.teacher_id != current_user.id {
-                return Err(HttpResponse::Forbidden().json(ApiResponse::error_empty(
-                    ErrorCode::Forbidden,
-                    "只能查看自己班级的评分",
-                )));
-            }
-        }
-        UserRole::User => {
-            // 学生只能查看自己的评分
-            if submission.creator_id != current_user.id {
-                return Err(HttpResponse::Forbidden().json(ApiResponse::error_empty(
-                    ErrorCode::Forbidden,
-                    "只能查看自己的评分",
-                )));
-            }
-        }
-        _ => {
-            return Err(HttpResponse::Forbidden().json(ApiResponse::error_empty(
-                ErrorCode::Forbidden,
-                "没有查看评分的权限",
-            )));
-        }
+    // 如果是提交者本人，允许查看自己的成绩
+    if submission.creator_id == current_user.id {
+        return Ok(());
     }
 
-    Ok(())
+    // 获取作业信息以确定班级
+    let homework = match storage.get_homework_by_id(submission.homework_id).await {
+        Ok(Some(hw)) => hw,
+        Ok(None) => {
+            return Err(HttpResponse::NotFound()
+                .json(ApiResponse::error_empty(ErrorCode::NotFound, "作业不存在")));
+        }
+        Err(e) => {
+            return Err(
+                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
+                    ErrorCode::InternalServerError,
+                    format!("查询作业失败: {e}"),
+                )),
+            );
+        }
+    };
+
+    // 检查用户在班级中的角色
+    let class_user = match storage
+        .get_class_user_by_user_id_and_class_id(current_user.id, homework.class_id)
+        .await
+    {
+        Ok(Some(cu)) => cu,
+        Ok(None) => {
+            return Err(HttpResponse::Forbidden().json(ApiResponse::error_empty(
+                ErrorCode::ClassPermissionDenied,
+                "您不是该班级成员",
+            )));
+        }
+        Err(e) => {
+            return Err(
+                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
+                    ErrorCode::InternalServerError,
+                    format!("查询班级成员失败: {e}"),
+                )),
+            );
+        }
+    };
+
+    // 教师可以查看班级内的成绩
+    if class_user.role == ClassUserRole::Teacher {
+        return Ok(());
+    }
+
+    // 其他角色（包括课代表和学生）只能查看自己的成绩（上面已处理）
+    Err(HttpResponse::Forbidden().json(ApiResponse::error_empty(
+        ErrorCode::Forbidden,
+        "没有查看该评分的权限",
+    )))
 }
 
 pub async fn get_grade(

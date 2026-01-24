@@ -426,11 +426,13 @@ impl SeaOrmStorage {
     }
 
     /// 获取作业提交概览（按学生聚合）
+    /// - `include_grades`: 是否包含成绩信息（课代表不可见成绩）
     pub async fn get_submission_summary_impl(
         &self,
         homework_id: i64,
         page: i64,
         size: i64,
+        include_grades: bool,
     ) -> Result<SubmissionSummaryResponse> {
         let page = page.max(1) as u64;
         let size = size.clamp(1, 100) as u64;
@@ -503,7 +505,18 @@ impl SeaOrmStorage {
             .into_iter()
             .map(|(creator_id, (sub, version_count))| {
                 let user = user_map.get(&creator_id);
-                let grade = grade_map.get(&sub.id);
+                // 根据 include_grades 参数决定是否返回成绩
+                let grade = if include_grades {
+                    grade_map.get(&sub.id).map(|g| SubmissionGradeInfo {
+                        score: g.score,
+                        comment: g.comment.clone(),
+                        graded_at: chrono::DateTime::from_timestamp(g.graded_at, 0)
+                            .map(|dt| dt.to_rfc3339())
+                            .unwrap_or_default(),
+                    })
+                } else {
+                    None
+                };
 
                 SubmissionSummaryItem {
                     creator: SubmissionCreator {
@@ -523,13 +536,7 @@ impl SeaOrmStorage {
                             .map(|dt| dt.to_rfc3339())
                             .unwrap_or_default(),
                     },
-                    grade: grade.map(|g| SubmissionGradeInfo {
-                        score: g.score,
-                        comment: g.comment.clone(),
-                        graded_at: chrono::DateTime::from_timestamp(g.graded_at, 0)
-                            .map(|dt| dt.to_rfc3339())
-                            .unwrap_or_default(),
-                    }),
+                    grade,
                     total_versions: version_count,
                 }
             })
@@ -547,13 +554,121 @@ impl SeaOrmStorage {
     }
 
     /// 获取某学生某作业的所有提交版本（教师视角）
+    /// - `include_grades`: 是否包含成绩信息（课代表不可见成绩）
     pub async fn list_user_submissions_for_teacher_impl(
         &self,
         homework_id: i64,
         user_id: i64,
+        include_grades: bool,
     ) -> Result<Vec<UserSubmissionHistoryItem>> {
-        // 复用现有的 list_user_submissions_impl，它已经实现了按版本倒序
-        self.list_user_submissions_impl(homework_id, user_id).await
+        let submissions = Submissions::find()
+            .filter(Column::HomeworkId.eq(homework_id))
+            .filter(Column::CreatorId.eq(user_id))
+            .order_by_desc(Column::Version)
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询提交历史失败: {e}")))?;
+
+        if submissions.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // 批量查询评分（仅当 include_grades 为 true 时需要）
+        let grade_map: HashMap<i64, _> = if include_grades {
+            let submission_ids: Vec<i64> = submissions.iter().map(|s| s.id).collect();
+            let grades = Grades::find()
+                .filter(GradeColumn::SubmissionId.is_in(submission_ids))
+                .all(&self.db)
+                .await
+                .map_err(|e| HWSystemError::database_operation(format!("查询评分失败: {e}")))?;
+            grades.into_iter().map(|g| (g.submission_id, g)).collect()
+        } else {
+            HashMap::new()
+        };
+
+        // 批量查询附件关联
+        let submission_ids: Vec<i64> = submissions.iter().map(|s| s.id).collect();
+        let sub_files = SubmissionFiles::find()
+            .filter(SubmissionFileColumn::SubmissionId.is_in(submission_ids))
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询提交附件失败: {e}")))?;
+
+        // 按 submission_id 分组
+        let mut file_ids_map: HashMap<i64, Vec<i64>> = HashMap::new();
+        for sf in &sub_files {
+            file_ids_map
+                .entry(sf.submission_id)
+                .or_default()
+                .push(sf.file_id);
+        }
+
+        // 批量查询所有文件信息
+        let all_file_ids: Vec<i64> = sub_files.iter().map(|sf| sf.file_id).collect();
+        let mut file_map: HashMap<i64, FileInfo> = HashMap::new();
+        if !all_file_ids.is_empty() {
+            use crate::entity::files::{Column as FileColumn, Entity as Files};
+            let files = Files::find()
+                .filter(FileColumn::Id.is_in(all_file_ids))
+                .all(&self.db)
+                .await
+                .map_err(|e| HWSystemError::database_operation(format!("查询文件信息失败: {e}")))?;
+            for f in files {
+                file_map.insert(
+                    f.id,
+                    FileInfo {
+                        download_token: f.download_token,
+                        original_name: f.original_name,
+                        file_size: f.file_size,
+                        file_type: f.file_type,
+                    },
+                );
+            }
+        }
+
+        // 组装结果
+        let items = submissions
+            .into_iter()
+            .map(|s| {
+                // 根据 include_grades 参数决定是否返回成绩
+                let grade = if include_grades {
+                    grade_map.get(&s.id).map(|g| SubmissionGradeInfo {
+                        score: g.score,
+                        comment: g.comment.clone(),
+                        graded_at: chrono::DateTime::from_timestamp(g.graded_at, 0)
+                            .map(|dt| dt.to_rfc3339())
+                            .unwrap_or_default(),
+                    })
+                } else {
+                    None
+                };
+
+                let attachments = file_ids_map
+                    .get(&s.id)
+                    .map(|fids| {
+                        fids.iter()
+                            .filter_map(|fid| file_map.get(fid).cloned())
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                UserSubmissionHistoryItem {
+                    id: s.id,
+                    homework_id: s.homework_id,
+                    version: s.version,
+                    content: s.content,
+                    status: s.status,
+                    is_late: s.is_late,
+                    submitted_at: chrono::DateTime::from_timestamp(s.submitted_at, 0)
+                        .map(|dt| dt.to_rfc3339())
+                        .unwrap_or_default(),
+                    attachments,
+                    grade,
+                }
+            })
+            .collect();
+
+        Ok(items)
     }
 
     /// 获取提交详情（完整响应，包含 creator、attachments、grade）

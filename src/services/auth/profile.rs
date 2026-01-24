@@ -30,12 +30,13 @@ pub async fn handle_update_profile(
     if let Some(ref email) = update_data.email {
         // 检查邮箱是否已被其他用户使用
         if let Ok(Some(existing_user)) = storage.get_user_by_email(email).await
-            && existing_user.id != current_user.id {
-                return Ok(HttpResponse::BadRequest().json(ApiResponse::error_empty(
-                    ErrorCode::UserEmailAlreadyExists,
-                    "该邮箱已被使用",
-                )));
-            }
+            && existing_user.id != current_user.id
+        {
+            return Ok(HttpResponse::BadRequest().json(ApiResponse::error_empty(
+                ErrorCode::UserEmailAlreadyExists,
+                "该邮箱已被使用",
+            )));
+        }
     }
 
     // 处理密码（如果提供了新密码）

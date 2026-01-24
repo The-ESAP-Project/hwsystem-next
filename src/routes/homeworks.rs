@@ -130,12 +130,8 @@ pub fn configure_homeworks_routes(cfg: &mut web::ServiceConfig) {
             )
             .service(
                 web::resource("/{id}/stats")
-                    // 获取作业统计 - 仅教师和管理员可访问
-                    .route(
-                        web::get()
-                            .to(get_homework_stats)
-                            .wrap(middlewares::RequireRole::new_any(UserRole::teacher_roles())),
-                    ),
+                    // 权限在业务层检查（允许教师、课代表、管理员）
+                    .route(web::get().to(get_homework_stats)),
             ),
     );
 }

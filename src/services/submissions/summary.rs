@@ -3,13 +3,16 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use crate::middlewares::RequireJWT;
+use crate::models::class_users::entities::ClassUserRole;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
 use crate::services::submissions::SubmissionService;
 
 /// 获取作业提交概览（按学生聚合）
 ///
-/// 权限：教师和管理员
+/// 权限：班级教师、课代表和管理员
+/// - 教师和管理员可以看到成绩
+/// - 课代表只能看到提交状态，不能看到成绩
 pub async fn get_submission_summary(
     service: &SubmissionService,
     request: &HttpRequest,
@@ -46,40 +49,57 @@ pub async fn get_submission_summary(
         }
     };
 
-    // 权限检查：仅教师和管理员可访问
-    match current_user.role {
-        UserRole::Admin => {
-            // 管理员可以访问任何作业
-        }
-        UserRole::Teacher => {
-            // 教师只能访问自己班级的作业
-            let has_access =
-                check_teacher_class_access(&storage, current_user.id, homework.class_id).await;
-            if !has_access {
+    // 权限检查：Admin 直接放行，其他用户检查班级角色
+    // 同时确定是否可以查看成绩（教师和管理员可以，课代表不可以）
+    let include_grades = if current_user.role == UserRole::Admin {
+        true // Admin 可以查看成绩
+    } else {
+        // 非 Admin 用户需要验证班级成员资格
+        let class_user = match storage
+            .get_class_user_by_user_id_and_class_id(current_user.id, homework.class_id)
+            .await
+        {
+            Ok(Some(cu)) => cu,
+            Ok(None) => {
                 return Ok(
                     HttpResponse::Forbidden().json(ApiResponse::<()>::error_empty(
-                        ErrorCode::Forbidden,
-                        "您无权查看此作业的提交概览",
+                        ErrorCode::ClassPermissionDenied,
+                        "您不是该班级成员",
                     )),
                 );
             }
-        }
-        UserRole::User => {
+            Err(e) => {
+                return Ok(HttpResponse::InternalServerError().json(
+                    ApiResponse::<()>::error_empty(
+                        ErrorCode::InternalServerError,
+                        format!("查询班级成员失败: {e}"),
+                    ),
+                ));
+            }
+        };
+
+        // 验证是教师或课代表
+        if class_user.role != ClassUserRole::Teacher
+            && class_user.role != ClassUserRole::ClassRepresentative
+        {
             return Ok(
                 HttpResponse::Forbidden().json(ApiResponse::<()>::error_empty(
-                    ErrorCode::Forbidden,
-                    "学生无权查看提交概览",
+                    ErrorCode::ClassPermissionDenied,
+                    "只有教师或课代表可以查看提交概览",
                 )),
             );
         }
-    }
+
+        // 教师可以查看成绩，课代表不可以
+        class_user.role == ClassUserRole::Teacher
+    };
 
     // 获取提交概览
     let page = page.unwrap_or(1);
     let size = size.unwrap_or(20);
 
     let summary = storage
-        .get_submission_summary(homework_id, page, size)
+        .get_submission_summary(homework_id, page, size, include_grades)
         .await
         .map_err(|e| {
             actix_web::error::ErrorInternalServerError(format!("查询提交概览失败: {e}"))
@@ -90,7 +110,9 @@ pub async fn get_submission_summary(
 
 /// 获取某学生某作业的所有提交版本（教师视角）
 ///
-/// 权限：教师和管理员
+/// 权限：班级教师、课代表和管理员
+/// - 教师和管理员可以看到成绩
+/// - 课代表只能看到提交状态，不能看到成绩
 pub async fn list_user_submissions_for_teacher(
     service: &SubmissionService,
     request: &HttpRequest,
@@ -126,37 +148,54 @@ pub async fn list_user_submissions_for_teacher(
         }
     };
 
-    // 权限检查：仅教师和管理员可访问
-    match current_user.role {
-        UserRole::Admin => {
-            // 管理员可以访问任何作业
-        }
-        UserRole::Teacher => {
-            // 教师只能访问自己班级的作业
-            let has_access =
-                check_teacher_class_access(&storage, current_user.id, homework.class_id).await;
-            if !has_access {
+    // 权限检查：Admin 直接放行，其他用户检查班级角色
+    // 同时确定是否可以查看成绩（教师和管理员可以，课代表不可以）
+    let include_grades = if current_user.role == UserRole::Admin {
+        true // Admin 可以查看成绩
+    } else {
+        // 非 Admin 用户需要验证班级成员资格
+        let class_user = match storage
+            .get_class_user_by_user_id_and_class_id(current_user.id, homework.class_id)
+            .await
+        {
+            Ok(Some(cu)) => cu,
+            Ok(None) => {
                 return Ok(
                     HttpResponse::Forbidden().json(ApiResponse::<()>::error_empty(
-                        ErrorCode::Forbidden,
-                        "您无权查看此学生的提交历史",
+                        ErrorCode::ClassPermissionDenied,
+                        "您不是该班级成员",
                     )),
                 );
             }
-        }
-        UserRole::User => {
+            Err(e) => {
+                return Ok(HttpResponse::InternalServerError().json(
+                    ApiResponse::<()>::error_empty(
+                        ErrorCode::InternalServerError,
+                        format!("查询班级成员失败: {e}"),
+                    ),
+                ));
+            }
+        };
+
+        // 验证是教师或课代表
+        if class_user.role != ClassUserRole::Teacher
+            && class_user.role != ClassUserRole::ClassRepresentative
+        {
             return Ok(
                 HttpResponse::Forbidden().json(ApiResponse::<()>::error_empty(
-                    ErrorCode::Forbidden,
-                    "学生无权查看其他学生的提交历史",
+                    ErrorCode::ClassPermissionDenied,
+                    "只有教师或课代表可以查看学生提交历史",
                 )),
             );
         }
-    }
+
+        // 教师可以查看成绩，课代表不可以
+        class_user.role == ClassUserRole::Teacher
+    };
 
     // 获取学生提交历史
     let submissions = storage
-        .list_user_submissions_for_teacher(homework_id, user_id)
+        .list_user_submissions_for_teacher(homework_id, user_id, include_grades)
         .await
         .map_err(|e| {
             actix_web::error::ErrorInternalServerError(format!("查询提交历史失败: {e}"))
@@ -166,28 +205,4 @@ pub async fn list_user_submissions_for_teacher(
         crate::models::submissions::responses::UserSubmissionHistoryResponse { items: submissions },
         "查询成功",
     )))
-}
-
-/// 检查教师是否有班级访问权限
-async fn check_teacher_class_access(
-    storage: &std::sync::Arc<dyn crate::storage::Storage>,
-    teacher_id: i64,
-    class_id: i64,
-) -> bool {
-    // 先检查是否是班级成员
-    if let Ok(Some(_)) = storage
-        .get_class_user_by_user_id_and_class_id(teacher_id, class_id)
-        .await
-    {
-        return true;
-    }
-
-    // 再检查是否是班级创建者（teacher_id）
-    if let Ok(Some(class)) = storage.get_class_by_id(class_id).await
-        && class.teacher_id == teacher_id
-    {
-        return true;
-    }
-
-    false
 }

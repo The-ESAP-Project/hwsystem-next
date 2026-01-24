@@ -7,6 +7,7 @@ use crate::{
     middlewares::RequireJWT,
     models::{
         ApiResponse, ErrorCode,
+        class_users::entities::ClassUserRole,
         classes::{
             entities::Class,
             responses::{ClassDetail, TeacherInfo},
@@ -37,7 +38,7 @@ pub async fn get_class(
     match storage.get_class_by_id(class_id).await {
         Ok(Some(class)) => {
             // 权限校验
-            if let Err(resp) = check_class_access_permission(&storage, role, uid, &class).await {
+            if let Err(resp) = check_class_access_permission(&storage, &role, uid, &class).await {
                 return Ok(resp);
             }
 
@@ -58,10 +59,26 @@ pub async fn get_class(
             // 获取成员数量
             let member_count = storage.count_class_members(class_id).await.unwrap_or(0);
 
+            // 获取当前用户在班级中的角色
+            let my_role: Option<ClassUserRole> = match role {
+                Some(UserRole::Admin) => Some(ClassUserRole::Teacher), // 管理员视为教师权限
+                Some(UserRole::Teacher) if class.teacher_id == uid => Some(ClassUserRole::Teacher),
+                Some(UserRole::Teacher) | Some(UserRole::User) | None => {
+                    // 查询用户在班级中的角色
+                    storage
+                        .get_class_user_by_user_id_and_class_id(uid, class_id)
+                        .await
+                        .ok()
+                        .flatten()
+                        .map(|cu| cu.role)
+                }
+            };
+
             let detail = ClassDetail {
                 class,
                 teacher: teacher_info,
                 member_count,
+                my_role,
             };
 
             Ok(HttpResponse::Ok().json(ApiResponse::success(
@@ -85,7 +102,7 @@ pub async fn get_class(
 /// 权限校验辅助函数
 async fn check_class_access_permission(
     storage: &Arc<dyn Storage>,
-    role: Option<UserRole>,
+    role: &Option<UserRole>,
     uid: i64,
     class: &Class,
 ) -> Result<(), HttpResponse> {

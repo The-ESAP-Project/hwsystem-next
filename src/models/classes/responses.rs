@@ -1,4 +1,5 @@
 use super::entities::Class;
+use crate::models::class_users::entities::ClassUserRole;
 use crate::models::common::PaginationInfo;
 use serde::Serialize;
 use ts_rs::TS;
@@ -20,6 +21,8 @@ pub struct ClassDetail {
     pub class: Class,
     pub teacher: TeacherInfo,
     pub member_count: i64,
+    /// 当前用户在该班级的角色（仅当用户是班级成员时有值）
+    pub my_role: Option<ClassUserRole>,
 }
 
 // 班级列表响应

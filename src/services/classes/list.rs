@@ -156,6 +156,7 @@ async fn enrich_class_list(
             class,
             teacher,
             member_count,
+            my_role: None, // 列表接口不填充 my_role，获取详情时才查询
         });
     }
 

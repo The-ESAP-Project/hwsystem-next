@@ -255,17 +255,21 @@ pub trait Storage: Send + Sync {
         user_id: i64,
     ) -> Result<()>;
     /// 获取作业提交概览（按学生聚合）
+    /// - `include_grades`: 是否包含成绩信息（课代表不可见成绩）
     async fn get_submission_summary(
         &self,
         homework_id: i64,
         page: i64,
         size: i64,
+        include_grades: bool,
     ) -> Result<SubmissionSummaryResponse>;
     /// 获取某学生某作业的所有提交版本（教师视角，包含评分和附件）
+    /// - `include_grades`: 是否包含成绩信息（课代表不可见成绩）
     async fn list_user_submissions_for_teacher(
         &self,
         homework_id: i64,
         user_id: i64,
+        include_grades: bool,
     ) -> Result<Vec<UserSubmissionHistoryItem>>;
 
     // ============================================

@@ -102,11 +102,4 @@ pub fn configure_grades_routes(cfg: &mut web::ServiceConfig) {
                     ),
             ),
     );
-
-    // 提交相关的评分路由
-    cfg.service(
-        web::scope("/api/v1/submissions/{submission_id}/grade")
-            .wrap(middlewares::RequireJWT)
-            .route("", web::get().to(get_submission_grade)),
-    );
 }

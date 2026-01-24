@@ -475,8 +475,9 @@ impl Storage for SeaOrmStorage {
         homework_id: i64,
         page: i64,
         size: i64,
+        include_grades: bool,
     ) -> Result<SubmissionSummaryResponse> {
-        self.get_submission_summary_impl(homework_id, page, size)
+        self.get_submission_summary_impl(homework_id, page, size, include_grades)
             .await
     }
 
@@ -484,8 +485,9 @@ impl Storage for SeaOrmStorage {
         &self,
         homework_id: i64,
         user_id: i64,
+        include_grades: bool,
     ) -> Result<Vec<UserSubmissionHistoryItem>> {
-        self.list_user_submissions_for_teacher_impl(homework_id, user_id)
+        self.list_user_submissions_for_teacher_impl(homework_id, user_id, include_grades)
             .await
     }
 

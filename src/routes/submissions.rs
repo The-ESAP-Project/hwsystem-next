@@ -6,6 +6,8 @@ use crate::models::submissions::requests::{CreateSubmissionRequest, SubmissionLi
 use crate::models::{ApiResponse, ErrorCode};
 use crate::services::SubmissionService;
 
+use super::grades::get_submission_grade;
+
 // 懒加载的全局 SubmissionService 实例
 static SUBMISSION_SERVICE: Lazy<SubmissionService> = Lazy::new(SubmissionService::new_lazy);
 
@@ -143,7 +145,8 @@ pub fn configure_submissions_routes(cfg: &mut web::ServiceConfig) {
             .route("", web::get().to(list_submissions))
             .route("", web::post().to(create_submission))
             .route("/{id}", web::get().to(get_submission))
-            .route("/{id}", web::delete().to(delete_submission)),
+            .route("/{id}", web::delete().to(delete_submission))
+            .route("/{id}/grade", web::get().to(get_submission_grade)),
     );
 
     // 作业相关的提交路由

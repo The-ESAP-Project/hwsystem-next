@@ -7,7 +7,7 @@ use crate::models::{
     users::{requests::CreateUserRequest, responses::UserResponse},
 };
 use crate::utils::password::hash_password;
-use crate::utils::validate::{validate_email, validate_username};
+use crate::utils::validate::{validate_email, validate_password_simple, validate_username};
 
 pub async fn create_user(
     service: &UserService,
@@ -24,6 +24,14 @@ pub async fn create_user(
     if let Err(msg) = validate_email(&user_data.email) {
         return Ok(HttpResponse::BadRequest()
             .json(ApiResponse::error_empty(ErrorCode::UserEmailInvalid, msg)));
+    }
+
+    // 验证密码策略
+    if let Err(msg) = validate_password_simple(&user_data.password) {
+        return Ok(HttpResponse::BadRequest().json(ApiResponse::error_empty(
+            ErrorCode::UserPasswordInvalid,
+            msg,
+        )));
     }
 
     user_data.password = match hash_password(&user_data.password) {

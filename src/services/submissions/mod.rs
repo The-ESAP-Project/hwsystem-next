@@ -8,6 +8,7 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use std::sync::Arc;
 
 use crate::models::submissions::requests::{CreateSubmissionRequest, SubmissionListQuery};
+use crate::models::users::entities::UserRole;
 use crate::storage::Storage;
 
 pub struct SubmissionService {
@@ -36,9 +37,10 @@ impl SubmissionService {
         &self,
         request: &HttpRequest,
         creator_id: i64,
+        creator_role: UserRole,
         req: CreateSubmissionRequest,
     ) -> ActixResult<HttpResponse> {
-        create::create_submission(self, request, creator_id, req).await
+        create::create_submission(self, request, creator_id, creator_role, req).await
     }
 
     /// 获取提交详情
@@ -84,7 +86,8 @@ impl SubmissionService {
         &self,
         request: &HttpRequest,
         submission_id: i64,
+        user_id: i64,
     ) -> ActixResult<HttpResponse> {
-        delete::delete_submission(self, request, submission_id).await
+        delete::delete_submission(self, request, submission_id, user_id).await
     }
 }

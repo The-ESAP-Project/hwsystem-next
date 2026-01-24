@@ -3,6 +3,7 @@ use once_cell::sync::Lazy;
 
 use crate::middlewares::{self, RequireJWT};
 use crate::models::grades::requests::{CreateGradeRequest, GradeListQuery, UpdateGradeRequest};
+use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
 use crate::services::GradeService;
 
@@ -58,8 +59,18 @@ pub async fn update_grade(
     path: web::Path<i64>,
     body: web::Json<UpdateGradeRequest>,
 ) -> ActixResult<HttpResponse> {
+    let user_id = match RequireJWT::extract_user_id(&req) {
+        Some(id) => id,
+        None => {
+            return Ok(HttpResponse::Unauthorized().json(ApiResponse::error_empty(
+                ErrorCode::Unauthorized,
+                "无法获取用户信息",
+            )));
+        }
+    };
+
     GRADE_SERVICE
-        .update_grade(&req, path.into_inner(), body.into_inner())
+        .update_grade(&req, path.into_inner(), body.into_inner(), user_id)
         .await
 }
 
@@ -68,10 +79,28 @@ pub fn configure_grades_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/v1/grades")
             .wrap(middlewares::RequireJWT)
-            .route("", web::get().to(list_grades))
-            .route("", web::post().to(create_grade))
-            .route("/{id}", web::get().to(get_grade))
-            .route("/{id}", web::put().to(update_grade)),
+            .service(
+                web::resource("")
+                    // 列出评分 - 所有登录用户可访问（业务层会根据用户过滤）
+                    .route(web::get().to(list_grades))
+                    // 创建评分 - 仅教师和管理员
+                    .route(
+                        web::post()
+                            .to(create_grade)
+                            .wrap(middlewares::RequireRole::new_any(UserRole::teacher_roles())),
+                    ),
+            )
+            .service(
+                web::resource("/{id}")
+                    // 获取评分详情 - 所有登录用户可访问（业务层会验证权限）
+                    .route(web::get().to(get_grade))
+                    // 更新评分 - 仅教师和管理员
+                    .route(
+                        web::put()
+                            .to(update_grade)
+                            .wrap(middlewares::RequireRole::new_any(UserRole::teacher_roles())),
+                    ),
+            ),
     );
 
     // 提交相关的评分路由

@@ -24,8 +24,8 @@ pub async fn create_submission(
     req: HttpRequest,
     body: web::Json<CreateSubmissionRequest>,
 ) -> ActixResult<HttpResponse> {
-    let user_id = match RequireJWT::extract_user_id(&req) {
-        Some(id) => id,
+    let user = match RequireJWT::extract_user_claims(&req) {
+        Some(u) => u,
         None => {
             return Ok(HttpResponse::Unauthorized().json(ApiResponse::error_empty(
                 ErrorCode::Unauthorized,
@@ -35,7 +35,7 @@ pub async fn create_submission(
     };
 
     SUBMISSION_SERVICE
-        .create_submission(&req, user_id, body.into_inner())
+        .create_submission(&req, user.id, user.role, body.into_inner())
         .await
 }
 
@@ -91,8 +91,18 @@ pub async fn delete_submission(
     req: HttpRequest,
     path: web::Path<i64>,
 ) -> ActixResult<HttpResponse> {
+    let user_id = match RequireJWT::extract_user_id(&req) {
+        Some(id) => id,
+        None => {
+            return Ok(HttpResponse::Unauthorized().json(ApiResponse::error_empty(
+                ErrorCode::Unauthorized,
+                "无法获取用户信息",
+            )));
+        }
+    };
+
     SUBMISSION_SERVICE
-        .delete_submission(&req, path.into_inner())
+        .delete_submission(&req, path.into_inner(), user_id)
         .await
 }
 

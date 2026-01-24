@@ -14,6 +14,7 @@ use crate::models::{
         responses::HomeworkListResponse,
     },
 };
+use crate::utils::escape_like_pattern;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set,
 };
@@ -32,7 +33,7 @@ impl SeaOrmStorage {
             title: Set(req.title),
             description: Set(req.description),
             max_score: Set(req.max_score.unwrap_or(100.0)),
-            deadline: Set(req.deadline),
+            deadline: Set(req.deadline.map(|dt| dt.timestamp())),
             allow_late: Set(req.allow_late.unwrap_or(false)),
             created_by: Set(created_by),
             created_at: Set(now),
@@ -46,8 +47,9 @@ impl SeaOrmStorage {
             .map_err(|e| HWSystemError::database_operation(format!("创建作业失败: {e}")))?;
 
         // 处理附件
-        if let Some(file_ids) = req.attachments {
-            self.set_homework_files_impl(result.id, file_ids).await?;
+        if let Some(tokens) = req.attachments {
+            self.set_homework_files_impl(result.id, tokens, created_by)
+                .await?;
         }
 
         Ok(result.into_homework())
@@ -87,7 +89,8 @@ impl SeaOrmStorage {
         if let Some(ref search) = query.search
             && !search.trim().is_empty()
         {
-            select = select.filter(Column::Title.contains(search.trim()));
+            let escaped = escape_like_pattern(search.trim());
+            select = select.filter(Column::Title.contains(&escaped));
         }
 
         // 排序
@@ -126,6 +129,7 @@ impl SeaOrmStorage {
         &self,
         homework_id: i64,
         update: UpdateHomeworkRequest,
+        user_id: i64,
     ) -> Result<Option<Homework>> {
         // 先检查作业是否存在
         let existing = self.get_homework_by_id_impl(homework_id).await?;
@@ -154,7 +158,7 @@ impl SeaOrmStorage {
         }
 
         if let Some(deadline) = update.deadline {
-            model.deadline = Set(Some(deadline));
+            model.deadline = Set(Some(deadline.timestamp()));
         }
 
         if let Some(allow_late) = update.allow_late {
@@ -167,8 +171,9 @@ impl SeaOrmStorage {
             .map_err(|e| HWSystemError::database_operation(format!("更新作业失败: {e}")))?;
 
         // 处理附件
-        if let Some(file_ids) = update.attachments {
-            self.set_homework_files_impl(homework_id, file_ids).await?;
+        if let Some(tokens) = update.attachments {
+            self.set_homework_files_impl(homework_id, tokens, user_id)
+                .await?;
         }
 
         self.get_homework_by_id_impl(homework_id).await
@@ -202,11 +207,12 @@ impl SeaOrmStorage {
         Ok(results.into_iter().map(|m| m.file_id).collect())
     }
 
-    /// 设置作业附件
+    /// 设置作业附件（通过 download_token，带所有权校验）
     pub async fn set_homework_files_impl(
         &self,
         homework_id: i64,
-        file_ids: Vec<i64>,
+        tokens: Vec<String>,
+        user_id: i64,
     ) -> Result<()> {
         // 先删除旧的关联
         HomeworkFiles::delete_many()
@@ -215,11 +221,23 @@ impl SeaOrmStorage {
             .await
             .map_err(|e| HWSystemError::database_operation(format!("删除旧附件关联失败: {e}")))?;
 
-        // 创建新的关联
-        for file_id in file_ids {
+        // 通过 token 查找文件并校验所有权
+        for token in tokens {
+            let file = self
+                .get_file_by_token_impl(&token)
+                .await?
+                .ok_or_else(|| HWSystemError::not_found(format!("文件不存在: {token}")))?;
+
+            // 校验文件所有权
+            if file.user_id != Some(user_id) {
+                return Err(HWSystemError::authorization(format!(
+                    "无权使用此文件: {token}"
+                )));
+            }
+
             let model = HomeworkFileActiveModel {
                 homework_id: Set(homework_id),
-                file_id: Set(file_id),
+                file_id: Set(file.id),
             };
 
             model
@@ -228,7 +246,7 @@ impl SeaOrmStorage {
                 .map_err(|e| HWSystemError::database_operation(format!("创建附件关联失败: {e}")))?;
 
             // 增加文件引用计数
-            self.increment_file_citation_impl(file_id).await?;
+            self.increment_file_citation_impl(file.id).await?;
         }
 
         Ok(())

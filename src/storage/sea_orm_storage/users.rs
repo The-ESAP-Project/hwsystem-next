@@ -1,5 +1,3 @@
-//! 用户存储操作
-
 use super::SeaOrmStorage;
 use crate::entity::users::{ActiveModel, Column, Entity as Users};
 use crate::errors::{HWSystemError, Result};
@@ -11,6 +9,7 @@ use crate::models::{
         responses::UserListResponse,
     },
 };
+use crate::utils::escape_like_pattern;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
     Set,
@@ -106,12 +105,12 @@ impl SeaOrmStorage {
         if let Some(ref search) = query.search
             && !search.trim().is_empty()
         {
-            let pattern = format!("%{}%", search.trim());
+            let escaped = escape_like_pattern(search.trim());
             select = select.filter(
                 Condition::any()
-                    .add(Column::Username.contains(&pattern))
-                    .add(Column::Email.contains(&pattern))
-                    .add(Column::DisplayName.contains(&pattern)),
+                    .add(Column::Username.contains(&escaped))
+                    .add(Column::Email.contains(&escaped))
+                    .add(Column::DisplayName.contains(&escaped)),
             );
         }
 

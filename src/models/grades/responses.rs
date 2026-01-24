@@ -11,7 +11,7 @@ use super::entities::Grade;
 pub struct Grader {
     pub id: i64,
     pub username: String,
-    pub profile_name: Option<String>,
+    pub display_name: Option<String>,
 }
 
 /// 评分响应

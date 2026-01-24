@@ -9,6 +9,7 @@ use crate::models::homeworks::stats_responses::{
     HomeworkStatsResponse, ScoreRange, ScoreStats, UnsubmittedStudent,
 };
 use crate::models::submissions::requests::SubmissionListQuery;
+use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
 
 pub async fn get_homework_stats(
@@ -48,35 +49,42 @@ pub async fn get_homework_stats(
 
     let class_id = homework.class_id;
 
-    // 验证用户权限（必须是教师或课代表）
-    let class_user = match storage
-        .get_class_user_by_user_id_and_class_id(user_id, class_id)
-        .await
-    {
-        Ok(Some(cu)) => cu,
-        Ok(None) => {
+    // 获取用户角色
+    let user_role = RequireJWT::extract_user_role(request);
+
+    // Admin 直接放行，跳过班级成员检查
+    if user_role != Some(UserRole::Admin) {
+        // 非 Admin 用户需要验证班级成员资格
+        let class_user = match storage
+            .get_class_user_by_user_id_and_class_id(user_id, class_id)
+            .await
+        {
+            Ok(Some(cu)) => cu,
+            Ok(None) => {
+                return Ok(HttpResponse::Forbidden().json(ApiResponse::error_empty(
+                    ErrorCode::ClassPermissionDenied,
+                    "您不是该班级成员",
+                )));
+            }
+            Err(e) => {
+                return Ok(
+                    HttpResponse::InternalServerError().json(ApiResponse::error_empty(
+                        ErrorCode::InternalServerError,
+                        format!("查询班级成员失败: {e}"),
+                    )),
+                );
+            }
+        };
+
+        // 验证是教师或课代表
+        if class_user.role != ClassUserRole::Teacher
+            && class_user.role != ClassUserRole::ClassRepresentative
+        {
             return Ok(HttpResponse::Forbidden().json(ApiResponse::error_empty(
                 ErrorCode::ClassPermissionDenied,
-                "您不是该班级成员",
+                "只有教师或课代表可以查看统计",
             )));
         }
-        Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询班级成员失败: {e}"),
-                )),
-            );
-        }
-    };
-
-    if class_user.role != ClassUserRole::Teacher
-        && class_user.role != ClassUserRole::ClassRepresentative
-    {
-        return Ok(HttpResponse::Forbidden().json(ApiResponse::error_empty(
-            ErrorCode::ClassPermissionDenied,
-            "只有教师或课代表可以查看统计",
-        )));
     }
 
     // 获取班级所有成员（不分页，获取全部）
@@ -199,13 +207,14 @@ pub async fn get_homework_stats(
     let mut unsubmitted_students: Vec<UnsubmittedStudent> = Vec::new();
     for student in &students {
         if !submitted_student_ids.contains(&student.user_id)
-            && let Ok(Some(user)) = storage.get_user_by_id(student.user_id).await {
-                unsubmitted_students.push(UnsubmittedStudent {
-                    id: user.id,
-                    username: user.username,
-                    profile_name: user.display_name,
-                });
-            }
+            && let Ok(Some(user)) = storage.get_user_by_id(student.user_id).await
+        {
+            unsubmitted_students.push(UnsubmittedStudent {
+                id: user.id,
+                username: user.username,
+                display_name: user.display_name,
+            });
+        }
     }
 
     let response = HomeworkStatsResponse {

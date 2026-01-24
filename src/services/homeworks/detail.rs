@@ -1,7 +1,10 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use super::HomeworkService;
-use crate::models::{ApiResponse, ErrorCode};
+use crate::middlewares::RequireJWT;
+use crate::models::files::responses::FileInfo;
+use crate::models::users::entities::UserRole;
+use crate::models::{ApiResponse, ErrorCode, homeworks::responses::HomeworkDetail};
 
 pub async fn get_homework(
     service: &HomeworkService,
@@ -10,9 +13,65 @@ pub async fn get_homework(
 ) -> ActixResult<HttpResponse> {
     let storage = service.get_storage(request);
 
+    // 获取当前用户信息
+    let current_user = match RequireJWT::extract_user_claims(request) {
+        Some(user) => user,
+        None => {
+            return Ok(HttpResponse::Unauthorized()
+                .json(ApiResponse::error_empty(ErrorCode::Unauthorized, "未登录")));
+        }
+    };
+
     match storage.get_homework_by_id(homework_id).await {
         Ok(Some(homework)) => {
-            Ok(HttpResponse::Ok().json(ApiResponse::success(homework, "查询成功")))
+            // 权限验证：管理员直接放行，否则验证班级成员资格
+            if current_user.role != UserRole::Admin {
+                match storage
+                    .get_class_user_by_user_id_and_class_id(current_user.id, homework.class_id)
+                    .await
+                {
+                    Ok(Some(_)) => {
+                        // 用户是班级成员，允许访问
+                    }
+                    Ok(None) => {
+                        return Ok(HttpResponse::Forbidden().json(ApiResponse::error_empty(
+                            ErrorCode::ClassPermissionDenied,
+                            "您不是该班级成员，无权查看此作业",
+                        )));
+                    }
+                    Err(e) => {
+                        return Ok(HttpResponse::InternalServerError().json(
+                            ApiResponse::error_empty(
+                                ErrorCode::InternalServerError,
+                                format!("验证班级成员资格失败: {e}"),
+                            ),
+                        ));
+                    }
+                }
+            }
+
+            // 获取附件完整信息
+            let file_ids = storage
+                .get_homework_file_ids(homework_id)
+                .await
+                .unwrap_or_default();
+            let mut attachments = Vec::new();
+            for file_id in file_ids {
+                if let Ok(Some(file)) = storage.get_file_by_id(file_id).await {
+                    attachments.push(FileInfo {
+                        download_token: file.download_token,
+                        original_name: file.original_name,
+                        file_size: file.file_size,
+                        file_type: file.file_type,
+                    });
+                }
+            }
+
+            let detail = HomeworkDetail {
+                homework,
+                attachments,
+            };
+            Ok(HttpResponse::Ok().json(ApiResponse::success(detail, "查询成功")))
         }
         Ok(None) => Ok(HttpResponse::NotFound()
             .json(ApiResponse::error_empty(ErrorCode::NotFound, "作业不存在"))),

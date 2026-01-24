@@ -1,6 +1,6 @@
 # API 文档
 
-> 版本：v2.0
+> 版本：v2.5
 > 更新日期：2026-01-24
 > 基础路径：`/api/v1`
 
@@ -297,24 +297,33 @@ Authorization: Bearer <access_token>
 
 **说明**：
 - 普通用户：返回自己加入的班级
+- 教师：返回自己创建的班级
 - Admin：返回所有班级
 
 **响应**：
 ```json
 {
+    "pagination": {
+        "page": 1,
+        "size": 20,
+        "total": 5,
+        "pages": 1
+    },
     "items": [
         {
-            "id": "...",
+            "id": 1,
             "name": "数据结构",
             "description": "2026春季班",
+            "teacher_id": 2,
+            "invite_code": "ABC123",
+            "created_at": "2026-01-24T00:00:00Z",
+            "updated_at": "2026-01-24T00:00:00Z",
             "teacher": {
-                "id": "...",
-                "username": "...",
-                "display_name": "..."
+                "id": 2,
+                "username": "teacher1",
+                "display_name": "张老师"
             },
-            "member_count": 30,
-            "my_role": "student",
-            "created_at": "..."
+            "member_count": 30
         }
     ]
 }
@@ -370,7 +379,26 @@ Authorization: Bearer <access_token>
 
 获取班级详情。
 
-**权限**：班级成员 或 Admin
+**权限**：班级成员 或 班级教师 或 Admin
+
+**响应**：
+```json
+{
+    "id": 1,
+    "name": "数据结构",
+    "description": "2026春季班",
+    "teacher_id": 2,
+    "invite_code": "ABC123",
+    "created_at": "2026-01-24T00:00:00Z",
+    "updated_at": "2026-01-24T00:00:00Z",
+    "teacher": {
+        "id": 2,
+        "username": "teacher1",
+        "display_name": "张老师"
+    },
+    "member_count": 30
+}
+```
 
 ### 4.5 PUT /classes/{class_id}
 
@@ -422,16 +450,25 @@ Authorization: Bearer <access_token>
 **响应**：
 ```json
 {
+    "pagination": {
+        "page": 1,
+        "size": 20,
+        "total": 30,
+        "pages": 2
+    },
     "items": [
         {
-            "id": "...",
-            "user": {
-                "id": "...",
-                "username": "...",
-                "display_name": "..."
-            },
+            "id": 1,
+            "class_id": 1,
+            "user_id": 3,
             "role": "student",
-            "joined_at": "..."
+            "joined_at": "2026-01-24T00:00:00Z",
+            "user": {
+                "id": 3,
+                "username": "student1",
+                "display_name": "张三",
+                "avatar_url": null
+            }
         }
     ]
 }
@@ -489,7 +526,7 @@ Authorization: Bearer <access_token>
             "title": "链表实现",
             "description": "实现单链表的基本操作",
             "max_score": 100.0,
-            "deadline": 1706140800,
+            "deadline": "2026-01-25T00:00:00Z",
             "allow_late": false,
             "attachment_count": 2,
             "my_submission": {
@@ -517,11 +554,16 @@ Authorization: Bearer <access_token>
     "title": "链表实现",
     "description": "实现单链表的基本操作",
     "max_score": 100.0,
-    "deadline": 1706140800,
+    "deadline": "2026-01-25T00:00:00Z",
     "allow_late": false,
-    "attachments": ["file_id_1", "file_id_2"]
+    "attachments": ["download_token_1", "download_token_2"]
 }
 ```
+
+**说明**：
+- `deadline` 使用 ISO 8601 格式（如 `"2026-01-25T00:00:00Z"`）
+- `attachments` 使用文件上传后返回的 `download_token`
+- 只能使用当前用户上传的文件，否则返回 403 权限错误
 
 **响应**：
 ```json
@@ -531,7 +573,7 @@ Authorization: Bearer <access_token>
     "title": "链表实现",
     "description": "...",
     "max_score": 100.0,
-    "deadline": 1706140800,
+    "deadline": "2026-01-25T00:00:00Z",
     "allow_late": false,
     "attachments": [
         {
@@ -552,6 +594,30 @@ Authorization: Bearer <access_token>
 
 **权限**：班级成员
 
+**响应**：
+```json
+{
+    "id": 1,
+    "class_id": 3,
+    "title": "链表实现",
+    "description": "实现单链表的基本操作",
+    "max_score": 100.0,
+    "deadline": "2026-01-25T00:00:00Z",
+    "allow_late": false,
+    "created_by": 2,
+    "created_at": "2026-01-24T00:00:00Z",
+    "updated_at": "2026-01-24T00:00:00Z",
+    "attachments": [
+        {
+            "download_token": "abc123...",
+            "original_name": "要求.pdf",
+            "file_size": 102400,
+            "file_type": "application/pdf"
+        }
+    ]
+}
+```
+
 ### 6.4 PUT /homeworks/{id}
 
 更新作业。
@@ -564,11 +630,16 @@ Authorization: Bearer <access_token>
     "title": "string",
     "description": "string",
     "max_score": 100.0,
-    "deadline": 1706140800,
+    "deadline": "2026-01-25T00:00:00Z",
     "allow_late": true,
-    "attachments": ["file_id_1"]
+    "attachments": ["download_token_1"]
 }
 ```
+
+**说明**：
+- `deadline` 使用 ISO 8601 格式（如 `"2026-01-25T00:00:00Z"`）
+- `attachments` 使用文件上传后返回的 `download_token`
+- 只能使用当前用户上传的文件，否则返回 403 权限错误
 
 ### 6.5 DELETE /homeworks/{id}
 
@@ -607,7 +678,7 @@ Authorization: Bearer <access_token>
         {
             "id": 1,
             "username": "student1",
-            "profile_name": "张三"
+            "display_name": "张三"
         }
     ]
 }
@@ -737,6 +808,43 @@ Authorization: Bearer <access_token>
 获取我的最新提交。
 
 **权限**：班级学生/课代表
+
+**响应**：
+
+成功且有提交记录时返回提交详情：
+```json
+{
+    "code": 0,
+    "data": {
+        "id": "...",
+        "homework_id": "...",
+        "creator_id": "...",
+        "version": 1,
+        "content": "作业内容",
+        "attachments": [
+            {
+                "download_token": "abc123...",
+                "original_name": "作业.pdf",
+                "file_size": 102400,
+                "file_type": "application/pdf"
+            }
+        ],
+        "submitted_at": "2026-01-24T12:00:00Z",
+        "is_late": false,
+        "grade": null
+    },
+    "message": "查询成功"
+}
+```
+
+成功但尚未提交时返回 null：
+```json
+{
+    "code": 0,
+    "data": null,
+    "message": "暂无提交"
+}
+```
 
 ### 7.5 GET /submissions/{id}
 
@@ -1008,5 +1116,10 @@ Authorization: Bearer <access_token>
 
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
+| v2.5 | 2026-01-24 | 班级详情允许班级成员访问；作业详情返回附件列表 |
+| v2.4 | 2026-01-24 | 班级成员列表返回用户详情（用户名、头像等） |
+| v2.3 | 2026-01-24 | 班级列表和详情返回教师信息和成员数量 |
+| v2.2 | 2026-01-24 | 作业 deadline 改用 ISO 8601 格式 |
+| v2.1 | 2026-01-24 | 作业附件改用 download_token，增加文件所有权校验 |
 | v2.0 | 2026-01-24 | 新增提交版本控制、评分修改、通知系统、WebSocket |
 | v1.0 | 2025-01-23 | 初始版本 |

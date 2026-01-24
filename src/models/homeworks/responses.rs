@@ -1,4 +1,5 @@
 use crate::models::common::pagination::PaginationInfo;
+use crate::models::files::responses::FileInfo;
 use crate::models::homeworks::entities::Homework;
 use serde::Serialize;
 use ts_rs::TS;
@@ -8,7 +9,7 @@ use ts_rs::TS;
 pub struct HomeworkCreator {
     pub id: i64,
     pub username: String,
-    pub profile_name: Option<String>,
+    pub display_name: Option<String>,
 }
 
 #[derive(Debug, Serialize, TS)]
@@ -27,6 +28,15 @@ pub struct HomeworkResponse {
     pub created_by: HomeworkCreator,
     pub created_at: String,
     pub updated_at: String,
+}
+
+/// 作业详情（包含附件）
+#[derive(Debug, Serialize, TS)]
+#[ts(export, export_to = "../frontend/src/types/generated/homework.ts")]
+pub struct HomeworkDetail {
+    #[serde(flatten)]
+    pub homework: Homework,
+    pub attachments: Vec<FileInfo>,
 }
 
 #[derive(Debug, Serialize, TS)]

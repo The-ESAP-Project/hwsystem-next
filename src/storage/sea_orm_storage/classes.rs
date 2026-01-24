@@ -11,7 +11,7 @@ use crate::models::{
         responses::ClassListResponse,
     },
 };
-use crate::utils::random_code::generate_random_code;
+use crate::utils::{escape_like_pattern, random_code::generate_random_code};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set,
 };
@@ -80,7 +80,8 @@ impl SeaOrmStorage {
         if let Some(ref search) = query.search
             && !search.trim().is_empty()
         {
-            select = select.filter(Column::Name.contains(search.trim()));
+            let escaped = escape_like_pattern(search.trim());
+            select = select.filter(Column::Name.contains(&escaped));
         }
 
         // 排序

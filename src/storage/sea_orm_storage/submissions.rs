@@ -80,11 +80,8 @@ impl SeaOrmStorage {
 
         // 处理附件
         if let Some(attachments) = req.attachments {
-            let file_ids: Vec<i64> = attachments
-                .iter()
-                .filter_map(|s| s.parse::<i64>().ok())
-                .collect();
-            self.set_submission_files_impl(result.id, file_ids).await?;
+            self.set_submission_files_impl(result.id, attachments, creator_id)
+                .await?;
         }
 
         Ok(result.into_submission())
@@ -243,11 +240,12 @@ impl SeaOrmStorage {
         Ok(results.into_iter().map(|m| m.file_id).collect())
     }
 
-    /// 设置提交附件
+    /// 设置提交附件（通过 download_token，带所有权校验）
     pub async fn set_submission_files_impl(
         &self,
         submission_id: i64,
-        file_ids: Vec<i64>,
+        tokens: Vec<String>,
+        user_id: i64,
     ) -> Result<()> {
         // 先删除旧的关联
         SubmissionFiles::delete_many()
@@ -256,11 +254,23 @@ impl SeaOrmStorage {
             .await
             .map_err(|e| HWSystemError::database_operation(format!("删除旧附件关联失败: {e}")))?;
 
-        // 创建新的关联
-        for file_id in file_ids {
+        // 通过 token 查找文件并校验所有权
+        for token in tokens {
+            let file = self
+                .get_file_by_token_impl(&token)
+                .await?
+                .ok_or_else(|| HWSystemError::not_found(format!("文件不存在: {token}")))?;
+
+            // 校验文件所有权
+            if file.user_id != Some(user_id) {
+                return Err(HWSystemError::authorization(format!(
+                    "无权使用此文件: {token}"
+                )));
+            }
+
             let model = SubmissionFileActiveModel {
                 submission_id: Set(submission_id),
-                file_id: Set(file_id),
+                file_id: Set(file.id),
             };
 
             model
@@ -269,7 +279,7 @@ impl SeaOrmStorage {
                 .map_err(|e| HWSystemError::database_operation(format!("创建附件关联失败: {e}")))?;
 
             // 增加文件引用计数
-            self.increment_file_citation_impl(file_id).await?;
+            self.increment_file_citation_impl(file.id).await?;
         }
 
         Ok(())

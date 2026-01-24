@@ -25,98 +25,76 @@ pub async fn get_class_user(
         }
     };
 
-    let class_user = RequireClassRole::extract_user_class_user(req);
-
-    // 权限校验
-    if let Err(resp) =
-        check_class_user_get_permission(&user_claims, &class_user, class_id, class_user_id)
-    {
-        return Ok(resp);
-    }
-
+    let current_class_user = RequireClassRole::extract_user_class_user(req);
     let storage = service.get_storage(req);
 
-    // 查询目标班级用户信息
-    let target_user = if let Some(ref cu) = class_user {
-        // 自己
-        if cu.user_id == user_claims.id {
-            Some(cu.clone())
-        } else {
-            // 教师/班长查其他人
-            match storage
-                .get_class_user_by_user_id_and_class_id(class_id, class_user_id)
-                .await
-            {
-                Ok(Some(class_user)) => Some(class_user),
-                Ok(None) => {
-                    return Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
-                        ErrorCode::NotFound,
-                        "Class user not found",
-                    )));
-                }
-                Err(e) => {
-                    return Ok(
-                        HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                            ErrorCode::InternalServerError,
-                            format!("Internal error: {e}"),
-                        )),
-                    );
-                }
-            }
+    // 通过 class_user_id 获取目标班级用户信息
+    let target_class_user = match storage.get_class_user_by_id(class_user_id).await {
+        Ok(Some(cu)) => cu,
+        Ok(None) => {
+            return Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
+                ErrorCode::NotFound,
+                "Class user not found",
+            )));
         }
-    } else {
-        // 管理员直接查
-        match storage
-            .get_class_user_by_user_id_and_class_id(class_id, class_user_id)
-            .await
-        {
-            Ok(Some(class_user)) => Some(class_user),
-            Ok(None) => {
-                return Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
-                    ErrorCode::NotFound,
-                    "Class user not found",
-                )));
-            }
-            Err(e) => {
-                return Ok(
-                    HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                        ErrorCode::InternalServerError,
-                        format!("Internal error: {e}"),
-                    )),
-                );
-            }
+        Err(e) => {
+            return Ok(
+                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
+                    ErrorCode::InternalServerError,
+                    format!("Internal error: {e}"),
+                )),
+            );
         }
     };
 
+    // 验证目标用户是否属于该班级
+    if target_class_user.class_id != class_id {
+        return Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
+            ErrorCode::NotFound,
+            "Class user not found in this class",
+        )));
+    }
+
+    // 权限校验
+    if let Err(resp) = check_class_user_get_permission(
+        &user_claims,
+        &current_class_user,
+        class_id,
+        &target_class_user,
+    ) {
+        return Ok(resp);
+    }
+
     Ok(HttpResponse::Ok().json(ApiResponse::success(
-        target_user,
+        Some(target_class_user),
         "Class user retrieved successfully",
     )))
 }
 
 fn check_class_user_get_permission(
     user_claims: &User,
-    class_user: &Option<ClassUser>,
+    current_class_user: &Option<ClassUser>,
     class_id: i64,
-    class_user_id: i64,
+    target_class_user: &ClassUser,
 ) -> Result<(), HttpResponse> {
     // 管理员直接放行
     if user_claims.role == UserRole::Admin {
         return Ok(());
     }
 
-    match class_user {
-        Some(class_user) => {
-            if class_user.class_id != class_id {
+    match current_class_user {
+        Some(current_cu) => {
+            if current_cu.class_id != class_id {
                 return Err(HttpResponse::Forbidden().json(ApiResponse::error_empty(
                     ErrorCode::ClassPermissionDenied,
                     "Class ID mismatch",
                 )));
             }
-            match class_user.role {
+            match current_cu.role {
                 ClassUserRole::Teacher | ClassUserRole::ClassRepresentative => Ok(()),
                 ClassUserRole::Student => {
-                    if class_user.id == class_user_id {
+                    // 学生只能查看自己的信息
+                    if current_cu.user_id == target_class_user.user_id {
                         Ok(())
                     } else {
                         Err(HttpResponse::Forbidden().json(ApiResponse::error_empty(

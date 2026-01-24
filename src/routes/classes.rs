@@ -1,7 +1,7 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};
 use once_cell::sync::Lazy;
 
-use crate::middlewares;
+use crate::middlewares::{self, RateLimit};
 use crate::models::classes::requests::{ClassQueryParams, CreateClassRequest, UpdateClassRequest};
 use crate::models::users::entities::UserRole;
 use crate::services::ClassService;
@@ -69,20 +69,23 @@ pub fn configure_classes_routes(cfg: &mut web::ServiceConfig) {
                 ),
             )
             .service(
-                web::resource("/code/{code}").route(
-                    web::get()
-                        .to(get_class_by_code)
-                        // 学生使用邀请码查询班级信息
-                        .wrap(middlewares::RequireRole::new(&UserRole::User)),
-                ),
+                web::resource("/code/{code}")
+                    // 邀请码查询限制：10次/分钟/IP（防止暴力枚举）
+                    .wrap(RateLimit::invite_code())
+                    .route(
+                        web::get()
+                            .to(get_class_by_code)
+                            // 学生使用邀请码查询班级信息
+                            .wrap(middlewares::RequireRole::new(&UserRole::User)),
+                    ),
             )
             .service(
                 web::resource("/{class_id}")
                     .route(
                         web::get()
                             .to(get_class)
-                            // 教师获取自己班级详情，管理员可以获取所有班级
-                            .wrap(middlewares::RequireRole::new_any(UserRole::teacher_roles())),
+                            // 教师获取自己班级详情，管理员可以获取所有班级，学生获取自己加入的班级
+                            .wrap(middlewares::RequireRole::new_any(UserRole::all_roles())),
                     )
                     .route(
                         web::put()

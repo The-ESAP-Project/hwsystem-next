@@ -1,6 +1,7 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};
 
 use crate::cache::{CacheResult, ObjectCache};
+use crate::middlewares::{self, RateLimit};
 use crate::models::system::responses::WebSocketStatusResponse;
 use crate::models::users::entities::User;
 use crate::models::{ApiResponse, ErrorCode};
@@ -119,7 +120,17 @@ pub async fn ws_status() -> ActixResult<HttpResponse> {
 pub fn configure_websocket_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/v1/ws")
-            .route("", web::get().to(ws_handler))
-            .route("/status", web::get().to(ws_status)),
+            // WebSocket 连接 - 添加速率限制防止 DDoS（20次/分钟/IP）
+            .route(
+                "",
+                web::get()
+                    .to(ws_handler)
+                    .wrap(RateLimit::new(20, 60).with_prefix("ws_connect")),
+            )
+            // WebSocket 状态端点 - 需要 JWT 验证
+            .route(
+                "/status",
+                web::get().to(ws_status).wrap(middlewares::RequireJWT),
+            ),
     );
 }

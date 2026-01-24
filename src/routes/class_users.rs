@@ -110,12 +110,18 @@ pub fn configure_class_users_routes(cfg: &mut web::ServiceConfig) {
                     .route(
                         web::put()
                             .to(update_class_user)
-                            .wrap(middlewares::RequireRole::new_any(UserRole::teacher_roles())),
+                            // 更新班级成员信息 - 仅班级教师权限
+                            .wrap(middlewares::RequireClassRole::new_any(
+                                ClassUserRole::class_teacher_roles(),
+                            )),
                     )
                     .route(
                         web::delete()
-                            // 删除班级指定用户，用户自己或者班级教师权限
-                            .to(delete_class_user),
+                            .to(delete_class_user)
+                            // 删除班级指定用户 - 班级成员可删除自己，教师可删除其他成员（service层验证）
+                            .wrap(middlewares::RequireClassRole::new_any(
+                                ClassUserRole::all_roles(),
+                            )),
                     ),
             ),
     );

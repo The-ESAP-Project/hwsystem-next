@@ -50,7 +50,12 @@ pub fn configure_auth_routes(cfg: &mut web::ServiceConfig) {
                     .wrap(RateLimit::register())
                     .route(web::post().to(register)),
             )
-            .route("/refresh", web::post().to(refresh_token))
+            // 刷新令牌端点：10次/分钟/IP
+            .service(
+                web::resource("/refresh")
+                    .wrap(RateLimit::refresh_token())
+                    .route(web::post().to(refresh_token)),
+            )
             .service(
                 web::scope("")
                     .wrap(middlewares::RequireJWT)

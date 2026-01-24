@@ -120,6 +120,8 @@ pub trait Storage: Send + Sync {
     // 班级成员管理方法
     // ============================================
 
+    /// 获取班级成员数量
+    async fn count_class_members(&self, class_id: i64) -> Result<i64>;
     /// 学生加入班级
     async fn join_class(
         &self,
@@ -154,6 +156,8 @@ pub trait Storage: Send + Sync {
         user_id: i64,
         class_id: i64,
     ) -> Result<Option<ClassUser>>;
+    /// 通过班级用户 ID 获取班级用户信息
+    async fn get_class_user_by_id(&self, class_user_id: i64) -> Result<Option<ClassUser>>;
     /// 根据班级ID和邀请码获取班级及用户信息
     async fn get_class_and_class_user_by_class_id_and_code(
         &self,
@@ -184,13 +188,19 @@ pub trait Storage: Send + Sync {
         &self,
         homework_id: i64,
         update: UpdateHomeworkRequest,
+        user_id: i64,
     ) -> Result<Option<Homework>>;
     /// 删除作业
     async fn delete_homework(&self, homework_id: i64) -> Result<bool>;
     /// 获取作业附件 ID 列表
     async fn get_homework_file_ids(&self, homework_id: i64) -> Result<Vec<i64>>;
-    /// 设置作业附件
-    async fn set_homework_files(&self, homework_id: i64, file_ids: Vec<i64>) -> Result<()>;
+    /// 设置作业附件（通过 download_token，带所有权校验）
+    async fn set_homework_files(
+        &self,
+        homework_id: i64,
+        tokens: Vec<String>,
+        user_id: i64,
+    ) -> Result<()>;
 
     // ============================================
     // 提交管理方法
@@ -227,8 +237,13 @@ pub trait Storage: Send + Sync {
     async fn update_submission_status(&self, submission_id: i64, status: &str) -> Result<bool>;
     /// 获取提交附件 ID 列表
     async fn get_submission_file_ids(&self, submission_id: i64) -> Result<Vec<i64>>;
-    /// 设置提交附件
-    async fn set_submission_files(&self, submission_id: i64, file_ids: Vec<i64>) -> Result<()>;
+    /// 设置提交附件（通过 download_token，带所有权校验）
+    async fn set_submission_files(
+        &self,
+        submission_id: i64,
+        tokens: Vec<String>,
+        user_id: i64,
+    ) -> Result<()>;
 
     // ============================================
     // 评分管理方法

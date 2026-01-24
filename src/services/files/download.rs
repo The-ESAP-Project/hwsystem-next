@@ -8,6 +8,13 @@ use crate::config::AppConfig;
 use crate::errors::HWSystemError;
 use crate::models::{ApiResponse, ErrorCode};
 
+// TODO: 实现更细粒度的文件访问权限检查
+// 目前 download_token 已经提供了一定程度的保护（需要知道 token 才能下载）
+// 后续可考虑：
+// 1. 作业附件：验证用户是否是该班级成员
+// 2. 提交附件：验证用户是否是提交者或班级教师
+// 3. 添加 token 过期机制
+
 pub async fn handle_download(
     service: &FileService,
     request: &HttpRequest,

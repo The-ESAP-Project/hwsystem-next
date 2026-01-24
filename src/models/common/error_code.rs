@@ -45,7 +45,8 @@ pub enum ErrorCode {
     UserNameInvalid = 4010,        // 用户名无效
     UserNameAlreadyExists = 4011,  // 用户名已存在
     UserEmailInvalid = 4012,       // 用户邮箱无效
-    UserEmailAlreadyExists = 4013, // 用户邮箱已存在、
+    UserEmailAlreadyExists = 4013, // 用户邮箱已存在
+    UserPasswordInvalid = 4014,    // 密码不符合策略要求
 
     // 班级相关错误
     ClassNotFound = 5000,          // 班级未找到
@@ -59,4 +60,7 @@ pub enum ErrorCode {
     ClassAlreadyJoined = 5012,     // 已经加入该班级
     ClassJoinForbidden = 5013,     // 加入班级被禁止
     ClassUserNotFound = 5014,      // 班级用户未找到
+
+    // 通用权限错误
+    PermissionDenied = 6000, // 权限被拒绝
 }

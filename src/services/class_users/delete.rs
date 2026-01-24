@@ -1,6 +1,9 @@
 use crate::{
     middlewares::RequireJWT,
-    models::{ApiResponse, ErrorCode, classes::entities::Class, users::entities::UserRole},
+    models::{
+        ApiResponse, ErrorCode, class_users::entities::ClassUser, classes::entities::Class,
+        users::entities::UserRole,
+    },
     services::ClassUserService,
 };
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
@@ -43,20 +46,53 @@ pub async fn delete_class_user(
         }
     };
 
+    // 通过 class_user_id 获取要删除的班级用户信息
+    let target_class_user = match storage.get_class_user_by_id(class_user_id).await {
+        Ok(Some(cu)) => cu,
+        Ok(None) => {
+            return Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
+                ErrorCode::ClassUserNotFound,
+                "Class user not found",
+            )));
+        }
+        Err(e) => {
+            return Ok(
+                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
+                    ErrorCode::InternalServerError,
+                    format!("Failed to get class user: {e}"),
+                )),
+            );
+        }
+    };
+
+    // 验证 class_user 是否属于该班级
+    if target_class_user.class_id != class_id {
+        return Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
+            ErrorCode::ClassUserNotFound,
+            "Class user not found in this class",
+        )));
+    }
+
     // 权限校验
-    if let Err(resp) = check_class_user_delete_permission(user_role, uid, class_user_id, &class) {
+    if let Err(resp) =
+        check_class_user_delete_permission(user_role, uid, &target_class_user, &class)
+    {
         return Ok(resp);
     }
 
     // 如果被删除者为本班教师，则禁止删除
-    if class.teacher_id == class_user_id {
+    if class.teacher_id == target_class_user.user_id {
         return Ok(HttpResponse::Forbidden().json(ApiResponse::error_empty(
             ErrorCode::ClassPermissionDenied,
             "You cannot delete the class teacher. Please transfer or delete the class first.",
         )));
     }
 
-    match storage.leave_class(class_user_id, class_id).await {
+    // 使用目标用户的 user_id 调用 leave_class
+    match storage
+        .leave_class(target_class_user.user_id, class_id)
+        .await
+    {
         Ok(true) => Ok(HttpResponse::Ok().json(ApiResponse::success_empty(
             "Class user deleted successfully",
         ))),
@@ -77,7 +113,7 @@ pub async fn delete_class_user(
 fn check_class_user_delete_permission(
     role: Option<UserRole>,
     uid: i64,
-    class_user_id: i64,
+    target_class_user: &ClassUser,
     class: &Class,
 ) -> Result<(), HttpResponse> {
     match role {
@@ -93,7 +129,8 @@ fn check_class_user_delete_permission(
             }
         }
         Some(UserRole::User) => {
-            if class_user_id == uid {
+            // 学生只能删除自己
+            if target_class_user.user_id == uid {
                 Ok(())
             } else {
                 Err(HttpResponse::Forbidden().json(ApiResponse::error_empty(

@@ -64,16 +64,18 @@ impl HomeworkService {
         request: &HttpRequest,
         homework_id: i64,
         req: UpdateHomeworkRequest,
+        user_id: i64,
     ) -> ActixResult<HttpResponse> {
-        update::update_homework(self, request, homework_id, req).await
+        update::update_homework(self, request, homework_id, req, user_id).await
     }
 
     pub async fn delete_homework(
         &self,
         request: &HttpRequest,
         homework_id: i64,
+        user_id: i64,
     ) -> ActixResult<HttpResponse> {
-        delete::delete_homework(self, request, homework_id).await
+        delete::delete_homework(self, request, homework_id, user_id).await
     }
 
     pub async fn get_homework_stats(

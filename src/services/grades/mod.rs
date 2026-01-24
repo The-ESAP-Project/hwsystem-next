@@ -64,8 +64,9 @@ impl GradeService {
         request: &HttpRequest,
         grade_id: i64,
         req: UpdateGradeRequest,
+        user_id: i64,
     ) -> ActixResult<HttpResponse> {
-        update::update_grade(self, request, grade_id, req).await
+        update::update_grade(self, request, grade_id, req, user_id).await
     }
 
     /// 列出评分

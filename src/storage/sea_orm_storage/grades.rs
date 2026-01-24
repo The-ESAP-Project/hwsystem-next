@@ -2,6 +2,7 @@
 
 use super::SeaOrmStorage;
 use crate::entity::grades::{ActiveModel, Column, Entity as Grades};
+use crate::entity::submissions::Column as SubmissionColumn;
 use crate::errors::{HWSystemError, Result};
 use crate::models::{
     PaginationInfo,
@@ -13,7 +14,8 @@ use crate::models::{
     submissions::entities::SubmissionStatus,
 };
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set,
+    ActiveModelTrait, ColumnTrait, EntityTrait, JoinType, PaginatorTrait, QueryFilter, QueryOrder,
+    QuerySelect, RelationTrait, Set,
 };
 
 impl SeaOrmStorage {
@@ -116,6 +118,16 @@ impl SeaOrmStorage {
         let size = query.size.unwrap_or(10).clamp(1, 100) as u64;
 
         let mut select = Grades::find();
+
+        // 如果指定了 homework_id，需要 join submissions 表
+        if let Some(homework_id) = query.homework_id {
+            select = select
+                .join(
+                    JoinType::InnerJoin,
+                    crate::entity::grades::Relation::Submission.def(),
+                )
+                .filter(SubmissionColumn::HomeworkId.eq(homework_id));
+        }
 
         // 提交筛选
         if let Some(submission_id) = query.submission_id {

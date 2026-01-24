@@ -37,4 +37,5 @@ pub struct GradeListQuery {
     pub size: Option<i64>,
     pub submission_id: Option<i64>,
     pub grader_id: Option<i64>,
+    pub homework_id: Option<i64>,
 }

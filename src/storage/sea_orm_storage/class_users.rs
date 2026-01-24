@@ -13,12 +13,24 @@ use crate::models::{
     },
     classes::{entities::Class, requests::ClassListQuery, responses::ClassListResponse},
 };
+use crate::utils::escape_like_pattern;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
     Set,
 };
 
 impl SeaOrmStorage {
+    /// 获取班级成员数量
+    pub async fn count_class_members_impl(&self, class_id: i64) -> Result<i64> {
+        let count = ClassUsers::find()
+            .filter(Column::ClassId.eq(class_id))
+            .count(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询班级成员数量失败: {e}")))?;
+
+        Ok(count as i64)
+    }
+
     /// 加入班级
     pub async fn join_class_impl(
         &self,
@@ -171,7 +183,8 @@ impl SeaOrmStorage {
         if let Some(ref search) = query.search
             && !search.trim().is_empty()
         {
-            select = select.filter(ClassColumn::Name.contains(search.trim()));
+            let escaped = escape_like_pattern(search.trim());
+            select = select.filter(ClassColumn::Name.contains(&escaped));
         }
 
         // 排序
@@ -217,6 +230,16 @@ impl SeaOrmStorage {
                     .add(Column::UserId.eq(user_id))
                     .add(Column::ClassId.eq(class_id)),
             )
+            .one(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询班级用户失败: {e}")))?;
+
+        Ok(result.map(|m| m.into_class_user()))
+    }
+
+    /// 通过班级用户 ID 获取班级用户信息
+    pub async fn get_class_user_by_id_impl(&self, class_user_id: i64) -> Result<Option<ClassUser>> {
+        let result = ClassUsers::find_by_id(class_user_id)
             .one(&self.db)
             .await
             .map_err(|e| HWSystemError::database_operation(format!("查询班级用户失败: {e}")))?;

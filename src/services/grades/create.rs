@@ -1,7 +1,9 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use super::GradeService;
+use crate::middlewares::RequireJWT;
 use crate::models::grades::requests::CreateGradeRequest;
+use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
 
 pub async fn create_grade(
@@ -11,9 +13,11 @@ pub async fn create_grade(
     req: CreateGradeRequest,
 ) -> ActixResult<HttpResponse> {
     let storage = service.get_storage(request);
+    let user_role = RequireJWT::extract_user_role(request);
 
     // 检查提交是否存在
-    match storage.get_submission_by_id(req.submission_id).await {
+    let submission = match storage.get_submission_by_id(req.submission_id).await {
+        Ok(Some(sub)) => sub,
         Ok(None) => {
             return Ok(HttpResponse::NotFound()
                 .json(ApiResponse::error_empty(ErrorCode::NotFound, "提交不存在")));
@@ -26,7 +30,61 @@ pub async fn create_grade(
                 )),
             );
         }
-        _ => {}
+    };
+
+    // 获取作业信息以确定班级
+    let homework = match storage.get_homework_by_id(submission.homework_id).await {
+        Ok(Some(hw)) => hw,
+        Ok(None) => {
+            return Ok(HttpResponse::NotFound()
+                .json(ApiResponse::error_empty(ErrorCode::NotFound, "作业不存在")));
+        }
+        Err(e) => {
+            return Ok(
+                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
+                    ErrorCode::InternalServerError,
+                    format!("查询作业失败: {e}"),
+                )),
+            );
+        }
+    };
+
+    // 获取班级信息
+    let class = match storage.get_class_by_id(homework.class_id).await {
+        Ok(Some(cls)) => cls,
+        Ok(None) => {
+            return Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
+                ErrorCode::ClassNotFound,
+                "班级不存在",
+            )));
+        }
+        Err(e) => {
+            return Ok(
+                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
+                    ErrorCode::InternalServerError,
+                    format!("查询班级失败: {e}"),
+                )),
+            );
+        }
+    };
+
+    // 权限检查：只有该班级的教师或管理员才能评分
+    match user_role {
+        Some(UserRole::Admin) => {} // 管理员可以评任何提交
+        Some(UserRole::Teacher) => {
+            if class.teacher_id != grader_id {
+                return Ok(HttpResponse::Forbidden().json(ApiResponse::error_empty(
+                    ErrorCode::Forbidden,
+                    "只能对自己班级的提交进行评分",
+                )));
+            }
+        }
+        _ => {
+            return Ok(HttpResponse::Forbidden().json(ApiResponse::error_empty(
+                ErrorCode::Forbidden,
+                "没有评分权限",
+            )));
+        }
     }
 
     // 检查是否已评分

@@ -275,6 +275,10 @@ impl Storage for SeaOrmStorage {
     // 班级用户模块
     // ============================================
 
+    async fn count_class_members(&self, class_id: i64) -> Result<i64> {
+        self.count_class_members_impl(class_id).await
+    }
+
     async fn join_class(
         &self,
         user_id: i64,
@@ -325,6 +329,10 @@ impl Storage for SeaOrmStorage {
             .await
     }
 
+    async fn get_class_user_by_id(&self, class_user_id: i64) -> Result<Option<ClassUser>> {
+        self.get_class_user_by_id_impl(class_user_id).await
+    }
+
     async fn get_class_and_class_user_by_class_id_and_code(
         &self,
         class_id: i64,
@@ -362,8 +370,10 @@ impl Storage for SeaOrmStorage {
         &self,
         homework_id: i64,
         update: UpdateHomeworkRequest,
+        user_id: i64,
     ) -> Result<Option<Homework>> {
-        self.update_homework_impl(homework_id, update).await
+        self.update_homework_impl(homework_id, update, user_id)
+            .await
     }
 
     async fn delete_homework(&self, homework_id: i64) -> Result<bool> {
@@ -374,8 +384,14 @@ impl Storage for SeaOrmStorage {
         self.get_homework_file_ids_impl(homework_id).await
     }
 
-    async fn set_homework_files(&self, homework_id: i64, file_ids: Vec<i64>) -> Result<()> {
-        self.set_homework_files_impl(homework_id, file_ids).await
+    async fn set_homework_files(
+        &self,
+        homework_id: i64,
+        tokens: Vec<String>,
+        user_id: i64,
+    ) -> Result<()> {
+        self.set_homework_files_impl(homework_id, tokens, user_id)
+            .await
     }
 
     // ============================================
@@ -432,8 +448,13 @@ impl Storage for SeaOrmStorage {
         self.get_submission_file_ids_impl(submission_id).await
     }
 
-    async fn set_submission_files(&self, submission_id: i64, file_ids: Vec<i64>) -> Result<()> {
-        self.set_submission_files_impl(submission_id, file_ids)
+    async fn set_submission_files(
+        &self,
+        submission_id: i64,
+        tokens: Vec<String>,
+        user_id: i64,
+    ) -> Result<()> {
+        self.set_submission_files_impl(submission_id, tokens, user_id)
             .await
     }
 

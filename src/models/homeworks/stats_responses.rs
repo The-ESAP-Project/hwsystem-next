@@ -39,5 +39,5 @@ pub struct ScoreRange {
 pub struct UnsubmittedStudent {
     pub id: i64,
     pub username: String,
-    pub profile_name: Option<String>,
+    pub display_name: Option<String>,
 }

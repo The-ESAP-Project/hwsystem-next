@@ -1,9 +1,19 @@
+use std::sync::Arc;
+
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use super::ClassService;
 use crate::{
     middlewares::RequireJWT,
-    models::{ApiResponse, ErrorCode, classes::entities::Class, users::entities::UserRole},
+    models::{
+        ApiResponse, ErrorCode,
+        classes::{
+            entities::Class,
+            responses::{ClassDetail, TeacherInfo},
+        },
+        users::entities::UserRole,
+    },
+    storage::Storage,
 };
 
 pub async fn get_class(
@@ -27,11 +37,35 @@ pub async fn get_class(
     match storage.get_class_by_id(class_id).await {
         Ok(Some(class)) => {
             // 权限校验
-            if let Err(resp) = check_class_access_permission(role, uid, &class) {
+            if let Err(resp) = check_class_access_permission(&storage, role, uid, &class).await {
                 return Ok(resp);
             }
-            Ok(HttpResponse::Ok().json(ApiResponse::success(
+
+            // 获取教师信息
+            let teacher_info = match storage.get_user_by_id(class.teacher_id).await {
+                Ok(Some(teacher)) => TeacherInfo {
+                    id: teacher.id,
+                    username: teacher.username,
+                    display_name: teacher.display_name,
+                },
+                _ => TeacherInfo {
+                    id: class.teacher_id,
+                    username: "未知".to_string(),
+                    display_name: None,
+                },
+            };
+
+            // 获取成员数量
+            let member_count = storage.count_class_members(class_id).await.unwrap_or(0);
+
+            let detail = ClassDetail {
                 class,
+                teacher: teacher_info,
+                member_count,
+            };
+
+            Ok(HttpResponse::Ok().json(ApiResponse::success(
+                detail,
                 "Class information retrieved successfully",
             )))
         }
@@ -49,7 +83,8 @@ pub async fn get_class(
 }
 
 /// 权限校验辅助函数
-fn check_class_access_permission(
+async fn check_class_access_permission(
+    storage: &Arc<dyn Storage>,
     role: Option<UserRole>,
     uid: i64,
     class: &Class,
@@ -64,6 +99,19 @@ fn check_class_access_permission(
                 )));
             }
             Ok(())
+        }
+        Some(UserRole::User) => {
+            // 检查是否为班级成员
+            match storage
+                .get_class_user_by_user_id_and_class_id(uid, class.id)
+                .await
+            {
+                Ok(Some(_)) => Ok(()),
+                _ => Err(HttpResponse::Forbidden().json(ApiResponse::error_empty(
+                    ErrorCode::ClassPermissionDenied,
+                    "You are not a member of this class",
+                ))),
+            }
         }
         _ => Err(HttpResponse::Forbidden().json(ApiResponse::error_empty(
             ErrorCode::ClassPermissionDenied,

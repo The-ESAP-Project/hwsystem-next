@@ -2,6 +2,7 @@ use serde::Serialize;
 use ts_rs::TS;
 
 use crate::models::PaginationInfo;
+use crate::models::files::responses::FileInfo;
 
 use super::entities::Submission;
 
@@ -11,7 +12,7 @@ use super::entities::Submission;
 pub struct SubmissionCreator {
     pub id: i64,
     pub username: String,
-    pub profile_name: Option<String>,
+    pub display_name: Option<String>,
 }
 
 /// 提交响应
@@ -22,7 +23,7 @@ pub struct SubmissionResponse {
     pub homework_id: i64,
     pub creator: SubmissionCreator,
     pub content: String,
-    pub attachments: Vec<String>,
+    pub attachments: Vec<FileInfo>,
     pub status: String,
     pub submitted_at: String,
     pub grade: Option<SubmissionGradeInfo>,

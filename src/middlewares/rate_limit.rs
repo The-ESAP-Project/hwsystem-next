@@ -91,6 +91,16 @@ impl RateLimit {
         Self::new(3, 60).with_prefix("register")
     }
 
+    /// 刷新令牌限制：10次/分钟/IP（防止暴力攻击）
+    pub fn refresh_token() -> Self {
+        Self::new(10, 60).with_prefix("refresh")
+    }
+
+    /// 邀请码查询限制：10次/分钟/IP（防止暴力枚举）
+    pub fn invite_code() -> Self {
+        Self::new(10, 60).with_prefix("invite_code")
+    }
+
     /// 文件上传限制：10次/分钟/用户
     pub fn file_upload() -> Self {
         Self::new(10, 60).with_prefix("upload")
@@ -103,27 +113,54 @@ impl RateLimit {
 }
 
 /// 从请求中提取客户端 IP
+///
+/// 安全注意事项：
+/// - 如果服务部署在反向代理后面，需要在反向代理中配置正确的 X-Forwarded-For / X-Real-IP 头
+/// - 此实现会验证 IP 格式，防止伪造的无效头导致问题
+/// - 在不可信网络中直接暴露服务时，攻击者可能伪造转发头来绕过限制
 fn extract_client_ip(req: &ServiceRequest) -> String {
-    // 优先从 X-Forwarded-For 头获取（用于反向代理场景）
+    // 尝试从连接信息获取真实 IP（最可信）
+    let connection_ip = req
+        .connection_info()
+        .realip_remote_addr()
+        .map(|s| s.to_string());
+
+    // 如果连接信息有有效 IP，优先使用
+    if let Some(ref ip) = connection_ip
+        && is_valid_ip(ip) {
+            return ip.clone();
+        }
+
+    // 从 X-Forwarded-For 头获取（用于反向代理场景）
+    // 只取第一个 IP（最接近客户端的）
     if let Some(forwarded) = req.headers().get("X-Forwarded-For")
         && let Ok(value) = forwarded.to_str()
         && let Some(ip) = value.split(',').next()
     {
-        return ip.trim().to_string();
+        let ip = ip.trim();
+        if is_valid_ip(ip) {
+            return ip.to_string();
+        }
     }
 
     // 从 X-Real-IP 头获取
     if let Some(real_ip) = req.headers().get("X-Real-IP")
         && let Ok(ip) = real_ip.to_str()
     {
-        return ip.to_string();
+        let ip = ip.trim();
+        if is_valid_ip(ip) {
+            return ip.to_string();
+        }
     }
 
-    // 从连接信息获取
-    req.connection_info()
-        .realip_remote_addr()
-        .unwrap_or("unknown")
-        .to_string()
+    // 如果都没有有效 IP，使用连接信息的默认值
+    connection_ip.unwrap_or_else(|| "unknown".to_string())
+}
+
+/// 验证 IP 地址格式是否有效
+fn is_valid_ip(ip: &str) -> bool {
+    use std::net::IpAddr;
+    ip.parse::<IpAddr>().is_ok()
 }
 
 /// 从请求中提取用户 ID（如果已认证）

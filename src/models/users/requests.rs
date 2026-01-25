@@ -49,3 +49,26 @@ pub struct UserListQuery {
     pub status: Option<UserStatus>,
     pub search: Option<String>,
 }
+
+// 用户导出参数
+#[derive(Debug, Deserialize, TS)]
+#[ts(export, export_to = "../frontend/src/types/generated/user.ts")]
+pub struct UserExportParams {
+    #[serde(default = "default_export_format")]
+    pub format: String,
+    pub role: Option<UserRole>,
+    pub status: Option<UserStatus>,
+    pub search: Option<String>,
+}
+
+fn default_export_format() -> String {
+    "csv".to_string()
+}
+
+// 导入模板参数
+#[derive(Debug, Deserialize, TS)]
+#[ts(export, export_to = "../frontend/src/types/generated/user.ts")]
+pub struct ImportTemplateParams {
+    #[serde(default = "default_export_format")]
+    pub format: String,
+}

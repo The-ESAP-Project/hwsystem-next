@@ -4,7 +4,7 @@ use crate::errors::{HWSystemError, Result};
 use crate::models::{
     PaginationInfo,
     users::{
-        entities::{User, UserStatus},
+        entities::{User, UserRole, UserStatus},
         requests::{CreateUserRequest, UpdateUserRequest, UserListQuery},
         responses::UserListResponse,
     },
@@ -12,7 +12,7 @@ use crate::models::{
 use crate::utils::escape_like_pattern;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
-    Set,
+    QuerySelect, Set,
 };
 
 impl SeaOrmStorage {
@@ -239,5 +239,91 @@ impl SeaOrmStorage {
             .map_err(|e| HWSystemError::database_operation(format!("统计用户数量失败: {e}")))?;
 
         Ok(count)
+    }
+
+    /// 批量检查用户名是否已存在，返回已存在的用户名列表
+    pub async fn check_usernames_exist_impl(&self, usernames: &[String]) -> Result<Vec<String>> {
+        if usernames.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let existing = Users::find()
+            .filter(Column::Username.is_in(usernames.iter().cloned()))
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("检查用户名失败: {e}")))?;
+
+        Ok(existing.into_iter().map(|u| u.username).collect())
+    }
+
+    /// 批量检查邮箱是否已存在，返回已存在的邮箱列表
+    pub async fn check_emails_exist_impl(&self, emails: &[String]) -> Result<Vec<String>> {
+        if emails.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let existing = Users::find()
+            .filter(Column::Email.is_in(emails.iter().cloned()))
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("检查邮箱失败: {e}")))?;
+
+        Ok(existing.into_iter().map(|u| u.email).collect())
+    }
+
+    /// 列出所有用户（用于导出，限制数量）
+    pub async fn list_all_users_for_export_impl(&self, limit: u64) -> Result<Vec<User>> {
+        use crate::entity::users::Model;
+        let users: Vec<Model> = Users::find()
+            .order_by_asc(Column::Id)
+            .limit(limit)
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询用户失败: {e}")))?;
+
+        Ok(users.into_iter().map(|m| m.into_user()).collect())
+    }
+
+    /// 列出用户（用于导出，支持筛选）
+    pub async fn list_users_for_export_filtered_impl(
+        &self,
+        limit: u64,
+        role: Option<UserRole>,
+        status: Option<UserStatus>,
+        search: Option<&str>,
+    ) -> Result<Vec<User>> {
+        let mut select = Users::find();
+
+        // 搜索条件
+        if let Some(search) = search
+            && !search.trim().is_empty()
+        {
+            let escaped = escape_like_pattern(search.trim());
+            select = select.filter(
+                Condition::any()
+                    .add(Column::Username.contains(&escaped))
+                    .add(Column::Email.contains(&escaped))
+                    .add(Column::DisplayName.contains(&escaped)),
+            );
+        }
+
+        // 角色筛选
+        if let Some(ref role) = role {
+            select = select.filter(Column::Role.eq(role.to_string()));
+        }
+
+        // 状态筛选
+        if let Some(ref status) = status {
+            select = select.filter(Column::Status.eq(status.to_string()));
+        }
+
+        let users = select
+            .order_by_asc(Column::Id)
+            .limit(limit)
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询用户失败: {e}")))?;
+
+        Ok(users.into_iter().map(|m| m.into_user()).collect())
     }
 }

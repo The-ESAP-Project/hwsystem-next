@@ -153,7 +153,7 @@ use crate::models::{
         },
     },
     users::{
-        entities::User,
+        entities::{User, UserRole, UserStatus},
         requests::{CreateUserRequest, UpdateUserRequest, UserListQuery},
         responses::UserListResponse,
     },
@@ -205,6 +205,29 @@ impl Storage for SeaOrmStorage {
 
     async fn count_users(&self) -> Result<u64> {
         self.count_users_impl().await
+    }
+
+    async fn check_usernames_exist(&self, usernames: &[String]) -> Result<Vec<String>> {
+        self.check_usernames_exist_impl(usernames).await
+    }
+
+    async fn check_emails_exist(&self, emails: &[String]) -> Result<Vec<String>> {
+        self.check_emails_exist_impl(emails).await
+    }
+
+    async fn list_all_users_for_export(&self, limit: u64) -> Result<Vec<User>> {
+        self.list_all_users_for_export_impl(limit).await
+    }
+
+    async fn list_users_for_export_filtered(
+        &self,
+        limit: u64,
+        role: Option<UserRole>,
+        status: Option<UserStatus>,
+        search: Option<&str>,
+    ) -> Result<Vec<User>> {
+        self.list_users_for_export_filtered_impl(limit, role, status, search)
+            .await
     }
 
     // ============================================

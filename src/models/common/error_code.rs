@@ -63,4 +63,11 @@ pub enum ErrorCode {
 
     // 通用权限错误
     PermissionDenied = 6000, // 权限被拒绝
+
+    // 导入/导出相关错误
+    ImportFileParseFailed = 7000,   // 导入文件解析失败
+    ImportFileFormatInvalid = 7001, // 导入文件格式无效
+    ImportFileMissingColumn = 7002, // 导入文件缺少必需列
+    ImportFileDataInvalid = 7003,   // 导入文件数据无效
+    ExportFailed = 7010,            // 导出失败
 }

@@ -1,13 +1,18 @@
 pub mod create;
 pub mod delete;
+pub mod export;
 pub mod get;
+pub mod import;
 pub mod list;
 pub mod update;
 
+use actix_multipart::Multipart;
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use std::sync::Arc;
 
-use crate::models::users::requests::{CreateUserRequest, UpdateUserRequest, UserListParams};
+use crate::models::users::requests::{
+    CreateUserRequest, UpdateUserRequest, UserExportParams, UserListParams,
+};
 use crate::storage::Storage;
 
 pub struct UserService {
@@ -71,5 +76,28 @@ impl UserService {
         request: &HttpRequest,
     ) -> ActixResult<HttpResponse> {
         delete::delete_user(self, user_id, request).await
+    }
+
+    // 导出用户
+    pub async fn export_users(
+        &self,
+        params: UserExportParams,
+        request: &HttpRequest,
+    ) -> ActixResult<HttpResponse> {
+        export::export_users(self, params, request).await
+    }
+
+    // 导入用户
+    pub async fn import_users(
+        &self,
+        payload: Multipart,
+        request: &HttpRequest,
+    ) -> ActixResult<HttpResponse> {
+        import::import_users(self, payload, request).await
+    }
+
+    // 下载导入模板
+    pub async fn download_import_template(&self, format: &str) -> ActixResult<HttpResponse> {
+        export::download_template(format).await
     }
 }

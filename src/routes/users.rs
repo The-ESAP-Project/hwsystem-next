@@ -1,9 +1,12 @@
+use actix_multipart::Multipart;
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};
 use once_cell::sync::Lazy;
 
 use crate::middlewares;
 use crate::models::users::entities::UserRole;
-use crate::models::users::requests::{CreateUserRequest, UpdateUserRequest, UserListParams};
+use crate::models::users::requests::{
+    CreateUserRequest, ImportTemplateParams, UpdateUserRequest, UserExportParams, UserListParams,
+};
 use crate::services::UserService;
 use crate::utils::SafeIDI64;
 
@@ -43,6 +46,23 @@ pub async fn delete_user(req: HttpRequest, user_id: SafeIDI64) -> ActixResult<Ht
     USER_SERVICE.delete_user(user_id.0, &req).await
 }
 
+pub async fn export_users(
+    req: HttpRequest,
+    query: web::Query<UserExportParams>,
+) -> ActixResult<HttpResponse> {
+    USER_SERVICE.export_users(query.into_inner(), &req).await
+}
+
+pub async fn import_users(req: HttpRequest, payload: Multipart) -> ActixResult<HttpResponse> {
+    USER_SERVICE.import_users(payload, &req).await
+}
+
+pub async fn download_import_template(
+    query: web::Query<ImportTemplateParams>,
+) -> ActixResult<HttpResponse> {
+    USER_SERVICE.download_import_template(&query.format).await
+}
+
 // 配置路由
 pub fn configure_user_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -53,6 +73,9 @@ pub fn configure_user_routes(cfg: &mut web::ServiceConfig) {
                     .wrap(middlewares::RequireRole::new_any(UserRole::admin_roles()))
                     .route("", web::get().to(list_users))
                     .route("", web::post().to(create_user))
+                    .route("/export", web::get().to(export_users))
+                    .route("/import", web::post().to(import_users))
+                    .route("/import/template", web::get().to(download_import_template))
                     .route("/{id}", web::get().to(get_user))
                     .route("/{id}", web::put().to(update_user))
                     .route("/{id}", web::delete().to(delete_user)),

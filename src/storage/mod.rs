@@ -36,7 +36,7 @@ use crate::models::{
         },
     },
     users::{
-        entities::User,
+        entities::{User, UserRole, UserStatus},
         requests::{CreateUserRequest, UpdateUserRequest, UserListQuery},
         responses::UserListResponse,
     },
@@ -72,6 +72,20 @@ pub trait Storage: Send + Sync {
     async fn update_last_login(&self, id: i64) -> Result<bool>;
     /// 统计用户数量
     async fn count_users(&self) -> Result<u64>;
+    /// 批量检查用户名是否已存在
+    async fn check_usernames_exist(&self, usernames: &[String]) -> Result<Vec<String>>;
+    /// 批量检查邮箱是否已存在
+    async fn check_emails_exist(&self, emails: &[String]) -> Result<Vec<String>>;
+    /// 列出所有用户（用于导出，限制数量）
+    async fn list_all_users_for_export(&self, limit: u64) -> Result<Vec<User>>;
+    /// 列出用户（用于导出，支持筛选）
+    async fn list_users_for_export_filtered(
+        &self,
+        limit: u64,
+        role: Option<UserRole>,
+        status: Option<UserStatus>,
+        search: Option<&str>,
+    ) -> Result<Vec<User>>;
 
     // ============================================
     // 文件管理方法

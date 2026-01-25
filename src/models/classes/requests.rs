@@ -13,7 +13,14 @@ pub struct ClassQueryParams {
 }
 
 // 创建班级请求
-// teacher_id 可选：教师创建时自动填充为当前用户 ID，管理员创建时必填
+//
+// # teacher_id 字段说明
+// - **教师创建**：可选字段，不填写则自动使用当前登录教师的 ID
+// - **管理员创建**：必填字段，用于指定负责该班级的教师
+//
+// # 权限验证
+// - 教师：如果指定 teacher_id，必须等于自己的 ID
+// - 管理员：必须指定 teacher_id，且该用户必须是教师角色
 #[derive(Debug, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/class.ts")]
 pub struct CreateClassRequest {

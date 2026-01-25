@@ -11,6 +11,19 @@ use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
 use crate::storage::Storage;
 
+/// 创建班级
+///
+/// # 权限规则
+/// - **教师**：可以创建班级，自动成为该班级的负责教师
+///   - 如果请求中包含 teacher_id，必须等于当前用户 ID
+///   - 如果请求中不包含 teacher_id，自动使用当前用户 ID
+/// - **管理员**：可以为任意教师创建班级
+///   - 必须在请求中指定 teacher_id
+///   - 指定的用户必须存在且角色为 Teacher
+///
+/// # 返回
+/// - 成功：返回创建的班级信息（201 Created）
+/// - 失败：返回相应的错误码和错误信息
 pub async fn create_class(
     service: &ClassService,
     request: &HttpRequest,
@@ -61,7 +74,21 @@ pub async fn create_class(
 }
 
 /// 权限校验辅助函数
-/// 返回值：成功时返回最终确定的 teacher_id
+///
+/// # 参数
+/// - `role`: 用户的系统角色
+/// - `uid`: 当前登录用户的 ID
+/// - `class_data`: 创建班级的请求数据
+/// - `storage`: 存储层接口
+///
+/// # 返回
+/// - `Ok(teacher_id)`: 成功时返回最终确定的 teacher_id
+/// - `Err(HttpResponse)`: 失败时返回错误响应
+///
+/// # 逻辑
+/// - **Admin**: 必须指定 teacher_id，且该用户必须是教师角色
+/// - **Teacher**: 如果指定了 teacher_id，必须是自己的 ID；否则自动使用自己的 ID
+/// - **其他角色**: 无权限创建班级
 async fn check_class_create_permission(
     role: Option<UserRole>,
     uid: i64,
@@ -76,7 +103,7 @@ async fn check_class_create_permission(
                 None => {
                     return Err(HttpResponse::BadRequest().json(ApiResponse::error_empty(
                         ErrorCode::BadRequest,
-                        "Admin must specify teacher_id",
+                        "Admin must specify teacher_id when creating a class",
                     )));
                 }
             };
@@ -86,14 +113,14 @@ async fn check_class_create_permission(
                     if user.role != UserRole::Teacher {
                         return Err(HttpResponse::BadRequest().json(ApiResponse::error_empty(
                             ErrorCode::ClassPermissionDenied,
-                            "Admin can only create classes for teachers",
+                            "The specified user is not a teacher",
                         )));
                     }
                     Ok(teacher_id)
                 }
                 Ok(None) => Err(HttpResponse::NotFound().json(ApiResponse::error_empty(
                     ErrorCode::UserNotFound,
-                    "Teacher not found",
+                    "The specified teacher does not exist",
                 ))),
                 Err(e) => {
                     error!("Failed to get user by id: {}", e);
@@ -113,7 +140,7 @@ async fn check_class_create_permission(
             if teacher_id != uid {
                 return Err(HttpResponse::Forbidden().json(ApiResponse::error_empty(
                     ErrorCode::ClassPermissionDenied,
-                    "You do not have permission to create a class for another teacher",
+                    "Teachers can only create classes for themselves",
                 )));
             }
             Ok(teacher_id)

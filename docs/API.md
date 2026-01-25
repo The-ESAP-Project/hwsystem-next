@@ -340,9 +340,22 @@ Authorization: Bearer <access_token>
 
 **权限**：Teacher+
 
-**请求**：
+**说明**：
+- 教师创建：自动使用当前登录教师的 ID，无需指定 `teacher_id`
+- 管理员创建：必须指定 `teacher_id` 来绑定负责该班级的教师
+
+**请求（教师创建）**：
 ```json
 {
+    "name": "数据结构",
+    "description": "2026春季班"
+}
+```
+
+**请求（管理员创建）**：
+```json
+{
+    "teacher_id": 2,
     "name": "数据结构",
     "description": "2026春季班"
 }
@@ -359,6 +372,11 @@ Authorization: Bearer <access_token>
     "created_at": "..."
 }
 ```
+
+**错误码**：
+- 1000：管理员未指定 teacher_id
+- 4000：指定的教师不存在
+- 5005：指定的用户不是教师角色
 
 ### 4.3 GET /classes/code/{code}
 

@@ -22,7 +22,7 @@ pub async fn create_grade(
         Ok(Some(sub)) => sub,
         Ok(None) => {
             return Ok(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::NotFound, "提交不存在")));
+                .json(ApiResponse::error_empty(ErrorCode::SubmissionNotFound, "提交不存在")));
         }
         Err(e) => {
             return Ok(
@@ -39,7 +39,7 @@ pub async fn create_grade(
         Ok(Some(hw)) => hw,
         Ok(None) => {
             return Ok(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::NotFound, "作业不存在")));
+                .json(ApiResponse::error_empty(ErrorCode::HomeworkNotFound, "作业不存在")));
         }
         Err(e) => {
             return Ok(
@@ -134,7 +134,7 @@ pub async fn create_grade(
         }
         Err(e) => Ok(
             HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
+                ErrorCode::GradeCreateFailed,
                 format!("创建评分失败: {e}"),
             )),
         ),

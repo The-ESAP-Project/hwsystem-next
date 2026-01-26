@@ -155,7 +155,7 @@ where
                         Ok(req.into_response(
                             create_error_response(
                                 StatusCode::FORBIDDEN,
-                                ErrorCode::Unauthorized,
+                                ErrorCode::Forbidden,
                                 "Access denied.",
                             )
                             .map_into_right_body(),

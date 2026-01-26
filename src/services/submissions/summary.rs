@@ -46,7 +46,7 @@ pub async fn get_submission_summary(
         None => {
             return Ok(
                 HttpResponse::NotFound().json(ApiResponse::<()>::error_empty(
-                    ErrorCode::NotFound,
+                    ErrorCode::HomeworkNotFound,
                     "作业不存在",
                 )),
             );
@@ -145,7 +145,7 @@ pub async fn list_user_submissions_for_teacher(
         None => {
             return Ok(
                 HttpResponse::NotFound().json(ApiResponse::<()>::error_empty(
-                    ErrorCode::NotFound,
+                    ErrorCode::HomeworkNotFound,
                     "作业不存在",
                 )),
             );

@@ -2,6 +2,7 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};
 
 use crate::cache::{CacheResult, ObjectCache};
 use crate::middlewares::{self, RateLimit};
+use crate::models::system::requests::WsQuery;
 use crate::models::system::responses::WebSocketStatusResponse;
 use crate::models::users::entities::User;
 use crate::models::{ApiResponse, ErrorCode};
@@ -33,12 +34,6 @@ pub async fn ws_handler(
     });
 
     Ok(response)
-}
-
-/// WebSocket 查询参数
-#[derive(Debug, serde::Deserialize)]
-pub struct WsQuery {
-    pub token: String,
 }
 
 /// 验证 token 并获取用户

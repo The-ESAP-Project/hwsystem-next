@@ -40,3 +40,13 @@ pub struct SubmissionListQuery {
     pub creator_id: Option<i64>,
     pub status: Option<String>,
 }
+
+/// 提交概览分页查询参数
+#[derive(Debug, Deserialize, TS)]
+#[ts(export, export_to = "../frontend/src/types/generated/submission.ts")]
+pub struct SubmissionSummaryQuery {
+    pub page: Option<i64>,
+    pub size: Option<i64>,
+    /// 筛选是否已批改：true=已批改，false=待批改，None=全部
+    pub graded: Option<bool>,
+}

@@ -30,7 +30,7 @@ pub async fn get_submission(
         Ok(Some(sub)) => sub,
         Ok(None) => {
             return Ok(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::NotFound, "提交不存在")));
+                .json(ApiResponse::error_empty(ErrorCode::SubmissionNotFound, "提交不存在")));
         }
         Err(e) => {
             return Ok(
@@ -55,7 +55,7 @@ pub async fn get_submission(
             Ok(Some(hw)) => hw,
             Ok(None) => {
                 return Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
-                    ErrorCode::NotFound,
+                    ErrorCode::HomeworkNotFound,
                     "关联作业不存在",
                 )));
             }

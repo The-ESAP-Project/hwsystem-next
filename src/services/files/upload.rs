@@ -53,7 +53,7 @@ pub async fn handle_upload(
         if name == "file" {
             if file_uploaded {
                 return Ok(HttpResponse::BadRequest().json(ApiResponse::error_empty(
-                    ErrorCode::MuitifileUploadNotAllowed,
+                    ErrorCode::MultifileUploadNotAllowed,
                     "Only one file can be uploaded at a time",
                 )));
             }

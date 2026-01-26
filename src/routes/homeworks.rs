@@ -3,11 +3,12 @@ use once_cell::sync::Lazy;
 
 use crate::middlewares::{self, RequireJWT};
 use crate::models::homeworks::requests::{
-    CreateHomeworkRequest, HomeworkListQuery, UpdateHomeworkRequest,
+    AllHomeworksQuery, CreateHomeworkRequest, HomeworkListQuery, UpdateHomeworkRequest,
 };
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
 use crate::services::HomeworkService;
+use crate::utils::SafeIDI64;
 
 // 懒加载的全局 HomeworkService 实例
 static HOMEWORK_SERVICE: Lazy<HomeworkService> = Lazy::new(HomeworkService::new_lazy);
@@ -43,14 +44,14 @@ pub async fn create_homework(
 }
 
 // 获取作业详情
-pub async fn get_homework(req: HttpRequest, path: web::Path<i64>) -> ActixResult<HttpResponse> {
-    HOMEWORK_SERVICE.get_homework(&req, path.into_inner()).await
+pub async fn get_homework(req: HttpRequest, path: SafeIDI64) -> ActixResult<HttpResponse> {
+    HOMEWORK_SERVICE.get_homework(&req, path.0).await
 }
 
 // 更新作业
 pub async fn update_homework(
     req: HttpRequest,
-    path: web::Path<i64>,
+    path: SafeIDI64,
     body: web::Json<UpdateHomeworkRequest>,
 ) -> ActixResult<HttpResponse> {
     let user_id = match RequireJWT::extract_user_id(&req) {
@@ -64,12 +65,12 @@ pub async fn update_homework(
     };
 
     HOMEWORK_SERVICE
-        .update_homework(&req, path.into_inner(), body.into_inner(), user_id)
+        .update_homework(&req, path.0, body.into_inner(), user_id)
         .await
 }
 
 // 删除作业
-pub async fn delete_homework(req: HttpRequest, path: web::Path<i64>) -> ActixResult<HttpResponse> {
+pub async fn delete_homework(req: HttpRequest, path: SafeIDI64) -> ActixResult<HttpResponse> {
     let user_id = match RequireJWT::extract_user_id(&req) {
         Some(id) => id,
         None => {
@@ -81,27 +82,27 @@ pub async fn delete_homework(req: HttpRequest, path: web::Path<i64>) -> ActixRes
     };
 
     HOMEWORK_SERVICE
-        .delete_homework(&req, path.into_inner(), user_id)
+        .delete_homework(&req, path.0, user_id)
         .await
 }
 
 // 获取作业统计
 pub async fn get_homework_stats(
     req: HttpRequest,
-    path: web::Path<i64>,
+    path: SafeIDI64,
 ) -> ActixResult<HttpResponse> {
     HOMEWORK_SERVICE
-        .get_homework_stats(&req, path.into_inner())
+        .get_homework_stats(&req, path.0)
         .await
 }
 
 // 导出作业统计
 pub async fn export_homework_stats(
     req: HttpRequest,
-    path: web::Path<i64>,
+    path: SafeIDI64,
 ) -> ActixResult<HttpResponse> {
     HOMEWORK_SERVICE
-        .export_homework_stats(&req, path.into_inner())
+        .export_homework_stats(&req, path.0)
         .await
 }
 
@@ -113,6 +114,16 @@ pub async fn get_my_homework_stats(req: HttpRequest) -> ActixResult<HttpResponse
 // 获取教师作业统计
 pub async fn get_teacher_homework_stats(req: HttpRequest) -> ActixResult<HttpResponse> {
     HOMEWORK_SERVICE.get_teacher_homework_stats(&req).await
+}
+
+// 列出所有班级的作业（跨班级）
+pub async fn list_all_homeworks(
+    req: HttpRequest,
+    query: web::Query<AllHomeworksQuery>,
+) -> ActixResult<HttpResponse> {
+    HOMEWORK_SERVICE
+        .list_all_homeworks(&req, query.into_inner())
+        .await
 }
 
 // 配置路由
@@ -139,6 +150,8 @@ pub fn configure_homeworks_routes(cfg: &mut web::ServiceConfig) {
                     .route(web::get().to(get_teacher_homework_stats))
                     .wrap(middlewares::RequireRole::new_any(UserRole::teacher_roles())),
             )
+            // 跨班级作业列表 - 所有登录用户可访问（业务层根据角色返回不同数据）
+            .service(web::resource("/all").route(web::get().to(list_all_homeworks)))
             .service(
                 web::resource("/{id}")
                     // 获取作业详情 - 所有登录用户可访问（业务层会验证班级成员资格）

@@ -28,7 +28,7 @@ pub async fn mark_as_read(
         Ok(Some(n)) => n,
         Ok(None) => {
             return Ok(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::NotFound, "通知不存在")));
+                .json(ApiResponse::error_empty(ErrorCode::NotificationNotFound, "通知不存在")));
         }
         Err(e) => {
             return Ok(
@@ -51,7 +51,7 @@ pub async fn mark_as_read(
     match storage.mark_notification_as_read(notification_id).await {
         Ok(true) => Ok(HttpResponse::Ok().json(ApiResponse::success_empty("通知已标记为已读"))),
         Ok(false) => Ok(HttpResponse::NotFound()
-            .json(ApiResponse::error_empty(ErrorCode::NotFound, "通知不存在"))),
+            .json(ApiResponse::error_empty(ErrorCode::NotificationNotFound, "通知不存在"))),
         Err(e) => Ok(
             HttpResponse::InternalServerError().json(ApiResponse::error_empty(
                 ErrorCode::InternalServerError,

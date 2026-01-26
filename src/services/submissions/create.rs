@@ -21,7 +21,7 @@ pub async fn create_submission(
         Ok(Some(hw)) => hw,
         Ok(None) => {
             return Ok(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::NotFound, "作业不存在")));
+                .json(ApiResponse::error_empty(ErrorCode::HomeworkNotFound, "作业不存在")));
         }
         Err(e) => {
             return Ok(
@@ -90,7 +90,7 @@ pub async fn create_submission(
         }
         Err(e) => Ok(
             HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
+                ErrorCode::SubmissionCreateFailed,
                 format!("创建提交失败: {e}"),
             )),
         ),

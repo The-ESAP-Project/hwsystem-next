@@ -32,7 +32,7 @@ pub enum ErrorCode {
     FileUploadFailed = 3001,          // 文件上传失败
     FileTypeNotAllowed = 3002,        // 文件类型不被允许
     FileSizeExceeded = 3003,          // 文件大小超出限制
-    MuitifileUploadNotAllowed = 3004, // 不允许多文件上传
+    MultifileUploadNotAllowed = 3004, // 不允许多文件上传
 
     // 用户相关错误
     UserNotFound = 4000,            // 用户未找到
@@ -70,4 +70,23 @@ pub enum ErrorCode {
     ImportFileMissingColumn = 7002, // 导入文件缺少必需列
     ImportFileDataInvalid = 7003,   // 导入文件数据无效
     ExportFailed = 7010,            // 导出失败
+
+    // 作业相关错误
+    HomeworkNotFound = 8000,     // 作业未找到
+    HomeworkCreateFailed = 8001, // 作业创建失败
+    HomeworkUpdateFailed = 8002, // 作业更新失败
+    HomeworkDeleteFailed = 8003, // 作业删除失败
+
+    // 提交相关错误
+    SubmissionNotFound = 9000,     // 提交未找到
+    SubmissionCreateFailed = 9001, // 提交创建失败
+    SubmissionDeleteFailed = 9002, // 提交删除失败
+
+    // 成绩相关错误
+    GradeNotFound = 10000,     // 成绩未找到
+    GradeCreateFailed = 10001, // 成绩创建失败
+    GradeUpdateFailed = 10002, // 成绩更新失败
+
+    // 通知相关错误
+    NotificationNotFound = 11000, // 通知未找到
 }

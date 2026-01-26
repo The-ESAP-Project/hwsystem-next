@@ -23,7 +23,7 @@ pub async fn update_homework(
         Ok(Some(hw)) => hw,
         Ok(None) => {
             return Ok(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::NotFound, "作业不存在")));
+                .json(ApiResponse::error_empty(ErrorCode::HomeworkNotFound, "作业不存在")));
         }
         Err(e) => {
             return Ok(
@@ -79,10 +79,10 @@ pub async fn update_homework(
             Ok(HttpResponse::Ok().json(ApiResponse::success(updated_homework, "更新成功")))
         }
         Ok(None) => Ok(HttpResponse::NotFound()
-            .json(ApiResponse::error_empty(ErrorCode::NotFound, "作业不存在"))),
+            .json(ApiResponse::error_empty(ErrorCode::HomeworkNotFound, "作业不存在"))),
         Err(e) => Ok(
             HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
+                ErrorCode::HomeworkUpdateFailed,
                 format!("更新作业失败: {e}"),
             )),
         ),

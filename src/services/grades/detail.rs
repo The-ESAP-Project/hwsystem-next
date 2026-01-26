@@ -24,7 +24,7 @@ async fn check_grade_access_permission(
         Ok(Some(sub)) => sub,
         Ok(None) => {
             return Err(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::NotFound, "提交不存在")));
+                .json(ApiResponse::error_empty(ErrorCode::SubmissionNotFound, "提交不存在")));
         }
         Err(e) => {
             return Err(
@@ -46,7 +46,7 @@ async fn check_grade_access_permission(
         Ok(Some(hw)) => hw,
         Ok(None) => {
             return Err(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::NotFound, "作业不存在")));
+                .json(ApiResponse::error_empty(ErrorCode::HomeworkNotFound, "作业不存在")));
         }
         Err(e) => {
             return Err(
@@ -113,7 +113,7 @@ pub async fn get_grade(
         Ok(Some(g)) => g,
         Ok(None) => {
             return Ok(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::NotFound, "评分不存在")));
+                .json(ApiResponse::error_empty(ErrorCode::GradeNotFound, "评分不存在")));
         }
         Err(e) => {
             return Ok(

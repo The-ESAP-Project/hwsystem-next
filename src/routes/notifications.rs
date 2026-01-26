@@ -5,6 +5,7 @@ use crate::middlewares::{self, RequireJWT};
 use crate::models::notifications::requests::NotificationListQuery;
 use crate::models::{ApiResponse, ErrorCode};
 use crate::services::NotificationService;
+use crate::utils::SafeIDI64;
 
 // 懒加载的全局 NotificationService 实例
 static NOTIFICATION_SERVICE: Lazy<NotificationService> = Lazy::new(NotificationService::new_lazy);
@@ -45,9 +46,9 @@ pub async fn get_unread_count(req: HttpRequest) -> ActixResult<HttpResponse> {
 }
 
 // 标记单条通知为已读
-pub async fn mark_as_read(req: HttpRequest, path: web::Path<i64>) -> ActixResult<HttpResponse> {
+pub async fn mark_as_read(req: HttpRequest, path: SafeIDI64) -> ActixResult<HttpResponse> {
     NOTIFICATION_SERVICE
-        .mark_as_read(&req, path.into_inner())
+        .mark_as_read(&req, path.0)
         .await
 }
 
@@ -69,10 +70,10 @@ pub async fn mark_all_as_read(req: HttpRequest) -> ActixResult<HttpResponse> {
 // 删除通知
 pub async fn delete_notification(
     req: HttpRequest,
-    path: web::Path<i64>,
+    path: SafeIDI64,
 ) -> ActixResult<HttpResponse> {
     NOTIFICATION_SERVICE
-        .delete_notification(&req, path.into_inner())
+        .delete_notification(&req, path.0)
         .await
 }
 

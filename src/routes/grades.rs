@@ -6,6 +6,7 @@ use crate::models::grades::requests::{CreateGradeRequest, GradeListQuery, Update
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
 use crate::services::GradeService;
+use crate::utils::SafeIDI64;
 
 // 懒加载的全局 GradeService 实例
 static GRADE_SERVICE: Lazy<GradeService> = Lazy::new(GradeService::new_lazy);
@@ -39,14 +40,14 @@ pub async fn create_grade(
 }
 
 // 获取评分详情
-pub async fn get_grade(req: HttpRequest, path: web::Path<i64>) -> ActixResult<HttpResponse> {
-    GRADE_SERVICE.get_grade(&req, path.into_inner()).await
+pub async fn get_grade(req: HttpRequest, path: SafeIDI64) -> ActixResult<HttpResponse> {
+    GRADE_SERVICE.get_grade(&req, path.0).await
 }
 
 // 更新评分
 pub async fn update_grade(
     req: HttpRequest,
-    path: web::Path<i64>,
+    path: SafeIDI64,
     body: web::Json<UpdateGradeRequest>,
 ) -> ActixResult<HttpResponse> {
     let user_id = match RequireJWT::extract_user_id(&req) {
@@ -60,7 +61,7 @@ pub async fn update_grade(
     };
 
     GRADE_SERVICE
-        .update_grade(&req, path.into_inner(), body.into_inner(), user_id)
+        .update_grade(&req, path.0, body.into_inner(), user_id)
         .await
 }
 

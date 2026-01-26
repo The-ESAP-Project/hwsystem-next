@@ -2,9 +2,12 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};
 use once_cell::sync::Lazy;
 
 use crate::middlewares::{self, RequireJWT};
-use crate::models::submissions::requests::{CreateSubmissionRequest, SubmissionListQuery};
+use crate::models::submissions::requests::{
+    CreateSubmissionRequest, SubmissionListQuery, SubmissionSummaryQuery,
+};
 use crate::models::{ApiResponse, ErrorCode};
 use crate::services::SubmissionService;
+use crate::utils::{SafeHomeworkIdI64, SafeIDI64};
 
 // 懒加载的全局 SubmissionService 实例
 static SUBMISSION_SERVICE: Lazy<SubmissionService> = Lazy::new(SubmissionService::new_lazy);
@@ -40,16 +43,16 @@ pub async fn create_submission(
 }
 
 // 获取提交详情
-pub async fn get_submission(req: HttpRequest, path: web::Path<i64>) -> ActixResult<HttpResponse> {
+pub async fn get_submission(req: HttpRequest, path: SafeIDI64) -> ActixResult<HttpResponse> {
     SUBMISSION_SERVICE
-        .get_submission(&req, path.into_inner())
+        .get_submission(&req, path.0)
         .await
 }
 
 // 获取我的最新提交
 pub async fn get_my_latest_submission(
     req: HttpRequest,
-    path: web::Path<i64>, // homework_id
+    path: SafeHomeworkIdI64, // homework_id
 ) -> ActixResult<HttpResponse> {
     let user_id = match RequireJWT::extract_user_id(&req) {
         Some(id) => id,
@@ -62,14 +65,14 @@ pub async fn get_my_latest_submission(
     };
 
     SUBMISSION_SERVICE
-        .get_latest_submission(&req, path.into_inner(), user_id)
+        .get_latest_submission(&req, path.0, user_id)
         .await
 }
 
 // 获取我的提交历史
 pub async fn list_my_submissions(
     req: HttpRequest,
-    path: web::Path<i64>, // homework_id
+    path: SafeHomeworkIdI64, // homework_id
 ) -> ActixResult<HttpResponse> {
     let user_id = match RequireJWT::extract_user_id(&req) {
         Some(id) => id,
@@ -82,14 +85,14 @@ pub async fn list_my_submissions(
     };
 
     SUBMISSION_SERVICE
-        .list_user_submissions(&req, path.into_inner(), user_id)
+        .list_user_submissions(&req, path.0, user_id)
         .await
 }
 
 // 删除/撤回提交
 pub async fn delete_submission(
     req: HttpRequest,
-    path: web::Path<i64>,
+    path: SafeIDI64,
 ) -> ActixResult<HttpResponse> {
     let user_id = match RequireJWT::extract_user_id(&req) {
         Some(id) => id,
@@ -102,30 +105,20 @@ pub async fn delete_submission(
     };
 
     SUBMISSION_SERVICE
-        .delete_submission(&req, path.into_inner(), user_id)
+        .delete_submission(&req, path.0, user_id)
         .await
-}
-
-/// 分页查询参数
-#[derive(Debug, serde::Deserialize, ts_rs::TS)]
-#[ts(export, export_to = "../frontend/src/types/generated/submission.ts")]
-pub struct SubmissionSummaryQuery {
-    pub page: Option<i64>,
-    pub size: Option<i64>,
-    /// 筛选是否已批改：true=已批改，false=待批改，None=全部
-    pub graded: Option<bool>,
 }
 
 // 获取提交概览（按学生聚合）
 pub async fn get_submission_summary(
     req: HttpRequest,
-    path: web::Path<i64>, // homework_id
+    path: SafeHomeworkIdI64, // homework_id
     query: web::Query<SubmissionSummaryQuery>,
 ) -> ActixResult<HttpResponse> {
     SUBMISSION_SERVICE
         .get_submission_summary(
             &req,
-            path.into_inner(),
+            path.0,
             query.page,
             query.size,
             query.graded,

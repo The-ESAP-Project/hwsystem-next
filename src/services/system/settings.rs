@@ -12,6 +12,7 @@ use crate::models::{
     },
 };
 use crate::storage::Storage;
+use crate::utils::SafeSettingKey;
 
 /// 获取公开系统设置（只读）
 pub async fn get_settings(
@@ -57,11 +58,11 @@ pub async fn get_admin_settings(
 /// 更新单个配置
 pub async fn update_setting(
     req: HttpRequest,
-    path: web::Path<String>,
+    path: SafeSettingKey,
     body: web::Json<UpdateSettingRequest>,
     storage: web::Data<Arc<dyn Storage>>,
 ) -> ActixResult<HttpResponse> {
-    let key = path.into_inner();
+    let key = path.0;
 
     // 获取当前用户 ID
     let user_id = RequireJWT::extract_user_id(&req)

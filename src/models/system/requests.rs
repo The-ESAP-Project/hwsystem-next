@@ -30,3 +30,9 @@ pub struct SettingAuditQuery {
     pub page: Option<i64>,
     pub size: Option<i64>,
 }
+
+/// WebSocket 连接查询参数
+#[derive(Debug, Deserialize)]
+pub struct WsQuery {
+    pub token: String,
+}

@@ -223,6 +223,10 @@ pub trait Storage: Send + Sync {
         tokens: Vec<String>,
         user_id: i64,
     ) -> Result<()>;
+    /// 获取学生作业统计（跨所有加入的班级）
+    async fn get_my_homework_stats(&self, user_id: i64) -> Result<(i64, i64, i64, i64)>;
+    /// 获取教师作业统计（跨所有管理的班级）
+    async fn get_teacher_homework_stats(&self, user_id: i64) -> Result<(i64, i64, i64, i64)>;
 
     // ============================================
     // 提交管理方法

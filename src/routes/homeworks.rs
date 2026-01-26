@@ -105,6 +105,16 @@ pub async fn export_homework_stats(
         .await
 }
 
+// 获取学生作业统计
+pub async fn get_my_homework_stats(req: HttpRequest) -> ActixResult<HttpResponse> {
+    HOMEWORK_SERVICE.get_my_homework_stats(&req).await
+}
+
+// 获取教师作业统计
+pub async fn get_teacher_homework_stats(req: HttpRequest) -> ActixResult<HttpResponse> {
+    HOMEWORK_SERVICE.get_teacher_homework_stats(&req).await
+}
+
 // 配置路由
 pub fn configure_homeworks_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -120,6 +130,14 @@ pub fn configure_homeworks_routes(cfg: &mut web::ServiceConfig) {
                             .to(create_homework)
                             .wrap(middlewares::RequireRole::new_any(UserRole::teacher_roles())),
                     ),
+            )
+            // 学生作业统计 - 所有登录用户可访问
+            .service(web::resource("/my/stats").route(web::get().to(get_my_homework_stats)))
+            // 教师作业统计 - 仅教师和管理员
+            .service(
+                web::resource("/teacher/stats")
+                    .route(web::get().to(get_teacher_homework_stats))
+                    .wrap(middlewares::RequireRole::new_any(UserRole::teacher_roles())),
             )
             .service(
                 web::resource("/{id}")

@@ -84,7 +84,7 @@ async fn check_class_create_permission(
             match storage.get_user_by_id(teacher_id).await {
                 Ok(Some(user)) => {
                     if user.role != UserRole::Teacher {
-                        return Err(HttpResponse::BadRequest().json(ApiResponse::error_empty(
+                        return Err(HttpResponse::Forbidden().json(ApiResponse::error_empty(
                             ErrorCode::ClassPermissionDenied,
                             "Admin can only create classes for teachers",
                         )));

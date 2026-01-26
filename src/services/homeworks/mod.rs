@@ -2,8 +2,10 @@ pub mod create;
 pub mod delete;
 pub mod detail;
 pub mod list;
+pub mod my_stats;
 pub mod stats;
 pub mod stats_export;
+pub mod teacher_stats;
 pub mod update;
 
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
@@ -93,5 +95,16 @@ impl HomeworkService {
         homework_id: i64,
     ) -> ActixResult<HttpResponse> {
         stats_export::export_homework_stats(self, request, homework_id).await
+    }
+
+    pub async fn get_my_homework_stats(&self, request: &HttpRequest) -> ActixResult<HttpResponse> {
+        my_stats::get_my_homework_stats(self, request).await
+    }
+
+    pub async fn get_teacher_homework_stats(
+        &self,
+        request: &HttpRequest,
+    ) -> ActixResult<HttpResponse> {
+        teacher_stats::get_teacher_homework_stats(self, request).await
     }
 }

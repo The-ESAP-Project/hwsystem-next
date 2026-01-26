@@ -446,4 +446,162 @@ impl SeaOrmStorage {
 
         Ok(())
     }
+
+    /// 获取学生作业统计（跨所有加入的班级）
+    /// 返回 (pending, submitted, graded, total)
+    pub async fn get_my_homework_stats_impl(&self, user_id: i64) -> Result<(i64, i64, i64, i64)> {
+        // 1. 获取用户加入的所有班级
+        let class_users = ClassUsers::find()
+            .filter(ClassUserColumn::UserId.eq(user_id))
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询用户班级失败: {e}")))?;
+
+        let class_ids: Vec<i64> = class_users.iter().map(|cu| cu.class_id).collect();
+        if class_ids.is_empty() {
+            return Ok((0, 0, 0, 0));
+        }
+
+        // 2. 获取这些班级的所有作业
+        let homeworks = Homeworks::find()
+            .filter(Column::ClassId.is_in(class_ids))
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询作业失败: {e}")))?;
+
+        let total = homeworks.len() as i64;
+        if total == 0 {
+            return Ok((0, 0, 0, 0));
+        }
+
+        let homework_ids: Vec<i64> = homeworks.iter().map(|h| h.id).collect();
+
+        // 3. 获取用户对这些作业的提交（取每个作业的最新版本）
+        let submissions = Submissions::find()
+            .filter(SubmissionColumn::HomeworkId.is_in(homework_ids.clone()))
+            .filter(SubmissionColumn::CreatorId.eq(user_id))
+            .order_by_desc(SubmissionColumn::Version)
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询提交失败: {e}")))?;
+
+        // 按 homework_id 聚合，取最新版本
+        let mut latest_submissions: HashMap<i64, i64> = HashMap::new(); // homework_id -> submission_id
+        for sub in &submissions {
+            latest_submissions.entry(sub.homework_id).or_insert(sub.id);
+        }
+
+        let submitted_homework_ids: std::collections::HashSet<i64> =
+            latest_submissions.keys().cloned().collect();
+        let pending = total - submitted_homework_ids.len() as i64;
+
+        // 4. 查询这些提交的评分状态
+        let submission_ids: Vec<i64> = latest_submissions.values().cloned().collect();
+        let mut graded = 0i64;
+
+        if !submission_ids.is_empty() {
+            let grades = Grades::find()
+                .filter(GradeColumn::SubmissionId.is_in(submission_ids))
+                .all(&self.db)
+                .await
+                .map_err(|e| HWSystemError::database_operation(format!("查询评分失败: {e}")))?;
+
+            graded = grades.len() as i64;
+        }
+
+        let submitted = submitted_homework_ids.len() as i64 - graded;
+
+        Ok((pending, submitted, graded, total))
+    }
+
+    /// 获取教师作业统计（跨所有管理的班级）
+    /// 返回 (total_homeworks, pending_review, total_submissions, graded_submissions)
+    pub async fn get_teacher_homework_stats_impl(
+        &self,
+        user_id: i64,
+    ) -> Result<(i64, i64, i64, i64)> {
+        // 1. 获取教师管理的所有班级（作为 teacher 角色或班级创建者）
+        let class_users = ClassUsers::find()
+            .filter(ClassUserColumn::UserId.eq(user_id))
+            .filter(ClassUserColumn::Role.eq("teacher"))
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询教师班级失败: {e}")))?;
+
+        let mut class_ids: std::collections::HashSet<i64> =
+            class_users.iter().map(|cu| cu.class_id).collect();
+
+        // 也查询作为班级创建者（teacher_id）的班级
+        use crate::entity::classes::{Column as ClassColumn, Entity as Classes};
+        let owned_classes = Classes::find()
+            .filter(ClassColumn::TeacherId.eq(user_id))
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询创建的班级失败: {e}")))?;
+
+        for class in owned_classes {
+            class_ids.insert(class.id);
+        }
+
+        if class_ids.is_empty() {
+            return Ok((0, 0, 0, 0));
+        }
+
+        let class_ids_vec: Vec<i64> = class_ids.into_iter().collect();
+
+        // 2. 获取这些班级的所有作业
+        let homeworks = Homeworks::find()
+            .filter(Column::ClassId.is_in(class_ids_vec))
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询作业失败: {e}")))?;
+
+        let total_homeworks = homeworks.len() as i64;
+        if total_homeworks == 0 {
+            return Ok((0, 0, 0, 0));
+        }
+
+        let homework_ids: Vec<i64> = homeworks.iter().map(|h| h.id).collect();
+
+        // 3. 获取这些作业的所有提交（按学生去重，取最新版本）
+        let submissions = Submissions::find()
+            .filter(SubmissionColumn::HomeworkId.is_in(homework_ids))
+            .order_by_desc(SubmissionColumn::Version)
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询提交失败: {e}")))?;
+
+        // 按 (homework_id, creator_id) 聚合，取最新版本
+        let mut latest_submissions: HashMap<(i64, i64), i64> = HashMap::new();
+        for sub in &submissions {
+            latest_submissions
+                .entry((sub.homework_id, sub.creator_id))
+                .or_insert(sub.id);
+        }
+
+        let total_submissions = latest_submissions.len() as i64;
+
+        // 4. 查询这些提交的评分状态
+        let submission_ids: Vec<i64> = latest_submissions.values().cloned().collect();
+        let mut graded_submissions = 0i64;
+
+        if !submission_ids.is_empty() {
+            let grades = Grades::find()
+                .filter(GradeColumn::SubmissionId.is_in(submission_ids))
+                .all(&self.db)
+                .await
+                .map_err(|e| HWSystemError::database_operation(format!("查询评分失败: {e}")))?;
+
+            graded_submissions = grades.len() as i64;
+        }
+
+        let pending_review = total_submissions - graded_submissions;
+
+        Ok((
+            total_homeworks,
+            pending_review,
+            total_submissions,
+            graded_submissions,
+        ))
+    }
 }

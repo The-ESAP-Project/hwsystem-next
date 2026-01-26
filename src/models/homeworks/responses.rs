@@ -92,3 +92,31 @@ pub struct HomeworkListResponse {
     pub items: Vec<HomeworkListItem>,
     pub pagination: PaginationInfo,
 }
+
+/// 学生作业统计响应
+#[derive(Debug, Serialize, TS)]
+#[ts(export, export_to = "../frontend/src/types/generated/homework.ts")]
+pub struct MyHomeworkStatsResponse {
+    /// 待完成（未提交）
+    pub pending: i64,
+    /// 已提交待批改
+    pub submitted: i64,
+    /// 已批改
+    pub graded: i64,
+    /// 总数
+    pub total: i64,
+}
+
+/// 教师作业统计响应
+#[derive(Debug, Serialize, TS)]
+#[ts(export, export_to = "../frontend/src/types/generated/homework.ts")]
+pub struct TeacherHomeworkStatsResponse {
+    /// 作业总数
+    pub total_homeworks: i64,
+    /// 待批改提交数
+    pub pending_review: i64,
+    /// 总提交数
+    pub total_submissions: i64,
+    /// 已批改数
+    pub graded_submissions: i64,
+}

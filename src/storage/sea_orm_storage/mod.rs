@@ -423,6 +423,14 @@ impl Storage for SeaOrmStorage {
             .await
     }
 
+    async fn get_my_homework_stats(&self, user_id: i64) -> Result<(i64, i64, i64, i64)> {
+        self.get_my_homework_stats_impl(user_id).await
+    }
+
+    async fn get_teacher_homework_stats(&self, user_id: i64) -> Result<(i64, i64, i64, i64)> {
+        self.get_teacher_homework_stats_impl(user_id).await
+    }
+
     // ============================================
     // 提交模块
     // ============================================

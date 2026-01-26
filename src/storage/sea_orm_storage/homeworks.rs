@@ -14,17 +14,20 @@ use crate::errors::{HWSystemError, Result};
 use crate::models::{
     PaginationInfo,
     homeworks::{
-        entities::Homework,
-        requests::{CreateHomeworkRequest, HomeworkListQuery, UpdateHomeworkRequest},
+        entities::{DeadlineFilter, Homework, HomeworkUserStatus},
+        requests::{
+            AllHomeworksQuery, CreateHomeworkRequest, HomeworkListQuery, UpdateHomeworkRequest,
+        },
         responses::{
-            HomeworkCreator, HomeworkListItem, HomeworkListResponse, HomeworkStatsSummary,
-            MySubmissionSummary,
+            AllHomeworksResponse, HomeworkCreator, HomeworkListItem, HomeworkListResponse,
+            HomeworkStatsSummary, MySubmissionSummary,
         },
     },
 };
 use crate::utils::escape_like_pattern;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set,
+    ActiveModelTrait, ColumnTrait, EntityTrait, ExprTrait, PaginatorTrait, QueryFilter, QueryOrder,
+    Set,
 };
 
 impl SeaOrmStorage {
@@ -79,7 +82,7 @@ impl SeaOrmStorage {
         query: HomeworkListQuery,
         current_user_id: Option<i64>,
     ) -> Result<HomeworkListResponse> {
-        let page = query.page.unwrap_or(1).max(1) as u64;
+        let page = Ord::max(query.page.unwrap_or(1), 1) as u64;
         let size = query.size.unwrap_or(10).clamp(1, 100) as u64;
 
         let mut select = Homeworks::find();
@@ -603,5 +606,361 @@ impl SeaOrmStorage {
             total_submissions,
             graded_submissions,
         ))
+    }
+
+    /// 列出用户所有班级的作业（跨班级）
+    pub async fn list_all_homeworks_impl(
+        &self,
+        user_id: i64,
+        is_teacher: bool,
+        query: AllHomeworksQuery,
+    ) -> Result<AllHomeworksResponse> {
+        let page = Ord::max(query.page.unwrap_or(1), 1) as u64;
+        let size = query.size.unwrap_or(10).clamp(1, 100) as u64;
+        let now = chrono::Utc::now();
+        let now_ts = now.timestamp();
+
+        // 1. 获取用户相关的班级
+        let class_ids: Vec<i64> = if is_teacher {
+            // 教师：获取管理的班级
+            let class_users = ClassUsers::find()
+                .filter(ClassUserColumn::UserId.eq(user_id))
+                .filter(ClassUserColumn::Role.eq("teacher"))
+                .all(&self.db)
+                .await
+                .map_err(|e| HWSystemError::database_operation(format!("查询教师班级失败: {e}")))?;
+
+            let mut ids: std::collections::HashSet<i64> =
+                class_users.iter().map(|cu| cu.class_id).collect();
+
+            // 也查询作为班级创建者的班级
+            use crate::entity::classes::{Column as ClassColumn, Entity as Classes};
+            let owned_classes = Classes::find()
+                .filter(ClassColumn::TeacherId.eq(user_id))
+                .all(&self.db)
+                .await
+                .map_err(|e| {
+                    HWSystemError::database_operation(format!("查询创建的班级失败: {e}"))
+                })?;
+
+            for class in owned_classes {
+                ids.insert(class.id);
+            }
+
+            ids.into_iter().collect()
+        } else {
+            // 学生：获取加入的班级
+            let class_users = ClassUsers::find()
+                .filter(ClassUserColumn::UserId.eq(user_id))
+                .all(&self.db)
+                .await
+                .map_err(|e| HWSystemError::database_operation(format!("查询用户班级失败: {e}")))?;
+
+            class_users.iter().map(|cu| cu.class_id).collect()
+        };
+
+        if class_ids.is_empty() {
+            return Ok(AllHomeworksResponse {
+                items: vec![],
+                pagination: PaginationInfo {
+                    page: page as i64,
+                    page_size: size as i64,
+                    total: 0,
+                    total_pages: 0,
+                },
+                server_time: now.to_rfc3339(),
+            });
+        }
+
+        // 2. 构建基础查询
+        let mut select = Homeworks::find().filter(Column::ClassId.is_in(class_ids.clone()));
+
+        // 截止日期过滤
+        match query.deadline_filter.unwrap_or_default() {
+            DeadlineFilter::Active => {
+                // 未过期：deadline 为空或 deadline > now
+                select = select.filter(Column::Deadline.is_null().or(Column::Deadline.gt(now_ts)));
+            }
+            DeadlineFilter::Expired => {
+                // 已过期：deadline 不为空且 deadline <= now
+                select = select.filter(
+                    Column::Deadline
+                        .is_not_null()
+                        .and(Column::Deadline.lte(now_ts)),
+                );
+            }
+            DeadlineFilter::All => {
+                // 不过滤
+            }
+        }
+
+        // 搜索条件
+        if let Some(ref search) = query.search
+            && !search.trim().is_empty()
+        {
+            let escaped = escape_like_pattern(search.trim());
+            select = select.filter(Column::Title.contains(&escaped));
+        }
+
+        // 排序
+        select = select.order_by_desc(Column::CreatedAt);
+
+        // 3. 获取所有符合条件的作业（用于状态过滤）
+        let all_homeworks: Vec<crate::entity::homeworks::Model> = select
+            .clone()
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询作业列表失败: {e}")))?;
+
+        if all_homeworks.is_empty() {
+            return Ok(AllHomeworksResponse {
+                items: vec![],
+                pagination: PaginationInfo {
+                    page: page as i64,
+                    page_size: size as i64,
+                    total: 0,
+                    total_pages: 0,
+                },
+                server_time: now.to_rfc3339(),
+            });
+        }
+
+        // 4. 如果是学生视角且需要状态过滤，先获取提交状态
+        let homework_ids: Vec<i64> = all_homeworks.iter().map(|h| h.id).collect();
+
+        // 查询用户的提交状态
+        let submissions = Submissions::find()
+            .filter(SubmissionColumn::HomeworkId.is_in(homework_ids.clone()))
+            .filter(SubmissionColumn::CreatorId.eq(user_id))
+            .order_by_desc(SubmissionColumn::Version)
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询用户提交失败: {e}")))?;
+
+        // 按 homework_id 聚合，取最新版本
+        let mut my_submission_map: HashMap<i64, (i64, i32, String, bool)> = HashMap::new(); // homework_id -> (submission_id, version, status, is_late)
+        for sub in &submissions {
+            my_submission_map.entry(sub.homework_id).or_insert((
+                sub.id,
+                sub.version,
+                sub.status.clone(),
+                sub.is_late,
+            ));
+        }
+
+        // 查询评分信息
+        let submission_ids: Vec<i64> = my_submission_map
+            .values()
+            .map(|(id, _, _, _)| *id)
+            .collect();
+        let mut grade_map: HashMap<i64, f64> = HashMap::new(); // submission_id -> score
+        if !submission_ids.is_empty() {
+            let grades = Grades::find()
+                .filter(GradeColumn::SubmissionId.is_in(submission_ids))
+                .all(&self.db)
+                .await
+                .map_err(|e| HWSystemError::database_operation(format!("查询评分失败: {e}")))?;
+
+            for grade in grades {
+                grade_map.insert(grade.submission_id, grade.score);
+            }
+        }
+
+        // 5. 根据状态过滤作业
+        let filtered_homework_ids: Vec<i64> = if let Some(status) = query.status {
+            all_homeworks
+                .iter()
+                .filter(|hw| {
+                    let hw_status = if let Some((sub_id, _, _, _)) = my_submission_map.get(&hw.id) {
+                        if grade_map.contains_key(sub_id) {
+                            HomeworkUserStatus::Graded
+                        } else {
+                            HomeworkUserStatus::Submitted
+                        }
+                    } else {
+                        HomeworkUserStatus::Pending
+                    };
+                    hw_status == status
+                })
+                .map(|hw| hw.id)
+                .collect()
+        } else {
+            homework_ids.clone()
+        };
+
+        // 6. 分页
+        let total = filtered_homework_ids.len() as i64;
+        let total_pages = ((total as f64) / (size as f64)).ceil() as i64;
+        let offset = ((page - 1) * size) as usize;
+        let paged_ids: Vec<i64> = filtered_homework_ids
+            .into_iter()
+            .skip(offset)
+            .take(size as usize)
+            .collect();
+
+        // 7. 获取分页后的作业详情
+        let homeworks: Vec<Homework> = all_homeworks
+            .into_iter()
+            .filter(|hw| paged_ids.contains(&hw.id))
+            .map(|m| m.into_homework())
+            .collect();
+
+        // 保持原始顺序
+        let mut ordered_homeworks: Vec<Homework> = Vec::with_capacity(paged_ids.len());
+        for id in &paged_ids {
+            if let Some(hw) = homeworks.iter().find(|h| h.id == *id) {
+                ordered_homeworks.push(hw.clone());
+            }
+        }
+
+        // 8. 查询创建者信息
+        let creator_ids: Vec<i64> = ordered_homeworks
+            .iter()
+            .map(|h| h.created_by)
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        let mut creator_map: HashMap<i64, HomeworkCreator> = HashMap::new();
+        for creator_id in creator_ids {
+            if let Ok(Some(user)) = self.get_user_by_id_impl(creator_id).await {
+                creator_map.insert(
+                    creator_id,
+                    HomeworkCreator {
+                        id: user.id,
+                        username: user.username,
+                        display_name: user.display_name,
+                        avatar_url: user.avatar_url,
+                    },
+                );
+            }
+        }
+
+        // 9. 查询统计信息（如果 include_stats=true）
+        let mut stats_map: HashMap<i64, HomeworkStatsSummary> = HashMap::new();
+        if query.include_stats.unwrap_or(false) && !ordered_homeworks.is_empty() {
+            for hw in &ordered_homeworks {
+                let total_students = ClassUsers::find()
+                    .filter(ClassUserColumn::ClassId.eq(hw.class_id))
+                    .filter(ClassUserColumn::Role.is_in(["student", "class_representative"]))
+                    .count(&self.db)
+                    .await
+                    .map_err(|e| {
+                        HWSystemError::database_operation(format!("查询班级学生数失败: {e}"))
+                    })? as i64;
+
+                stats_map.insert(
+                    hw.id,
+                    HomeworkStatsSummary {
+                        total_students,
+                        submitted_count: 0,
+                        graded_count: 0,
+                    },
+                );
+            }
+
+            // 查询提交统计
+            let hw_ids: Vec<i64> = ordered_homeworks.iter().map(|h| h.id).collect();
+            let all_submissions = Submissions::find()
+                .filter(SubmissionColumn::HomeworkId.is_in(hw_ids.clone()))
+                .all(&self.db)
+                .await
+                .map_err(|e| HWSystemError::database_operation(format!("查询作业提交失败: {e}")))?;
+
+            let mut hw_submitters: HashMap<i64, std::collections::HashSet<i64>> = HashMap::new();
+            let mut all_sub_ids: Vec<i64> = Vec::new();
+            for sub in &all_submissions {
+                hw_submitters
+                    .entry(sub.homework_id)
+                    .or_default()
+                    .insert(sub.creator_id);
+                all_sub_ids.push(sub.id);
+            }
+
+            for (hw_id, submitters) in &hw_submitters {
+                if let Some(stats) = stats_map.get_mut(hw_id) {
+                    stats.submitted_count = submitters.len() as i64;
+                }
+            }
+
+            // 查询评分统计
+            if !all_sub_ids.is_empty() {
+                let all_grades = Grades::find()
+                    .filter(GradeColumn::SubmissionId.is_in(all_sub_ids))
+                    .all(&self.db)
+                    .await
+                    .map_err(|e| HWSystemError::database_operation(format!("查询评分失败: {e}")))?;
+
+                let sub_to_hw: HashMap<i64, i64> = all_submissions
+                    .iter()
+                    .map(|s| (s.id, s.homework_id))
+                    .collect();
+                let sub_to_creator: HashMap<i64, i64> = all_submissions
+                    .iter()
+                    .map(|s| (s.id, s.creator_id))
+                    .collect();
+
+                let mut hw_graded_users: HashMap<i64, std::collections::HashSet<i64>> =
+                    HashMap::new();
+                for grade in all_grades {
+                    if let (Some(&hw_id), Some(&creator_id)) = (
+                        sub_to_hw.get(&grade.submission_id),
+                        sub_to_creator.get(&grade.submission_id),
+                    ) {
+                        hw_graded_users.entry(hw_id).or_default().insert(creator_id);
+                    }
+                }
+
+                for (hw_id, graded_users) in hw_graded_users {
+                    if let Some(stats) = stats_map.get_mut(&hw_id) {
+                        stats.graded_count = graded_users.len() as i64;
+                    }
+                }
+            }
+        }
+
+        // 10. 构造响应
+        let items: Vec<HomeworkListItem> = ordered_homeworks
+            .into_iter()
+            .map(|homework| {
+                let creator = creator_map.get(&homework.created_by).cloned();
+                let my_submission =
+                    my_submission_map
+                        .get(&homework.id)
+                        .map(|(id, version, status, is_late)| {
+                            let score = grade_map.get(id).copied();
+                            let final_status = if score.is_some() {
+                                "graded".to_string()
+                            } else {
+                                status.clone()
+                            };
+                            MySubmissionSummary {
+                                id: *id,
+                                version: *version,
+                                status: final_status,
+                                is_late: *is_late,
+                                score,
+                            }
+                        });
+                let stats_summary = stats_map.get(&homework.id).cloned();
+                HomeworkListItem {
+                    homework,
+                    creator,
+                    my_submission,
+                    stats_summary,
+                }
+            })
+            .collect();
+
+        Ok(AllHomeworksResponse {
+            items,
+            pagination: PaginationInfo {
+                page: page as i64,
+                page_size: size as i64,
+                total,
+                total_pages,
+            },
+            server_time: now.to_rfc3339(),
+        })
     }
 }

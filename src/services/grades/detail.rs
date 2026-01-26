@@ -23,8 +23,10 @@ async fn check_grade_access_permission(
     let submission = match storage.get_submission_by_id(submission_id).await {
         Ok(Some(sub)) => sub,
         Ok(None) => {
-            return Err(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::SubmissionNotFound, "提交不存在")));
+            return Err(HttpResponse::NotFound().json(ApiResponse::error_empty(
+                ErrorCode::SubmissionNotFound,
+                "提交不存在",
+            )));
         }
         Err(e) => {
             return Err(
@@ -45,8 +47,10 @@ async fn check_grade_access_permission(
     let homework = match storage.get_homework_by_id(submission.homework_id).await {
         Ok(Some(hw)) => hw,
         Ok(None) => {
-            return Err(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::HomeworkNotFound, "作业不存在")));
+            return Err(HttpResponse::NotFound().json(ApiResponse::error_empty(
+                ErrorCode::HomeworkNotFound,
+                "作业不存在",
+            )));
         }
         Err(e) => {
             return Err(
@@ -112,8 +116,10 @@ pub async fn get_grade(
     let grade = match storage.get_grade_by_id(grade_id).await {
         Ok(Some(g)) => g,
         Ok(None) => {
-            return Ok(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::GradeNotFound, "评分不存在")));
+            return Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
+                ErrorCode::GradeNotFound,
+                "评分不存在",
+            )));
         }
         Err(e) => {
             return Ok(

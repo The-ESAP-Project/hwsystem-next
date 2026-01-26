@@ -1,7 +1,36 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-#[derive(Debug, Serialize, Deserialize, TS)]
+/// 作业用户状态（学生视角）
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../frontend/src/types/generated/homework.ts")]
+pub enum HomeworkUserStatus {
+    /// 待完成（未提交）
+    Pending,
+    /// 已提交待批改
+    Submitted,
+    /// 已批改
+    Graded,
+}
+
+/// 截止日期过滤器
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../frontend/src/types/generated/homework.ts")]
+#[derive(Default)]
+pub enum DeadlineFilter {
+    /// 未过期
+    Active,
+    /// 已过期
+    Expired,
+    /// 全部
+    #[default]
+    All,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/homework.ts")]
 pub struct Homework {
     // 唯一 ID

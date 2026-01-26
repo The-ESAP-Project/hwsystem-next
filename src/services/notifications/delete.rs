@@ -26,8 +26,10 @@ pub async fn delete_notification(
     let notification = match storage.get_notification_by_id(notification_id).await {
         Ok(Some(n)) => n,
         Ok(None) => {
-            return Ok(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::NotificationNotFound, "通知不存在")));
+            return Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
+                ErrorCode::NotificationNotFound,
+                "通知不存在",
+            )));
         }
         Err(e) => {
             return Ok(
@@ -49,8 +51,10 @@ pub async fn delete_notification(
 
     match storage.delete_notification(notification_id).await {
         Ok(true) => Ok(HttpResponse::Ok().json(ApiResponse::success_empty("通知已删除"))),
-        Ok(false) => Ok(HttpResponse::NotFound()
-            .json(ApiResponse::error_empty(ErrorCode::NotificationNotFound, "通知不存在"))),
+        Ok(false) => Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
+            ErrorCode::NotificationNotFound,
+            "通知不存在",
+        ))),
         Err(e) => Ok(
             HttpResponse::InternalServerError().json(ApiResponse::error_empty(
                 ErrorCode::InternalServerError,

@@ -63,11 +63,18 @@ pub async fn download_import_template(
     USER_SERVICE.download_import_template(&query.format).await
 }
 
+pub async fn get_my_stats(req: HttpRequest) -> ActixResult<HttpResponse> {
+    USER_SERVICE.get_my_stats(&req).await
+}
+
 // 配置路由
 pub fn configure_user_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/v1/users")
             .wrap(middlewares::RequireJWT)
+            // 所有登录用户可访问的路由
+            .service(web::resource("/me/stats").route(web::get().to(get_my_stats)))
+            // 管理员专属路由
             .service(
                 web::scope("")
                     .wrap(middlewares::RequireRole::new_any(UserRole::admin_roles()))

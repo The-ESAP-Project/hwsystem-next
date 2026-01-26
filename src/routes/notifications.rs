@@ -47,9 +47,7 @@ pub async fn get_unread_count(req: HttpRequest) -> ActixResult<HttpResponse> {
 
 // 标记单条通知为已读
 pub async fn mark_as_read(req: HttpRequest, path: SafeIDI64) -> ActixResult<HttpResponse> {
-    NOTIFICATION_SERVICE
-        .mark_as_read(&req, path.0)
-        .await
+    NOTIFICATION_SERVICE.mark_as_read(&req, path.0).await
 }
 
 // 标记所有通知为已读
@@ -68,13 +66,8 @@ pub async fn mark_all_as_read(req: HttpRequest) -> ActixResult<HttpResponse> {
 }
 
 // 删除通知
-pub async fn delete_notification(
-    req: HttpRequest,
-    path: SafeIDI64,
-) -> ActixResult<HttpResponse> {
-    NOTIFICATION_SERVICE
-        .delete_notification(&req, path.0)
-        .await
+pub async fn delete_notification(req: HttpRequest, path: SafeIDI64) -> ActixResult<HttpResponse> {
+    NOTIFICATION_SERVICE.delete_notification(&req, path.0).await
 }
 
 // 配置路由

@@ -20,8 +20,10 @@ pub async fn create_submission(
     let homework = match storage.get_homework_by_id(req.homework_id).await {
         Ok(Some(hw)) => hw,
         Ok(None) => {
-            return Ok(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::HomeworkNotFound, "作业不存在")));
+            return Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
+                ErrorCode::HomeworkNotFound,
+                "作业不存在",
+            )));
         }
         Err(e) => {
             return Ok(

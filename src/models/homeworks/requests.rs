@@ -1,4 +1,5 @@
 use crate::models::common::pagination::PaginationQuery;
+use crate::models::homeworks::entities::{DeadlineFilter, HomeworkUserStatus};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use ts_rs::TS;
@@ -51,5 +52,33 @@ pub struct HomeworkListQuery {
     pub created_by: Option<i64>,
     pub search: Option<String>,
     /// 是否包含统计信息
+    pub include_stats: Option<bool>,
+}
+
+/// 跨班级作业列表查询参数（HTTP 请求）
+#[derive(Debug, Deserialize, TS)]
+#[ts(export, export_to = "../frontend/src/types/generated/homework.ts")]
+pub struct AllHomeworksParams {
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub pagination: PaginationQuery,
+    /// 作业状态过滤（学生视角：pending/submitted/graded）
+    pub status: Option<HomeworkUserStatus>,
+    /// 截止日期过滤（active/expired/all）
+    pub deadline_filter: Option<DeadlineFilter>,
+    /// 搜索关键词
+    pub search: Option<String>,
+    /// 是否包含统计信息（教师/管理员视角）
+    pub include_stats: Option<bool>,
+}
+
+/// 跨班级作业列表查询参数（存储层，也用于 HTTP 请求）
+#[derive(Debug, Clone, Deserialize)]
+pub struct AllHomeworksQuery {
+    pub page: Option<i64>,
+    pub size: Option<i64>,
+    pub status: Option<HomeworkUserStatus>,
+    pub deadline_filter: Option<DeadlineFilter>,
+    pub search: Option<String>,
     pub include_stats: Option<bool>,
 }

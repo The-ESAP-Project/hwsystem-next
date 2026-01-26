@@ -19,8 +19,10 @@ use crate::models::{
     },
     homeworks::{
         entities::Homework,
-        requests::{CreateHomeworkRequest, HomeworkListQuery, UpdateHomeworkRequest},
-        responses::HomeworkListResponse,
+        requests::{
+            AllHomeworksQuery, CreateHomeworkRequest, HomeworkListQuery, UpdateHomeworkRequest,
+        },
+        responses::{AllHomeworksResponse, HomeworkListResponse},
     },
     notifications::{
         entities::Notification,
@@ -41,7 +43,7 @@ use crate::models::{
     users::{
         entities::{User, UserRole, UserStatus},
         requests::{CreateUserRequest, UpdateUserRequest, UserListQuery},
-        responses::UserListResponse,
+        responses::{UserListResponse, UserStatsResponse},
     },
 };
 
@@ -89,6 +91,8 @@ pub trait Storage: Send + Sync {
         status: Option<UserStatus>,
         search: Option<&str>,
     ) -> Result<Vec<User>>;
+    /// 获取用户综合统计（合并学生和教师视角）
+    async fn get_user_stats(&self, user_id: i64, role: UserRole) -> Result<UserStatsResponse>;
 
     // ============================================
     // 文件管理方法
@@ -227,6 +231,15 @@ pub trait Storage: Send + Sync {
     async fn get_my_homework_stats(&self, user_id: i64) -> Result<(i64, i64, i64, i64)>;
     /// 获取教师作业统计（跨所有管理的班级）
     async fn get_teacher_homework_stats(&self, user_id: i64) -> Result<(i64, i64, i64, i64)>;
+    /// 列出用户所有班级的作业（跨班级）
+    /// - user_id: 当前用户 ID
+    /// - is_teacher: 是否为教师视角
+    async fn list_all_homeworks(
+        &self,
+        user_id: i64,
+        is_teacher: bool,
+        query: AllHomeworksQuery,
+    ) -> Result<AllHomeworksResponse>;
 
     // ============================================
     // 提交管理方法

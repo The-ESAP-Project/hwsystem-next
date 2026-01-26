@@ -86,8 +86,10 @@ pub async fn get_homework(
             };
             Ok(HttpResponse::Ok().json(ApiResponse::success(detail, "查询成功")))
         }
-        Ok(None) => Ok(HttpResponse::NotFound()
-            .json(ApiResponse::error_empty(ErrorCode::HomeworkNotFound, "作业不存在"))),
+        Ok(None) => Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
+            ErrorCode::HomeworkNotFound,
+            "作业不存在",
+        ))),
         Err(e) => Ok(
             HttpResponse::InternalServerError().json(ApiResponse::error_empty(
                 ErrorCode::InternalServerError,

@@ -19,9 +19,7 @@ pub async fn handle_download(
     request: HttpRequest,
     file_token: SafeFileToken,
 ) -> ActixResult<HttpResponse> {
-    FILE_SERVICE
-        .handle_download(&request, file_token.0)
-        .await
+    FILE_SERVICE.handle_download(&request, file_token.0).await
 }
 // 配置路由
 pub fn configure_file_routes(cfg: &mut web::ServiceConfig) {

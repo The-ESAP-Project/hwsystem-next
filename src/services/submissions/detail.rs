@@ -29,8 +29,10 @@ pub async fn get_submission(
     let mut submission = match storage.get_submission_response(submission_id).await {
         Ok(Some(sub)) => sub,
         Ok(None) => {
-            return Ok(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::SubmissionNotFound, "提交不存在")));
+            return Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
+                ErrorCode::SubmissionNotFound,
+                "提交不存在",
+            )));
         }
         Err(e) => {
             return Ok(

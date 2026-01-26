@@ -22,8 +22,10 @@ pub async fn update_grade(
     let grade = match storage.get_grade_by_id(grade_id).await {
         Ok(Some(g)) => g,
         Ok(None) => {
-            return Ok(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::GradeNotFound, "评分不存在")));
+            return Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
+                ErrorCode::GradeNotFound,
+                "评分不存在",
+            )));
         }
         Err(e) => {
             return Ok(
@@ -88,8 +90,10 @@ pub async fn update_grade(
 
             Ok(HttpResponse::Ok().json(ApiResponse::success(updated_grade, "更新成功")))
         }
-        Ok(None) => Ok(HttpResponse::NotFound()
-            .json(ApiResponse::error_empty(ErrorCode::GradeNotFound, "评分不存在"))),
+        Ok(None) => Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
+            ErrorCode::GradeNotFound,
+            "评分不存在",
+        ))),
         Err(e) => Ok(
             HttpResponse::InternalServerError().json(ApiResponse::error_empty(
                 ErrorCode::GradeUpdateFailed,

@@ -6,7 +6,7 @@ use crate::models::{
     users::{
         entities::{User, UserRole, UserStatus},
         requests::{CreateUserRequest, UpdateUserRequest, UserListQuery},
-        responses::UserListResponse,
+        responses::{UserListResponse, UserStatsResponse},
     },
 };
 use crate::utils::escape_like_pattern;
@@ -325,5 +325,95 @@ impl SeaOrmStorage {
             .map_err(|e| HWSystemError::database_operation(format!("查询用户失败: {e}")))?;
 
         Ok(users.into_iter().map(|m| m.into_user()).collect())
+    }
+
+    /// 获取用户综合统计
+    pub async fn get_user_stats_impl(
+        &self,
+        user_id: i64,
+        role: UserRole,
+    ) -> Result<UserStatsResponse> {
+        use crate::entity::class_users::{Column as ClassUserColumn, Entity as ClassUsers};
+        use crate::entity::classes::{Column as ClassColumn, Entity as Classes};
+
+        let now = chrono::Utc::now();
+        let is_teacher = matches!(role, UserRole::Teacher | UserRole::Admin);
+
+        // 1. 获取班级数量和学生总数
+        let (class_count, total_students) = if is_teacher {
+            // 教师：获取管理的班级
+            let class_users = ClassUsers::find()
+                .filter(ClassUserColumn::UserId.eq(user_id))
+                .filter(ClassUserColumn::Role.eq("teacher"))
+                .all(&self.db)
+                .await
+                .map_err(|e| HWSystemError::database_operation(format!("查询教师班级失败: {e}")))?;
+
+            let mut class_ids: std::collections::HashSet<i64> =
+                class_users.iter().map(|cu| cu.class_id).collect();
+
+            // 也查询作为班级创建者的班级
+            let owned_classes = Classes::find()
+                .filter(ClassColumn::TeacherId.eq(user_id))
+                .all(&self.db)
+                .await
+                .map_err(|e| {
+                    HWSystemError::database_operation(format!("查询创建的班级失败: {e}"))
+                })?;
+
+            for class in owned_classes {
+                class_ids.insert(class.id);
+            }
+
+            let class_count = class_ids.len() as i64;
+
+            // 统计所有班级的学生数
+            let mut total_students = 0i64;
+            for class_id in &class_ids {
+                let count = ClassUsers::find()
+                    .filter(ClassUserColumn::ClassId.eq(*class_id))
+                    .filter(ClassUserColumn::Role.is_in(["student", "class_representative"]))
+                    .count(&self.db)
+                    .await
+                    .map_err(|e| {
+                        HWSystemError::database_operation(format!("查询班级学生数失败: {e}"))
+                    })? as i64;
+                total_students += count;
+            }
+
+            (class_count, total_students)
+        } else {
+            // 学生：获取加入的班级
+            let class_count = ClassUsers::find()
+                .filter(ClassUserColumn::UserId.eq(user_id))
+                .count(&self.db)
+                .await
+                .map_err(|e| HWSystemError::database_operation(format!("查询用户班级失败: {e}")))?
+                as i64;
+
+            (class_count, 0)
+        };
+
+        // 2. 获取作业统计
+        let (homework_pending, homework_submitted, homework_graded, pending_review) = if is_teacher
+        {
+            // 教师统计
+            let (_, pending_review, _, _) = self.get_teacher_homework_stats_impl(user_id).await?;
+            (0, 0, 0, pending_review)
+        } else {
+            // 学生统计
+            let (pending, submitted, graded, _) = self.get_my_homework_stats_impl(user_id).await?;
+            (pending, submitted, graded, 0)
+        };
+
+        Ok(UserStatsResponse {
+            class_count,
+            total_students,
+            homework_pending,
+            homework_submitted,
+            homework_graded,
+            pending_review,
+            server_time: now.to_rfc3339(),
+        })
     }
 }

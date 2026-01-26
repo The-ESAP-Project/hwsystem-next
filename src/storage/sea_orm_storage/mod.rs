@@ -137,8 +137,10 @@ use crate::models::{
     },
     homeworks::{
         entities::Homework,
-        requests::{CreateHomeworkRequest, HomeworkListQuery, UpdateHomeworkRequest},
-        responses::HomeworkListResponse,
+        requests::{
+            AllHomeworksQuery, CreateHomeworkRequest, HomeworkListQuery, UpdateHomeworkRequest,
+        },
+        responses::{AllHomeworksResponse, HomeworkListResponse},
     },
     notifications::{
         entities::Notification,
@@ -156,7 +158,7 @@ use crate::models::{
     users::{
         entities::{User, UserRole, UserStatus},
         requests::{CreateUserRequest, UpdateUserRequest, UserListQuery},
-        responses::UserListResponse,
+        responses::{UserListResponse, UserStatsResponse},
     },
 };
 use crate::storage::Storage;
@@ -229,6 +231,10 @@ impl Storage for SeaOrmStorage {
     ) -> Result<Vec<User>> {
         self.list_users_for_export_filtered_impl(limit, role, status, search)
             .await
+    }
+
+    async fn get_user_stats(&self, user_id: i64, role: UserRole) -> Result<UserStatsResponse> {
+        self.get_user_stats_impl(user_id, role).await
     }
 
     // ============================================
@@ -429,6 +435,16 @@ impl Storage for SeaOrmStorage {
 
     async fn get_teacher_homework_stats(&self, user_id: i64) -> Result<(i64, i64, i64, i64)> {
         self.get_teacher_homework_stats_impl(user_id).await
+    }
+
+    async fn list_all_homeworks(
+        &self,
+        user_id: i64,
+        is_teacher: bool,
+        query: AllHomeworksQuery,
+    ) -> Result<AllHomeworksResponse> {
+        self.list_all_homeworks_impl(user_id, is_teacher, query)
+            .await
     }
 
     // ============================================

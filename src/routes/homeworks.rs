@@ -87,23 +87,13 @@ pub async fn delete_homework(req: HttpRequest, path: SafeIDI64) -> ActixResult<H
 }
 
 // 获取作业统计
-pub async fn get_homework_stats(
-    req: HttpRequest,
-    path: SafeIDI64,
-) -> ActixResult<HttpResponse> {
-    HOMEWORK_SERVICE
-        .get_homework_stats(&req, path.0)
-        .await
+pub async fn get_homework_stats(req: HttpRequest, path: SafeIDI64) -> ActixResult<HttpResponse> {
+    HOMEWORK_SERVICE.get_homework_stats(&req, path.0).await
 }
 
 // 导出作业统计
-pub async fn export_homework_stats(
-    req: HttpRequest,
-    path: SafeIDI64,
-) -> ActixResult<HttpResponse> {
-    HOMEWORK_SERVICE
-        .export_homework_stats(&req, path.0)
-        .await
+pub async fn export_homework_stats(req: HttpRequest, path: SafeIDI64) -> ActixResult<HttpResponse> {
+    HOMEWORK_SERVICE.export_homework_stats(&req, path.0).await
 }
 
 // 获取学生作业统计

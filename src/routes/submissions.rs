@@ -44,9 +44,7 @@ pub async fn create_submission(
 
 // 获取提交详情
 pub async fn get_submission(req: HttpRequest, path: SafeIDI64) -> ActixResult<HttpResponse> {
-    SUBMISSION_SERVICE
-        .get_submission(&req, path.0)
-        .await
+    SUBMISSION_SERVICE.get_submission(&req, path.0).await
 }
 
 // 获取我的最新提交
@@ -90,10 +88,7 @@ pub async fn list_my_submissions(
 }
 
 // 删除/撤回提交
-pub async fn delete_submission(
-    req: HttpRequest,
-    path: SafeIDI64,
-) -> ActixResult<HttpResponse> {
+pub async fn delete_submission(req: HttpRequest, path: SafeIDI64) -> ActixResult<HttpResponse> {
     let user_id = match RequireJWT::extract_user_id(&req) {
         Some(id) => id,
         None => {
@@ -116,13 +111,7 @@ pub async fn get_submission_summary(
     query: web::Query<SubmissionSummaryQuery>,
 ) -> ActixResult<HttpResponse> {
     SUBMISSION_SERVICE
-        .get_submission_summary(
-            &req,
-            path.0,
-            query.page,
-            query.size,
-            query.graded,
-        )
+        .get_submission_summary(&req, path.0, query.page, query.size, query.graded)
         .await
 }
 

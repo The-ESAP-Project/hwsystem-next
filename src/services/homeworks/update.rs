@@ -22,8 +22,10 @@ pub async fn update_homework(
     let homework = match storage.get_homework_by_id(homework_id).await {
         Ok(Some(hw)) => hw,
         Ok(None) => {
-            return Ok(HttpResponse::NotFound()
-                .json(ApiResponse::error_empty(ErrorCode::HomeworkNotFound, "作业不存在")));
+            return Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
+                ErrorCode::HomeworkNotFound,
+                "作业不存在",
+            )));
         }
         Err(e) => {
             return Ok(
@@ -78,8 +80,10 @@ pub async fn update_homework(
 
             Ok(HttpResponse::Ok().json(ApiResponse::success(updated_homework, "更新成功")))
         }
-        Ok(None) => Ok(HttpResponse::NotFound()
-            .json(ApiResponse::error_empty(ErrorCode::HomeworkNotFound, "作业不存在"))),
+        Ok(None) => Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
+            ErrorCode::HomeworkNotFound,
+            "作业不存在",
+        ))),
         Err(e) => Ok(
             HttpResponse::InternalServerError().json(ApiResponse::error_empty(
                 ErrorCode::HomeworkUpdateFailed,

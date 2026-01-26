@@ -4,6 +4,7 @@ pub mod export;
 pub mod get;
 pub mod import;
 pub mod list;
+pub mod stats;
 pub mod update;
 
 use actix_multipart::Multipart;
@@ -99,5 +100,10 @@ impl UserService {
     // 下载导入模板
     pub async fn download_import_template(&self, format: &str) -> ActixResult<HttpResponse> {
         export::download_template(format).await
+    }
+
+    // 获取当前用户统计
+    pub async fn get_my_stats(&self, request: &HttpRequest) -> ActixResult<HttpResponse> {
+        stats::get_my_stats(self, request).await
     }
 }

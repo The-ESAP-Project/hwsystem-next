@@ -45,8 +45,10 @@ pub async fn handle_download(
     let file_path = format!("{}/{}", upload_dir, db_file.stored_name);
 
     if !Path::new(&file_path).exists() {
-        return Ok(HttpResponse::NotFound()
-            .json(ApiResponse::error_empty(ErrorCode::FileNotFound, "文件不存在")));
+        return Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
+            ErrorCode::FileNotFound,
+            "文件不存在",
+        )));
     }
 
     let mut file = match File::open(&file_path) {

@@ -120,3 +120,13 @@ pub struct TeacherHomeworkStatsResponse {
     /// 已批改数
     pub graded_submissions: i64,
 }
+
+/// 跨班级作业列表响应
+#[derive(Debug, Serialize, TS)]
+#[ts(export, export_to = "../frontend/src/types/generated/homework.ts")]
+pub struct AllHomeworksResponse {
+    pub items: Vec<HomeworkListItem>,
+    pub pagination: PaginationInfo,
+    /// 服务器时间（ISO 8601），用于前端统一时间判断
+    pub server_time: String,
+}

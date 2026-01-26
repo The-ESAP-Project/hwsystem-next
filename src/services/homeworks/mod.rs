@@ -2,6 +2,7 @@ pub mod create;
 pub mod delete;
 pub mod detail;
 pub mod list;
+pub mod list_all;
 pub mod my_stats;
 pub mod stats;
 pub mod stats_export;
@@ -12,7 +13,7 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use std::sync::Arc;
 
 use crate::models::homeworks::requests::{
-    CreateHomeworkRequest, HomeworkListQuery, UpdateHomeworkRequest,
+    AllHomeworksQuery, CreateHomeworkRequest, HomeworkListQuery, UpdateHomeworkRequest,
 };
 use crate::storage::Storage;
 
@@ -106,5 +107,13 @@ impl HomeworkService {
         request: &HttpRequest,
     ) -> ActixResult<HttpResponse> {
         teacher_stats::get_teacher_homework_stats(self, request).await
+    }
+
+    pub async fn list_all_homeworks(
+        &self,
+        request: &HttpRequest,
+        query: AllHomeworksQuery,
+    ) -> ActixResult<HttpResponse> {
+        list_all::list_all_homeworks(self, request, query).await
     }
 }

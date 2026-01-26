@@ -1,7 +1,7 @@
 # API 文档
 
-> 版本：v2.7
-> 更新日期：2026-01-24
+> 版本：v2.8
+> 更新日期：2026-01-26
 > 基础路径：`/api/v1`
 
 ---
@@ -69,19 +69,45 @@ Authorization: Bearer <access_token>
 | 1003 | 权限不足 |
 | 1004 | 资源不存在 |
 | 1005 | 服务器内部错误 |
+| 1006 | 未实现的功能 |
 | 1009 | 资源冲突 |
+| 1029 | 请求过于频繁（速率限制） |
 | 2000 | 认证失败 |
 | 2001 | 注册失败 |
+| 2002 | 密码不符合策略要求 |
 | 3000 | 文件不存在 |
 | 3001 | 文件上传失败 |
 | 3002 | 文件类型不允许 |
 | 3003 | 文件大小超限 |
+| 3004 | 不允许多文件上传 |
 | 4000 | 用户不存在 |
 | 4001 | 用户已存在 |
+| 4002 | 用户更新失败 |
+| 4003 | 用户删除失败 |
+| 4004 | 用户创建失败 |
+| 4005 | 不能删除当前用户 |
+| 4010 | 用户名无效 |
+| 4011 | 用户名已存在 |
+| 4012 | 用户邮箱无效 |
+| 4013 | 用户邮箱已存在 |
+| 4014 | 密码不符合策略要求 |
 | 5000 | 班级不存在 |
+| 5001 | 班级已存在 |
+| 5002 | 班级创建失败 |
+| 5003 | 班级更新失败 |
+| 5004 | 班级删除失败 |
 | 5005 | 班级权限不足 |
+| 5010 | 加入班级失败 |
 | 5011 | 邀请码无效 |
 | 5012 | 已加入该班级 |
+| 5013 | 加入班级被禁止 |
+| 5014 | 班级用户未找到 |
+| 6000 | 权限被拒绝 |
+| 7000 | 导入文件解析失败 |
+| 7001 | 导入文件格式无效 |
+| 7002 | 导入文件缺少必需列 |
+| 7003 | 导入文件数据无效 |
+| 7010 | 导出失败 |
 
 ---
 
@@ -106,7 +132,6 @@ Authorization: Bearer <access_token>
 ```json
 {
     "access_token": "eyJhbGci...",
-    "token_type": "Bearer",
     "expires_in": 900,
     "user": {
         "id": 1,
@@ -115,7 +140,8 @@ Authorization: Bearer <access_token>
         "display_name": "John Doe",
         "role": "user",
         "status": "active"
-    }
+    },
+    "created_at": "2026-01-24T12:00:00Z"
 }
 ```
 
@@ -151,7 +177,6 @@ Authorization: Bearer <access_token>
 ```json
 {
     "access_token": "eyJhbGci...",
-    "token_type": "Bearer",
     "expires_in": 900
 }
 ```
@@ -165,10 +190,7 @@ Authorization: Bearer <access_token>
 **响应**：
 ```json
 {
-    "valid": true,
-    "user_id": 1,
-    "role": "user",
-    "expires_at": "2026-01-24T12:15:00Z"
+    "is_valid": true
 }
 ```
 
@@ -191,7 +213,34 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 2.6 POST /auth/logout ⚠️ 未实现
+### 2.6 PUT /auth/me
+
+更新当前用户个人资料。
+
+**权限**：JWT
+
+**请求**：
+```json
+{
+    "display_name": "新名称"
+}
+```
+
+**响应**：
+```json
+{
+    "user": {
+        "id": 1,
+        "username": "john_doe",
+        "email": "john@example.com",
+        "display_name": "新名称",
+        "role": "user",
+        "status": "active"
+    }
+}
+```
+
+### 2.7 POST /auth/logout ⚠️ 未实现
 
 用户登出，清除 Refresh Token。
 
@@ -289,6 +338,55 @@ Authorization: Bearer <access_token>
 删除用户。
 
 **权限**：Admin
+
+### 3.6 GET /users/export
+
+导出用户列表。
+
+**权限**：Admin
+
+**查询参数**：
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| format | string | 导出格式：`csv` / `xlsx`（默认 csv） |
+| role | string | 按角色筛选 |
+| status | string | 按状态筛选 |
+
+**响应**：文件下载（Content-Type: text/csv 或 application/vnd.openxmlformats-officedocument.spreadsheetml.sheet）
+
+### 3.7 POST /users/import
+
+导入用户。
+
+**权限**：Admin
+
+**请求**：`multipart/form-data`
+- `file`：CSV 或 XLSX 文件
+
+**响应**：
+```json
+{
+    "imported_count": 10,
+    "failed_count": 2,
+    "errors": [
+        {"row": 3, "message": "用户名已存在"},
+        {"row": 7, "message": "邮箱格式无效"}
+    ]
+}
+```
+
+### 3.8 GET /users/import/template
+
+下载用户导入模板。
+
+**权限**：Admin
+
+**查询参数**：
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| format | string | 模板格式：`csv` / `xlsx`（默认 csv） |
+
+**响应**：文件下载
 
 ---
 
@@ -424,6 +522,14 @@ Authorization: Bearer <access_token>
 删除班级。
 
 **权限**：班级教师 或 Admin
+
+### 4.7 GET /classes/{class_id}/export
+
+导出班级报表。
+
+**权限**：班级教师 或 课代表 或 Admin
+
+**响应**：文件下载（Excel 格式），包含班级成员列表、作业完成情况等
 
 ---
 
@@ -689,6 +795,53 @@ Authorization: Bearer <access_token>
 }
 ```
 
+### 6.7 GET /homeworks/{id}/stats/export
+
+导出作业统计报表。
+
+**权限**：班级教师 或 课代表
+
+**响应**：文件下载（Excel 格式），包含提交情况、成绩分布等
+
+### 6.8 GET /homeworks/my/stats
+
+获取当前学生的作业统计。
+
+**权限**：JWT
+
+**响应**：
+```json
+{
+    "total": 10,
+    "pending": 3,
+    "submitted": 5,
+    "graded": 2
+}
+```
+
+### 6.9 GET /homeworks/teacher/stats
+
+获取教师的作业统计。
+
+**权限**：Teacher+
+
+**响应**：
+```json
+{
+    "total_homeworks": 15,
+    "total_submissions": 120,
+    "pending_grade": 25,
+    "classes": [
+        {
+            "class_id": 1,
+            "class_name": "数据结构",
+            "homework_count": 5,
+            "submission_count": 40
+        }
+    ]
+}
+```
+
 ---
 
 ## 七、提交管理
@@ -911,10 +1064,8 @@ Authorization: Bearer <access_token>
         "display_name": "..."
     },
     "score": 85.0,
-    "max_score": 100.0,
     "comment": "Good work!",
-    "graded_at": "2026-01-24T12:00:00Z",
-    "updated_at": "2026-01-24T12:00:00Z"
+    "graded_at": "2026-01-24T12:00:00Z"
 }
 ```
 
@@ -1039,7 +1190,7 @@ Authorization: Bearer <access_token>
 **响应**：
 ```json
 {
-    "count": 5
+    "unread_count": 5
 }
 ```
 
@@ -1104,7 +1255,88 @@ Authorization: Bearer <access_token>
 
 ## 十二、系统设置
 
-### 12.1 GET /system/health ⚠️ 未实现
+### 12.1 GET /system/settings
+
+获取公开系统设置（只读）。
+
+**权限**：JWT
+
+**响应**：
+```json
+{
+    "upload_max_size": 10485760,
+    "upload_allowed_types": ["image/png", "image/jpeg", "application/pdf"]
+}
+```
+
+### 12.2 GET /system/admin/settings
+
+获取所有系统设置（管理员视图）。
+
+**权限**：Admin
+
+**响应**：
+```json
+{
+    "items": [
+        {
+            "key": "upload_max_size",
+            "value": "10485760",
+            "value_type": "integer",
+            "description": "文件上传大小限制（字节）",
+            "updated_at": "2026-01-24T12:00:00Z"
+        }
+    ]
+}
+```
+
+### 12.3 PUT /system/admin/settings/{key}
+
+更新系统设置。
+
+**权限**：Admin
+
+**请求**：
+```json
+{
+    "value": "20971520"
+}
+```
+
+**响应**：
+```json
+{
+    "key": "upload_max_size",
+    "value": "20971520",
+    "value_type": "integer",
+    "updated_at": "2026-01-24T12:00:00Z"
+}
+```
+
+### 12.4 GET /system/admin/settings/audit
+
+获取设置变更审计日志。
+
+**权限**：Admin
+
+**响应**：
+```json
+{
+    "items": [
+        {
+            "id": 1,
+            "setting_key": "upload_max_size",
+            "old_value": "10485760",
+            "new_value": "20971520",
+            "changed_by": 1,
+            "changed_at": "2026-01-24T12:00:00Z",
+            "ip_address": "192.168.1.1"
+        }
+    ]
+}
+```
+
+### 12.5 GET /system/health ⚠️ 未实现
 
 健康检查。
 
@@ -1119,13 +1351,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 12.2 GET /system/settings
-
-获取系统设置。
-
-**权限**：Admin
-
-### 12.3 GET /system/uptime ⚠️ 未实现
+### 12.6 GET /system/uptime ⚠️ 未实现
 
 获取系统运行时间。
 
@@ -1145,6 +1371,7 @@ Authorization: Bearer <access_token>
 
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
+| v2.8 | 2026-01-26 | 补充缺失端点（用户导入导出、作业统计、班级导出、系统设置管理）；补全错误码；修正响应字段 |
 | v2.7 | 2026-01-24 | 修正文档与代码一致：ID 改为数字类型；分页参数 `page_size` → `size`；标注未实现端点；新增提交概览端点 |
 | v2.6 | 2026-01-24 | 统一 API 响应格式：通知列表 `notifications` → `items`；提交历史返回 `{ items: [...] }` 结构 |
 | v2.5 | 2026-01-24 | 班级详情允许班级成员访问；作业详情返回附件列表 |

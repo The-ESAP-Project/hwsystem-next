@@ -1,7 +1,7 @@
 # 安全设计文档
 
-> 版本：v2.0
-> 更新日期：2026-01-24
+> 版本：v2.1
+> 更新日期：2026-01-26
 
 ---
 
@@ -231,18 +231,23 @@ let cors = Cors::default()
 
 ### 6.1 MIME 类型白名单
 
-```toml
-[upload]
-allowed_types = [
-    "image/png",
-    "image/jpeg",
-    "image/gif",
-    "application/pdf",
-    "text/plain",
-    "application/zip",
-    "application/x-zip-compressed"
-]
+文件类型白名单通过动态系统设置配置，可在运行时通过管理员接口修改：
+
+```rust
+// 从数据库动态读取允许的文件类型
+let allowed_types = DynamicConfig::upload_allowed_types().await;
 ```
+
+**默认允许的类型**：
+- `image/png`
+- `image/jpeg`
+- `image/gif`
+- `application/pdf`
+- `text/plain`
+- `application/zip`
+- `application/x-zip-compressed`
+
+**修改方式**：通过 `PUT /api/v1/system/admin/settings/upload_allowed_types` 接口更新。
 
 ### 6.2 魔术字节验证
 
@@ -502,5 +507,6 @@ log_format = "json" # JSON 格式便于收集
 
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
+| v2.1 | 2026-01-26 | 更新文件类型白名单说明（改为动态配置） |
 | v2.0 | 2026-01-24 | 添加速率限制、文件魔术字节验证、安全检查清单 |
 | v1.0 | 2025-01-23 | 初始版本 |

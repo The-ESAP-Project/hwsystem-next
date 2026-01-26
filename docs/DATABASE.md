@@ -1,7 +1,7 @@
 # 数据库设计文档
 
-> 版本：v2.1
-> 更新日期：2026-01-24
+> 版本：v2.2
+> 更新日期：2026-01-26
 > 数据库：SQLite（开发）/ PostgreSQL（生产）
 
 ---
@@ -50,6 +50,8 @@
 | 8 | homework_files | 作业附件关联表 | 已存在 |
 | 9 | submission_files | 提交附件关联表 | 已存在 |
 | 10 | notifications | 通知表 | 已存在 |
+| 11 | system_settings | 系统设置表 | 已存在 |
+| 12 | system_settings_audit | 设置审计日志表 | 已存在 |
 
 ---
 
@@ -66,8 +68,10 @@ CREATE TABLE users (
     email           TEXT NOT NULL UNIQUE,       -- 邮箱，唯一
     password_hash   TEXT NOT NULL,              -- Argon2 哈希后的密码
     display_name    TEXT,                       -- 显示名称，可选
+    avatar_url      TEXT,                       -- 头像 URL，可选
     role            TEXT NOT NULL DEFAULT 'user',  -- 系统角色
     status          TEXT NOT NULL DEFAULT 'active', -- 用户状态
+    last_login      INTEGER,                    -- 最后登录时间（Unix timestamp）
     created_at      INTEGER NOT NULL,           -- 创建时间（Unix timestamp）
     updated_at      INTEGER NOT NULL            -- 更新时间（Unix timestamp）
 );
@@ -88,8 +92,10 @@ CREATE INDEX idx_users_status ON users(status);
 | email | TEXT | UNIQUE, NOT NULL | 邮箱地址 |
 | password_hash | TEXT | NOT NULL | Argon2 哈希 |
 | display_name | TEXT | - | 显示名称 |
+| avatar_url | TEXT | - | 头像 URL |
 | role | TEXT | NOT NULL | `user` / `teacher` / `admin` |
 | status | TEXT | NOT NULL | `active` / `suspended` / `banned` |
+| last_login | INTEGER | - | 最后登录时间（Unix 时间戳） |
 | created_at | INTEGER | NOT NULL | Unix 时间戳 |
 | updated_at | INTEGER | NOT NULL | Unix 时间戳 |
 
@@ -339,7 +345,7 @@ CREATE TABLE notifications (
 
 -- 索引
 CREATE INDEX idx_notifications_user_id ON notifications(user_id);
-CREATE INDEX idx_notifications_is_read ON notifications(user_id, is_read);
+CREATE INDEX idx_notifications_user_is_read ON notifications(user_id, is_read);
 CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
 ```
 
@@ -363,6 +369,68 @@ CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
 | grade_updated | 评分修改 | grade |
 | class_joined | 加入班级 | class |
 | class_role_changed | 班级角色变更 | class |
+
+### 3.11 system_settings（系统设置表）
+
+存储系统配置项。
+
+```sql
+CREATE TABLE system_settings (
+    key             TEXT PRIMARY KEY,           -- 设置键名
+    value           TEXT NOT NULL,              -- 设置值
+    value_type      TEXT NOT NULL,              -- 值类型：string/integer/boolean/json
+    description     TEXT,                       -- 设置描述
+    updated_at      INTEGER NOT NULL,           -- 更新时间
+    updated_by      INTEGER,                    -- 更新者
+
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+);
+```
+
+**字段说明**：
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| key | TEXT | PK | 设置键名，如 `upload_max_size` |
+| value | TEXT | NOT NULL | 设置值（字符串形式存储） |
+| value_type | TEXT | NOT NULL | 值类型：`string` / `integer` / `boolean` / `json` |
+| description | TEXT | - | 设置描述 |
+| updated_at | INTEGER | NOT NULL | Unix 时间戳 |
+| updated_by | INTEGER | FK | 最后更新者 ID |
+
+### 3.12 system_settings_audit（设置审计日志表）
+
+记录系统设置的变更历史。
+
+```sql
+CREATE TABLE system_settings_audit (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,  -- 自增主键
+    setting_key     TEXT NOT NULL,              -- 设置键名
+    old_value       TEXT,                       -- 旧值
+    new_value       TEXT NOT NULL,              -- 新值
+    changed_by      INTEGER NOT NULL,           -- 变更者
+    changed_at      INTEGER NOT NULL,           -- 变更时间
+    ip_address      TEXT,                       -- 操作 IP 地址
+
+    FOREIGN KEY (changed_by) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- 索引
+CREATE INDEX idx_settings_audit_key ON system_settings_audit(setting_key);
+CREATE INDEX idx_settings_audit_changed_at ON system_settings_audit(changed_at DESC);
+```
+
+**字段说明**：
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | INTEGER | PK, AUTOINCREMENT | 自增主键 |
+| setting_key | TEXT | NOT NULL | 设置键名 |
+| old_value | TEXT | - | 变更前的值 |
+| new_value | TEXT | NOT NULL | 变更后的值 |
+| changed_by | INTEGER | FK, NOT NULL | 变更者 ID |
+| changed_at | INTEGER | NOT NULL | Unix 时间戳 |
+| ip_address | TEXT | - | 操作者 IP 地址 |
 
 ---
 
@@ -392,8 +460,10 @@ CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
 | files | idx_files_user_id | user_id | NORMAL | 查询用户上传的文件 |
 | files | idx_files_download_token | download_token | UNIQUE | 下载令牌查询 |
 | notifications | idx_notifications_user_id | user_id | NORMAL | 查询用户通知 |
-| notifications | idx_notifications_is_read | (user_id, is_read) | COMPOSITE | 查询未读通知 |
+| notifications | idx_notifications_user_is_read | (user_id, is_read) | COMPOSITE | 查询未读通知 |
 | notifications | idx_notifications_created_at | created_at DESC | NORMAL | 按时间排序 |
+| system_settings_audit | idx_settings_audit_key | setting_key | NORMAL | 按设置键查询 |
+| system_settings_audit | idx_settings_audit_changed_at | changed_at DESC | NORMAL | 按时间排序 |
 
 ### 4.2 复合索引说明
 
@@ -604,6 +674,7 @@ WHERE cu.class_id = (SELECT class_id FROM homeworks WHERE id = ?)
 
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
+| v2.2 | 2026-01-26 | 补充 system_settings 和 system_settings_audit 表；补充 users 表的 avatar_url 和 last_login 字段；修正索引命名 |
 | v2.1 | 2026-01-24 | 修正 ID 字段类型：TEXT (UUID) → INTEGER (自增主键)，与实际代码保持一致 |
 | v2.0 | 2026-01-24 | 重构 submissions 和 grades 表；新增附件关联表和通知表 |
 | v1.0 | 2025-01-23 | 初始版本 |

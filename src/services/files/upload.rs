@@ -58,23 +58,31 @@ pub async fn handle_upload(
                 )));
             }
             file_uploaded = true;
-            // 获取文件类型
-            file_type = field
-                .content_type()
-                .map(|ct| ct.to_string())
+
+            // 先获取原始文件名
+            original_name = content_disposition
+                .and_then(|cd| cd.get_filename())
+                .map(|s| s.to_string())
                 .unwrap_or_default();
-            // 校验类型
-            if !allowed_types.iter().any(|t| file_type.contains(t)) {
+
+            // 提取扩展名并校验
+            let extension = Path::new(&original_name)
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| format!(".{}", ext.to_lowercase()))
+                .unwrap_or_default();
+
+            if !allowed_types.iter().any(|t| t.to_lowercase() == extension) {
                 return Ok(HttpResponse::BadRequest().json(ApiResponse::error_empty(
                     ErrorCode::FileTypeNotAllowed,
                     "File type not allowed",
                 )));
             }
 
-            // 获取原始文件名
-            original_name = content_disposition
-                .and_then(|cd| cd.get_filename())
-                .map(|s| s.to_string())
+            // 获取 MIME 类型（用于存储记录，不用于校验）
+            file_type = field
+                .content_type()
+                .map(|ct| ct.to_string())
                 .unwrap_or_default();
 
             stored_name = format!("{}-{}.bin", chrono::Utc::now().timestamp(), Uuid::new_v4());

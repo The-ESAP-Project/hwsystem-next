@@ -2,6 +2,8 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use tracing::error;
 
 use super::ClassUserService;
+use crate::models::notifications::entities::{NotificationType, ReferenceType};
+use crate::services::notifications::trigger::send_notification;
 use crate::{
     middlewares::RequireJWT,
     models::{
@@ -68,10 +70,30 @@ pub async fn join_class(
         .join_class(user_id, class_id, ClassUserRole::Student)
         .await
     {
-        Ok(class_user) => Ok(HttpResponse::Ok().json(ApiResponse::success(
-            class_user,
-            "Class joined successfully",
-        ))),
+        Ok(class_user) => {
+            // 异步发送通知
+            let storage_clone = storage.clone();
+
+            tokio::spawn(async move {
+                if let Ok(Some(class)) = storage_clone.get_class_by_id(class_id).await {
+                    send_notification(
+                        storage_clone,
+                        user_id,
+                        NotificationType::ClassJoined,
+                        format!("成功加入班级：{}", class.name),
+                        Some(format!("您已成功加入班级「{}」", class.name)),
+                        Some(ReferenceType::Class),
+                        Some(class_id),
+                    )
+                    .await;
+                }
+            });
+
+            Ok(HttpResponse::Ok().json(ApiResponse::success(
+                class_user,
+                "Class joined successfully",
+            )))
+        }
         Err(e) => {
             error!("Error joining class: {}", e);
             Ok(

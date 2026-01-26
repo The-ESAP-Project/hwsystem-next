@@ -273,12 +273,14 @@ pub trait Storage: Send + Sync {
     ) -> Result<()>;
     /// 获取作业提交概览（按学生聚合）
     /// - `include_grades`: 是否包含成绩信息（课代表不可见成绩）
+    /// - `graded`: 筛选是否已批改，true=已批改，false=待批改，None=全部
     async fn get_submission_summary(
         &self,
         homework_id: i64,
         page: i64,
         size: i64,
         include_grades: bool,
+        graded: Option<bool>,
     ) -> Result<SubmissionSummaryResponse>;
     /// 获取某学生某作业的所有提交版本（教师视角，包含评分和附件）
     /// - `include_grades`: 是否包含成绩信息（课代表不可见成绩）

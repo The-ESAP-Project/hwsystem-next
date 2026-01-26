@@ -45,6 +45,7 @@ pub struct SubmissionResponse {
 #[derive(Debug, Serialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/submission.ts")]
 pub struct SubmissionGradeInfo {
+    pub id: i64,
     pub score: f64,
     pub comment: Option<String>,
     pub graded_at: String,

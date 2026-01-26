@@ -49,15 +49,6 @@ impl GradeService {
         detail::get_grade(self, request, grade_id).await
     }
 
-    /// 通过提交 ID 获取评分
-    pub async fn get_grade_by_submission(
-        &self,
-        request: &HttpRequest,
-        submission_id: i64,
-    ) -> ActixResult<HttpResponse> {
-        detail::get_grade_by_submission(self, request, submission_id).await
-    }
-
     /// 更新评分
     pub async fn update_grade(
         &self,

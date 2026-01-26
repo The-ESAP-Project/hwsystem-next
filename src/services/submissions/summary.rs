@@ -13,12 +13,16 @@ use crate::services::submissions::SubmissionService;
 /// 权限：班级教师、课代表和管理员
 /// - 教师和管理员可以看到成绩
 /// - 课代表只能看到提交状态，不能看到成绩
+///
+/// 参数：
+/// - `graded`: 筛选是否已批改，true=已批改，false=待批改，None=全部
 pub async fn get_submission_summary(
     service: &SubmissionService,
     request: &HttpRequest,
     homework_id: i64,
     page: Option<i64>,
     size: Option<i64>,
+    graded: Option<bool>,
 ) -> ActixResult<HttpResponse> {
     let storage = service.get_storage(request);
 
@@ -99,7 +103,7 @@ pub async fn get_submission_summary(
     let size = size.unwrap_or(20);
 
     let summary = storage
-        .get_submission_summary(homework_id, page, size, include_grades)
+        .get_submission_summary(homework_id, page, size, include_grades, graded)
         .await
         .map_err(|e| {
             actix_web::error::ErrorInternalServerError(format!("查询提交概览失败: {e}"))

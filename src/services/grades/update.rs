@@ -3,8 +3,10 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use super::GradeService;
 use crate::middlewares::RequireJWT;
 use crate::models::grades::requests::UpdateGradeRequest;
+use crate::models::notifications::entities::{NotificationType, ReferenceType};
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::notifications::trigger::send_notification;
 
 pub async fn update_grade(
     service: &GradeService,
@@ -53,7 +55,39 @@ pub async fn update_grade(
     }
 
     match storage.update_grade(grade_id, req).await {
-        Ok(Some(grade)) => Ok(HttpResponse::Ok().json(ApiResponse::success(grade, "更新成功"))),
+        Ok(Some(updated_grade)) => {
+            // 异步通知学生
+            let storage_clone = storage.clone();
+            let g_id = updated_grade.id;
+            let new_score = updated_grade.score;
+            let submission_id = grade.submission_id;
+
+            tokio::spawn(async move {
+                // 获取提交和作业信息
+                if let Ok(Some(submission)) =
+                    storage_clone.get_submission_by_id(submission_id).await
+                    && let Ok(Some(homework)) = storage_clone
+                        .get_homework_by_id(submission.homework_id)
+                        .await
+                {
+                    send_notification(
+                        storage_clone,
+                        submission.creator_id,
+                        NotificationType::GradeUpdated,
+                        format!("评分已更新：{}", homework.title),
+                        Some(format!(
+                            "您的作业「{}」评分已更新，新得分：{}",
+                            homework.title, new_score
+                        )),
+                        Some(ReferenceType::Grade),
+                        Some(g_id),
+                    )
+                    .await;
+                }
+            });
+
+            Ok(HttpResponse::Ok().json(ApiResponse::success(updated_grade, "更新成功")))
+        }
         Ok(None) => Ok(HttpResponse::NotFound()
             .json(ApiResponse::error_empty(ErrorCode::NotFound, "评分不存在"))),
         Err(e) => Ok(

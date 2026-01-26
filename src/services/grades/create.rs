@@ -3,8 +3,10 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use super::GradeService;
 use crate::middlewares::RequireJWT;
 use crate::models::grades::requests::CreateGradeRequest;
+use crate::models::notifications::entities::{NotificationType, ReferenceType};
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::notifications::trigger::send_notification;
 
 pub async fn create_grade(
     service: &GradeService,
@@ -107,7 +109,29 @@ pub async fn create_grade(
     }
 
     match storage.create_grade(grader_id, req).await {
-        Ok(grade) => Ok(HttpResponse::Created().json(ApiResponse::success(grade, "评分成功"))),
+        Ok(grade) => {
+            // 异步通知学生
+            let storage_clone = storage.clone();
+            let grade_id = grade.id;
+            let student_id = submission.creator_id;
+            let score = grade.score;
+            let hw_title = homework.title.clone();
+
+            tokio::spawn(async move {
+                send_notification(
+                    storage_clone,
+                    student_id,
+                    NotificationType::GradeReceived,
+                    format!("作业已评分：{}", hw_title),
+                    Some(format!("您的作业「{}」已评分，得分：{}", hw_title, score)),
+                    Some(ReferenceType::Grade),
+                    Some(grade_id),
+                )
+                .await;
+            });
+
+            Ok(HttpResponse::Created().json(ApiResponse::success(grade, "评分成功")))
+        }
         Err(e) => Ok(
             HttpResponse::InternalServerError().json(ApiResponse::error_empty(
                 ErrorCode::InternalServerError,

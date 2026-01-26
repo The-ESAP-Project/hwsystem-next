@@ -3,8 +3,10 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use super::HomeworkService;
 use crate::middlewares::RequireJWT;
 use crate::models::homeworks::requests::CreateHomeworkRequest;
+use crate::models::notifications::entities::{NotificationType, ReferenceType};
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::notifications::trigger::{get_class_student_ids, send_notifications};
 
 pub async fn create_homework(
     service: &HomeworkService,
@@ -55,6 +57,26 @@ pub async fn create_homework(
 
     match storage.create_homework(created_by, req).await {
         Ok(homework) => {
+            // 异步发送通知给班级学生
+            let storage_clone = storage.clone();
+            let homework_id = homework.id;
+            let class_id = homework.class_id;
+            let title = homework.title.clone();
+
+            tokio::spawn(async move {
+                let student_ids = get_class_student_ids(&storage_clone, class_id).await;
+                send_notifications(
+                    storage_clone,
+                    student_ids,
+                    NotificationType::HomeworkCreated,
+                    format!("新作业发布：{}", title),
+                    Some(format!("作业「{}」已发布，请及时查看", title)),
+                    Some(ReferenceType::Homework),
+                    Some(homework_id),
+                )
+                .await;
+            });
+
             Ok(HttpResponse::Created().json(ApiResponse::success(homework, "创建成功")))
         }
         Err(e) => Ok(

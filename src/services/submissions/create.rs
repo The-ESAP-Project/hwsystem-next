@@ -1,9 +1,11 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use super::SubmissionService;
+use crate::models::notifications::entities::{NotificationType, ReferenceType};
 use crate::models::submissions::requests::CreateSubmissionRequest;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::notifications::trigger::send_notification;
 
 pub async fn create_submission(
     service: &SubmissionService,
@@ -59,6 +61,31 @@ pub async fn create_submission(
 
     match storage.create_submission(creator_id, req).await {
         Ok(submission) => {
+            // 异步通知教师（作业创建者）
+            let storage_clone = storage.clone();
+            let submission_id = submission.id;
+            let teacher_id = homework.created_by;
+            let hw_title = homework.title.clone();
+
+            tokio::spawn(async move {
+                // 获取提交者名称
+                let student_name = match storage_clone.get_user_by_id(creator_id).await {
+                    Ok(Some(user)) => user.display_name.unwrap_or(user.username),
+                    _ => "学生".to_string(),
+                };
+
+                send_notification(
+                    storage_clone,
+                    teacher_id,
+                    NotificationType::SubmissionReceived,
+                    format!("收到新提交：{}", hw_title),
+                    Some(format!("{} 提交了作业「{}」", student_name, hw_title)),
+                    Some(ReferenceType::Submission),
+                    Some(submission_id),
+                )
+                .await;
+            });
+
             Ok(HttpResponse::Created().json(ApiResponse::success(submission, "提交成功")))
         }
         Err(e) => Ok(

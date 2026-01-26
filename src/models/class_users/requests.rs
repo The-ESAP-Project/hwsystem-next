@@ -9,7 +9,7 @@ pub struct JoinClassRequest {
     pub invite_code: String,
 }
 
-#[derive(Debug, Deserialize, TS)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/class-user.ts")]
 pub struct UpdateClassUserRequest {
     pub role: Option<ClassUserRole>, // 更新用户角色

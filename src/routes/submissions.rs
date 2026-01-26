@@ -6,8 +6,6 @@ use crate::models::submissions::requests::{CreateSubmissionRequest, SubmissionLi
 use crate::models::{ApiResponse, ErrorCode};
 use crate::services::SubmissionService;
 
-use super::grades::get_submission_grade;
-
 // 懒加载的全局 SubmissionService 实例
 static SUBMISSION_SERVICE: Lazy<SubmissionService> = Lazy::new(SubmissionService::new_lazy);
 
@@ -113,6 +111,8 @@ pub async fn delete_submission(
 pub struct PaginationQuery {
     pub page: Option<i64>,
     pub size: Option<i64>,
+    /// 筛选是否已批改：true=已批改，false=待批改，None=全部
+    pub graded: Option<bool>,
 }
 
 // 获取提交概览（按学生聚合）
@@ -122,7 +122,13 @@ pub async fn get_submission_summary(
     query: web::Query<PaginationQuery>,
 ) -> ActixResult<HttpResponse> {
     SUBMISSION_SERVICE
-        .get_submission_summary(&req, path.into_inner(), query.page, query.size)
+        .get_submission_summary(
+            &req,
+            path.into_inner(),
+            query.page,
+            query.size,
+            query.graded,
+        )
         .await
 }
 
@@ -145,8 +151,7 @@ pub fn configure_submissions_routes(cfg: &mut web::ServiceConfig) {
             .route("", web::get().to(list_submissions))
             .route("", web::post().to(create_submission))
             .route("/{id}", web::get().to(get_submission))
-            .route("/{id}", web::delete().to(delete_submission))
-            .route("/{id}/grade", web::get().to(get_submission_grade)),
+            .route("/{id}", web::delete().to(delete_submission)),
     );
 
     // 作业相关的提交路由

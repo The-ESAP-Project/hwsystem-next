@@ -500,8 +500,9 @@ impl Storage for SeaOrmStorage {
         page: i64,
         size: i64,
         include_grades: bool,
+        graded: Option<bool>,
     ) -> Result<SubmissionSummaryResponse> {
-        self.get_submission_summary_impl(homework_id, page, size, include_grades)
+        self.get_submission_summary_impl(homework_id, page, size, include_grades, graded)
             .await
     }
 

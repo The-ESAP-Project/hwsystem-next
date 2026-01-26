@@ -198,6 +198,7 @@ impl SeaOrmStorage {
             .into_iter()
             .map(|s| {
                 let grade = grade_map.get(&s.id).map(|g| SubmissionGradeInfo {
+                    id: g.id,
                     score: g.score,
                     comment: g.comment.clone(),
                     graded_at: chrono::DateTime::from_timestamp(g.graded_at, 0)
@@ -427,12 +428,14 @@ impl SeaOrmStorage {
 
     /// 获取作业提交概览（按学生聚合）
     /// - `include_grades`: 是否包含成绩信息（课代表不可见成绩）
+    /// - `graded`: 筛选是否已批改，true=已批改，false=待批改，None=全部
     pub async fn get_submission_summary_impl(
         &self,
         homework_id: i64,
         page: i64,
         size: i64,
         include_grades: bool,
+        graded: Option<bool>,
     ) -> Result<SubmissionSummaryResponse> {
         let page = page.max(1) as u64;
         let size = size.clamp(1, 100) as u64;
@@ -467,12 +470,32 @@ impl SeaOrmStorage {
                 .or_insert((sub, 1));
         }
 
-        // 3. 分页
-        let total = user_latest.len() as u64;
+        // 3. 如果需要按 graded 筛选，先查询所有最新提交的评分信息
+        let all_submission_ids: Vec<i64> = user_latest.values().map(|(sub, _)| sub.id).collect();
+        let all_grades = Grades::find()
+            .filter(GradeColumn::SubmissionId.is_in(all_submission_ids))
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询评分信息失败: {e}")))?;
+        let grade_map: HashMap<i64, _> = all_grades
+            .into_iter()
+            .map(|g| (g.submission_id, g))
+            .collect();
+
+        // 4. 根据 graded 参数筛选
+        let mut user_data: Vec<_> = user_latest.into_iter().collect();
+        if let Some(is_graded) = graded {
+            user_data.retain(|(_, (sub, _))| {
+                let has_grade = grade_map.contains_key(&sub.id);
+                has_grade == is_graded
+            });
+        }
+
+        // 5. 分页
+        let total = user_data.len() as u64;
         let pages = total.div_ceil(size);
         let skip = ((page - 1) * size) as usize;
 
-        let mut user_data: Vec<_> = user_latest.into_iter().collect();
         // 按提交时间倒序排序
         user_data.sort_by(|a, b| b.1.0.submitted_at.cmp(&a.1.0.submitted_at));
 
@@ -482,7 +505,7 @@ impl SeaOrmStorage {
             .take(size as usize)
             .collect();
 
-        // 4. 批量查询用户信息
+        // 6. 批量查询用户信息
         let creator_ids: Vec<i64> = paged_data.iter().map(|(id, _)| *id).collect();
         let users = Users::find()
             .filter(UserColumn::Id.is_in(creator_ids.clone()))
@@ -491,16 +514,7 @@ impl SeaOrmStorage {
             .map_err(|e| HWSystemError::database_operation(format!("查询用户信息失败: {e}")))?;
         let user_map: HashMap<i64, _> = users.into_iter().map(|u| (u.id, u)).collect();
 
-        // 5. 批量查询评分信息（根据最新提交 ID）
-        let submission_ids: Vec<i64> = paged_data.iter().map(|(_, (sub, _))| sub.id).collect();
-        let grades = Grades::find()
-            .filter(GradeColumn::SubmissionId.is_in(submission_ids))
-            .all(&self.db)
-            .await
-            .map_err(|e| HWSystemError::database_operation(format!("查询评分信息失败: {e}")))?;
-        let grade_map: HashMap<i64, _> = grades.into_iter().map(|g| (g.submission_id, g)).collect();
-
-        // 6. 组装结果
+        // 7. 组装结果（grade_map 已在步骤 3 中查询）
         let items = paged_data
             .into_iter()
             .map(|(creator_id, (sub, version_count))| {
@@ -508,6 +522,7 @@ impl SeaOrmStorage {
                 // 根据 include_grades 参数决定是否返回成绩
                 let grade = if include_grades {
                     grade_map.get(&sub.id).map(|g| SubmissionGradeInfo {
+                        id: g.id,
                         score: g.score,
                         comment: g.comment.clone(),
                         graded_at: chrono::DateTime::from_timestamp(g.graded_at, 0)
@@ -633,6 +648,7 @@ impl SeaOrmStorage {
                 // 根据 include_grades 参数决定是否返回成绩
                 let grade = if include_grades {
                     grade_map.get(&s.id).map(|g| SubmissionGradeInfo {
+                        id: g.id,
                         score: g.score,
                         comment: g.comment.clone(),
                         graded_at: chrono::DateTime::from_timestamp(g.graded_at, 0)
@@ -723,6 +739,7 @@ impl SeaOrmStorage {
             .await
             .map_err(|e| HWSystemError::database_operation(format!("查询评分失败: {e}")))?
             .map(|g| SubmissionGradeInfo {
+                id: g.id,
                 score: g.score,
                 comment: g.comment,
                 graded_at: chrono::DateTime::from_timestamp(g.graded_at, 0)

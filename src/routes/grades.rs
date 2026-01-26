@@ -43,16 +43,6 @@ pub async fn get_grade(req: HttpRequest, path: web::Path<i64>) -> ActixResult<Ht
     GRADE_SERVICE.get_grade(&req, path.into_inner()).await
 }
 
-// 获取提交的评分
-pub async fn get_submission_grade(
-    req: HttpRequest,
-    path: web::Path<i64>, // submission_id
-) -> ActixResult<HttpResponse> {
-    GRADE_SERVICE
-        .get_grade_by_submission(&req, path.into_inner())
-        .await
-}
-
 // 更新评分
 pub async fn update_grade(
     req: HttpRequest,

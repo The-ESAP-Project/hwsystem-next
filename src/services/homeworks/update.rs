@@ -3,8 +3,10 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use super::HomeworkService;
 use crate::middlewares::RequireJWT;
 use crate::models::homeworks::requests::UpdateHomeworkRequest;
+use crate::models::notifications::entities::{NotificationType, ReferenceType};
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::notifications::trigger::{get_class_student_ids, send_notifications};
 
 pub async fn update_homework(
     service: &HomeworkService,
@@ -53,8 +55,28 @@ pub async fn update_homework(
     }
 
     match storage.update_homework(homework_id, req, user_id).await {
-        Ok(Some(homework)) => {
-            Ok(HttpResponse::Ok().json(ApiResponse::success(homework, "更新成功")))
+        Ok(Some(updated_homework)) => {
+            // 异步发送通知给班级学生
+            let storage_clone = storage.clone();
+            let hw_id = updated_homework.id;
+            let class_id = homework.class_id;
+            let title = updated_homework.title.clone();
+
+            tokio::spawn(async move {
+                let student_ids = get_class_student_ids(&storage_clone, class_id).await;
+                send_notifications(
+                    storage_clone,
+                    student_ids,
+                    NotificationType::HomeworkUpdated,
+                    format!("作业更新：{}", title),
+                    Some(format!("作业「{}」已更新，请查看最新内容", title)),
+                    Some(ReferenceType::Homework),
+                    Some(hw_id),
+                )
+                .await;
+            });
+
+            Ok(HttpResponse::Ok().json(ApiResponse::success(updated_homework, "更新成功")))
         }
         Ok(None) => Ok(HttpResponse::NotFound()
             .json(ApiResponse::error_empty(ErrorCode::NotFound, "作业不存在"))),

@@ -2,6 +2,7 @@ pub mod count;
 pub mod delete;
 pub mod list;
 pub mod read;
+pub mod trigger;
 
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use std::sync::Arc;

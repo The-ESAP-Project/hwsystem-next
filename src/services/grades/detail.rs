@@ -134,39 +134,3 @@ pub async fn get_grade(
 
     Ok(HttpResponse::Ok().json(ApiResponse::success(grade, "查询成功")))
 }
-
-pub async fn get_grade_by_submission(
-    service: &GradeService,
-    request: &HttpRequest,
-    submission_id: i64,
-) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
-
-    // 获取当前用户信息
-    let current_user = match RequireJWT::extract_user_claims(request) {
-        Some(user) => user,
-        None => {
-            return Ok(HttpResponse::Unauthorized()
-                .json(ApiResponse::error_empty(ErrorCode::Unauthorized, "未登录")));
-        }
-    };
-
-    // 权限验证
-    if let Err(resp) = check_grade_access_permission(&storage, &current_user, submission_id).await {
-        return Ok(resp);
-    }
-
-    match storage.get_grade_by_submission_id(submission_id).await {
-        Ok(Some(grade)) => Ok(HttpResponse::Ok().json(ApiResponse::success(grade, "查询成功"))),
-        Ok(None) => Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
-            ErrorCode::NotFound,
-            "该提交暂无评分",
-        ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("查询评分失败: {e}"),
-            )),
-        ),
-    }
-}

@@ -116,7 +116,7 @@ impl SeaOrmStorage {
         query: ClassUserQuery,
     ) -> Result<ClassUserListResponse> {
         let page = query.page.unwrap_or(1).max(1) as u64;
-        let size = query.size.unwrap_or(20).clamp(1, 200) as u64;
+        let size = query.size.unwrap_or(20).clamp(1, 100) as u64;
 
         let mut select = ClassUsers::find()
             .filter(Column::ClassId.eq(class_id))

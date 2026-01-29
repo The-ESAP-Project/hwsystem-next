@@ -119,7 +119,7 @@
 #### 8.1 重复代码
 - ~~Storage 获取模式在所有 Service 中重复~~ ✅ 已提取 `StorageProvider` trait
 - ~~防抖搜索模式在多个组件中重复 (`ClassListPage`, `UserListPage`, `HomeworkListCard`)~~ ✅ 已创建 `useDebouncedSearch` hook
-- 布局组件重复 (`NotificationLayout`, `SettingsLayout`)
+- ~~布局组件重复 (`NotificationLayout`, `SettingsLayout`)~~ ✅ 已创建 `useRoleNavItems` hook 和 `RoleBasedLayout` 组件
 
 #### 8.2 组件过大 - ✅ 已完成
 - `UserListPage.tsx`: ~~485 行~~ → 404 行 (提取了 `useBatchSelection` hook 和 `UserListFilters` 组件)

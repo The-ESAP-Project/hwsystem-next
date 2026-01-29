@@ -117,14 +117,14 @@
 ### 8. 代码质量
 
 #### 8.1 重复代码
-- Storage 获取模式在所有 Service 中重复
+- ~~Storage 获取模式在所有 Service 中重复~~ ✅ 已提取 `StorageProvider` trait
 - ~~防抖搜索模式在多个组件中重复 (`ClassListPage`, `UserListPage`, `HomeworkListCard`)~~ ✅ 已创建 `useDebouncedSearch` hook
 - 布局组件重复 (`NotificationLayout`, `SettingsLayout`)
 
-#### 8.2 组件过大
-- `UserListPage.tsx`: 485 行
-- `HomeworkDetailPage.tsx`: 451 行
-- `HomeworkListCard.tsx`: 260 行
+#### 8.2 组件过大 - ✅ 已完成
+- `UserListPage.tsx`: ~~485 行~~ → 404 行 (提取了 `useBatchSelection` hook 和 `UserListFilters` 组件)
+- `HomeworkDetailPage.tsx`: ~~451 行~~ → 275 行 ✅ (提取了 `useHomeworkStatus` hook、`HomeworkInfoCard`、`MySubmissionCard`、`SubmissionManagementCard` 组件)
+- `HomeworkListCard.tsx`: ~~260 行~~ → 158 行 ✅ (提取了 `useHomeworkFilters` hook、`HomeworkListToolbar` 和 `HomeworkStatusTabs` 组件)
 
 #### 8.3 ~~魔法数字~~ ✅ 已修复
 - ~~`frontend/src/lib/api.ts:47`: `timeout: 10000`~~
@@ -163,7 +163,7 @@
 |---------|------|--------|------|
 | 🔴 严重 | 6 | 3 | 3 |
 | 🟠 中等 | 10 | 8 | 2 |
-| 🟡 低 | 8 | 6 | 2 |
+| 🟡 低 | 8 | 8 | 0 |
 
 ---
 
@@ -179,7 +179,7 @@
 
 2. **第二优先级 - 功能修复**
    - [x] 实现文件删除 API
-   - [ ] 更新 API 文档
+   - [x] 更新 API 文档
 
 3. **第三优先级 - 性能优化**
    - [x] 修复 N+1 查询（5 处已修复，1 处暂缓）
@@ -190,8 +190,18 @@
    - [x] 提取防抖搜索重复代码（`useDebouncedSearch` hook）
    - [x] 提取魔法数字为常量（`constants.ts`）
    - [x] 添加 ARIA 可访问性标签
-   - [ ] 拆分过大组件
-   - [ ] Storage 获取模式重复
+   - [x] 提取 Storage 获取重复代码（`StorageProvider` trait）
+   - [x] 拆分过大组件
+     - [x] 提取 `useBatchSelection` 通用 hook
+     - [x] 提取 `useHomeworkFilters` hook
+     - [x] 提取 `useHomeworkStatus` hook
+     - [x] 提取 `UserListFilters` 组件
+     - [x] 提取 `HomeworkListToolbar` 组件
+     - [x] 提取 `HomeworkStatusTabs` 组件
+     - [x] 提取 `HomeworkInfoCard` 组件
+     - [x] 提取 `MySubmissionCard` 组件
+     - [x] 提取 `SubmissionManagementCard` 组件
+   - [ ] 布局组件重复
 
 ---
 

@@ -11,6 +11,9 @@ use std::fmt;
 ///
 /// # Example
 /// ```rust
+/// use serde::Serialize;
+/// use rust_hwsystem_next::models::common::serialization::serialize_i64_as_string;
+///
 /// #[derive(Serialize)]
 /// struct Example {
 ///     #[serde(serialize_with = "serialize_i64_as_string")]
@@ -28,6 +31,9 @@ where
 ///
 /// # Example
 /// ```rust
+/// use serde::Serialize;
+/// use rust_hwsystem_next::models::common::serialization::serialize_option_i64_as_string;
+///
 /// #[derive(Serialize)]
 /// struct Example {
 ///     #[serde(serialize_with = "serialize_option_i64_as_string")]
@@ -63,6 +69,9 @@ where
 ///
 /// # Example
 /// ```rust
+/// use serde::Deserialize;
+/// use rust_hwsystem_next::models::common::serialization::deserialize_string_to_i64;
+///
 /// #[derive(Deserialize)]
 /// struct Example {
 ///     #[serde(deserialize_with = "deserialize_string_to_i64")]

@@ -507,7 +507,8 @@ impl Storage for SeaOrmStorage {
         &self,
         homework_id: i64,
     ) -> Result<Vec<SubmissionListItem>> {
-        self.list_all_submissions_by_homework_impl(homework_id).await
+        self.list_all_submissions_by_homework_impl(homework_id)
+            .await
     }
 
     async fn delete_submission(&self, submission_id: i64) -> Result<bool> {

@@ -139,7 +139,7 @@ impl SeaOrmStorage {
             .await
             .map_err(|e| HWSystemError::database_operation(format!("获取审计日志失败: {e}")))?;
 
-        let total_pages = ((total as u64) + page_size - 1) / page_size;
+        let total_pages = (total as u64).div_ceil(page_size);
 
         Ok(SettingAuditListResponse {
             audits: audits.into_iter().map(|a| a.into_audit()).collect(),

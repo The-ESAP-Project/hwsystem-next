@@ -1,10 +1,7 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use super::UserService;
-use crate::models::{
-    ApiResponse, ErrorCode,
-    users::requests::UserListQuery,
-};
+use crate::models::{ApiResponse, ErrorCode, users::requests::UserListQuery};
 
 pub async fn list_users(
     service: &UserService,

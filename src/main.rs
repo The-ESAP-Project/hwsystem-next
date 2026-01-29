@@ -1,4 +1,5 @@
 use actix_cors::Cors;
+use actix_web::http;
 use actix_web::middleware::{Compress, DefaultHeaders};
 use actix_web::{App, HttpServer, web};
 use dotenv::dotenv;
@@ -81,13 +82,36 @@ async fn main() -> std::io::Result<()> {
     // Start the HTTP server
     let server = HttpServer::new(move || {
         App::new()
-            .wrap(
-                Cors::default()
-                    .allow_any_origin()
-                    .allow_any_method()
-                    .allow_any_header()
-                    .max_age(config.cors.max_age),
-            )
+            .wrap({
+                let mut cors = Cors::default();
+
+                // 配置允许的来源
+                if config.cors.allowed_origins.is_empty() {
+                    cors = cors.allow_any_origin();
+                } else {
+                    for origin in &config.cors.allowed_origins {
+                        cors = cors.allowed_origin(origin);
+                    }
+                }
+
+                // 配置允许的方法
+                for method in &config.cors.allowed_methods {
+                    if let Ok(m) = method.parse::<http::Method>() {
+                        cors = cors.allowed_methods(vec![m]);
+                    }
+                }
+
+                // 配置允许的头部
+                if config.cors.allowed_headers.iter().any(|h| h == "*") {
+                    cors = cors.allow_any_header();
+                } else {
+                    for header in &config.cors.allowed_headers {
+                        cors = cors.allowed_header(header);
+                    }
+                }
+
+                cors.max_age(config.cors.max_age)
+            })
             .wrap(Compress::default())
             .wrap(
                 DefaultHeaders::new()

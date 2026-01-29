@@ -21,6 +21,14 @@ pub async fn handle_download(
 ) -> ActixResult<HttpResponse> {
     FILE_SERVICE.handle_download(&request, file_token.0).await
 }
+
+pub async fn handle_delete(
+    request: HttpRequest,
+    file_token: SafeFileToken,
+) -> ActixResult<HttpResponse> {
+    FILE_SERVICE.handle_delete(&request, file_token.0).await
+}
+
 // 配置路由
 pub fn configure_file_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -33,6 +41,7 @@ pub fn configure_file_routes(cfg: &mut web::ServiceConfig) {
                     .wrap(RateLimit::file_upload())
                     .route(web::post().to(handle_upload)),
             )
-            .route("/download/{file_token}", web::get().to(handle_download)),
+            .route("/download/{file_token}", web::get().to(handle_download))
+            .route("/{file_token}", web::delete().to(handle_delete)),
     );
 }

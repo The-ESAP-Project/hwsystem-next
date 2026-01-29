@@ -115,6 +115,8 @@ pub trait Storage: Send + Sync {
     async fn increment_file_citation(&self, file_id: i64) -> Result<bool>;
     /// 减少文件引用计数
     async fn decrement_file_citation(&self, file_id: i64) -> Result<bool>;
+    /// 删除文件（仅当引用计数为 0 时删除物理文件）
+    async fn delete_file(&self, token: &str, user_id: i64) -> Result<bool>;
 
     // ============================================
     // 班级管理方法

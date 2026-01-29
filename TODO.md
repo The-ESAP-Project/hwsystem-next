@@ -9,23 +9,15 @@
 
 ### 1. 安全问题
 
-#### 1.1 CORS 配置过于宽松
-- **文件**: `src/main.rs:85-89`
-- **问题**: 生产环境允许任意来源、任意方法、任意头部
-```rust
-Cors::default()
-    .allow_any_origin()
-    .allow_any_method()
-    .allow_any_header()
-```
-- **风险**: CSRF 攻击
+#### 1.1 ~~CORS 配置过于宽松~~ ✅ 已修复
+- **文件**: `src/main.rs:85-113`
+- ~~**问题**: 生产环境允许任意来源、任意方法、任意头部~~
+- ✅ 已改为从配置文件 `config.cors.*` 读取，支持精确控制
 
-#### 1.2 Fallback Token 机制不安全
-- **文件**: `src/models/users/entities.rs:147-157`
-- **问题**: JWT 生成失败时使用可预测的 fallback token
-```rust
-format!("fallback_token_{}_{}", self.id, chrono::Utc::now().timestamp())
-```
+#### 1.2 ~~Fallback Token 机制不安全~~ ✅ 已修复
+- **文件**: `src/models/users/entities.rs:144-154`
+- ~~**问题**: JWT 生成失败时使用可预测的 fallback token~~
+- ✅ 已移除 fallback 机制，改为直接返回 `Result<TokenPair, String>`
 
 #### 1.3 前端 Token 存储在 localStorage
 - **文件**: `frontend/src/stores/useUserStore.ts:39-43`
@@ -41,10 +33,10 @@ format!("fallback_token_{}_{}", self.id, chrono::Utc::now().timestamp())
 
 ### 2. API 实现问题
 
-#### 2.1 前端调用了未实现的文件删除 API
-- **前端调用**: `frontend/src/features/file/services/fileService.ts:77-79`
-- **后端状态**: `DELETE /files/{file_id}` 未实现
-- **影响**: 运行时错误
+#### 2.1 ~~前端调用了未实现的文件删除 API~~ ✅ 已实现
+- **路由**: `DELETE /api/v1/files/{file_token}`
+- **权限**: 只有上传者可以删除自己的文件
+- **逻辑**: 引用计数为 0 时同时删除物理文件
 
 ---
 
@@ -173,7 +165,7 @@ secret = "default_secret_key"
    - [ ] 考虑 token 存储方案改进
 
 2. **第二优先级 - 功能修复**
-   - [ ] 实现文件删除 API
+   - [x] 实现文件删除 API
    - [ ] 更新 API 文档
 
 3. **第三优先级 - 性能优化**

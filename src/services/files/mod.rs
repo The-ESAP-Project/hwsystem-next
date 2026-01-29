@@ -1,3 +1,4 @@
+pub mod delete;
 pub mod download;
 pub mod upload;
 
@@ -44,5 +45,14 @@ impl FileService {
         file_token: String,
     ) -> ActixResult<HttpResponse> {
         download::handle_download(self, request, file_token).await
+    }
+
+    // Handle file delete
+    pub async fn handle_delete(
+        &self,
+        request: &HttpRequest,
+        file_token: String,
+    ) -> ActixResult<HttpResponse> {
+        delete::handle_delete(self, request, file_token).await
     }
 }

@@ -269,6 +269,10 @@ impl Storage for SeaOrmStorage {
         self.decrement_file_citation_impl(file_id).await
     }
 
+    async fn delete_file(&self, token: &str, user_id: i64) -> Result<bool> {
+        self.delete_file_impl(token, user_id).await
+    }
+
     // ============================================
     // 班级模块
     // ============================================

@@ -100,4 +100,46 @@ impl SeaOrmStorage {
 
         Ok(result.rows_affected > 0)
     }
+
+    /// 删除文件
+    /// - 只有上传者可以删除自己的文件
+    /// - 如果文件有引用（citation_count > 0），只删除数据库记录
+    /// - 如果没有引用，同时删除物理文件
+    pub async fn delete_file_impl(&self, token: &str, user_id: i64) -> Result<bool> {
+        // 先查询文件
+        let file = self.get_file_by_token_impl(token).await?;
+
+        let file = match file {
+            Some(f) => f,
+            None => return Ok(false), // 文件不存在
+        };
+
+        // 检查权限：只有上传者可以删除
+        if file.user_id != Some(user_id) {
+            return Err(HWSystemError::authorization("只有上传者可以删除文件"));
+        }
+
+        // 删除数据库记录
+        let result = Files::delete_by_id(file.id)
+            .exec(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("删除文件记录失败: {e}")))?;
+
+        if result.rows_affected == 0 {
+            return Ok(false);
+        }
+
+        // 如果没有引用，删除物理文件
+        if file.citation_count == 0 {
+            let config = AppConfig::get();
+            let file_path = format!("{}/{}", config.upload.dir, file.stored_name);
+            if std::path::Path::new(&file_path).exists()
+                && let Err(e) = std::fs::remove_file(&file_path) {
+                    // 物理文件删除失败只记录日志，不影响返回结果
+                    tracing::warn!("删除物理文件失败: {} - {}", file_path, e);
+                }
+        }
+
+        Ok(true)
+    }
 }

@@ -3,10 +3,10 @@ use crate::models::common::PaginationQuery;
 use serde::Deserialize;
 use ts_rs::TS;
 
-// 用户查询参数（来自HTTP请求）
-#[derive(Debug, Deserialize, TS)]
+// 用户查询参数
+#[derive(Debug, Clone, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/user.ts")]
-pub struct UserListParams {
+pub struct UserListQuery {
     #[serde(flatten)]
     #[ts(flatten)]
     pub pagination: PaginationQuery,
@@ -37,17 +37,6 @@ pub struct UpdateUserRequest {
     pub status: Option<UserStatus>,
     pub display_name: Option<String>,
     pub avatar_url: Option<String>,
-}
-
-// 用户列表查询参数（用于存储层）
-#[derive(Debug, Clone, Deserialize, TS)]
-#[ts(export, export_to = "../frontend/src/types/generated/user.ts")]
-pub struct UserListQuery {
-    pub page: Option<i64>,
-    pub size: Option<i64>,
-    pub role: Option<UserRole>,
-    pub status: Option<UserStatus>,
-    pub search: Option<String>,
 }
 
 // 用户导出参数

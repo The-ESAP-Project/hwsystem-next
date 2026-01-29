@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::models::{
     class_users::{
         entities::{ClassUser, ClassUserRole},
-        requests::{ClassUserQuery, UpdateClassUserRequest},
+        requests::{ClassUserListQuery, UpdateClassUserRequest},
         responses::ClassUserListResponse,
     },
     classes::{
@@ -33,8 +33,8 @@ use crate::models::{
         entities::Submission,
         requests::{CreateSubmissionRequest, SubmissionListQuery},
         responses::{
-            SubmissionListResponse, SubmissionResponse, SubmissionSummaryResponse,
-            UserSubmissionHistoryItem,
+            SubmissionListItem, SubmissionListResponse, SubmissionResponse,
+            SubmissionSummaryResponse, UserSubmissionHistoryItem,
         },
     },
     system::{
@@ -166,7 +166,7 @@ pub trait Storage: Send + Sync {
     async fn list_class_users_with_pagination(
         &self,
         class_id: i64,
-        query: ClassUserQuery,
+        query: ClassUserListQuery,
     ) -> Result<ClassUserListResponse>;
     /// 列出用户所在的班级
     async fn list_user_classes_with_pagination(
@@ -189,6 +189,8 @@ pub trait Storage: Send + Sync {
         invite_code: &str,
         user_id: i64,
     ) -> Result<(Option<Class>, Option<ClassUser>)>;
+    /// 获取班级所有成员（不分页，用于内部统计/导出）
+    async fn list_all_class_users(&self, class_id: i64) -> Result<Vec<ClassUser>>;
 
     // ============================================
     // 作业管理方法
@@ -240,6 +242,8 @@ pub trait Storage: Send + Sync {
         is_teacher: bool,
         query: AllHomeworksQuery,
     ) -> Result<AllHomeworksResponse>;
+    /// 获取班级所有作业（不分页，用于内部统计/导出）
+    async fn list_all_homeworks_by_class(&self, class_id: i64) -> Result<Vec<Homework>>;
 
     // ============================================
     // 提交管理方法
@@ -275,6 +279,11 @@ pub trait Storage: Send + Sync {
         &self,
         query: SubmissionListQuery,
     ) -> Result<SubmissionListResponse>;
+    /// 获取作业所有提交（不分页，用于内部统计/导出）
+    async fn list_all_submissions_by_homework(
+        &self,
+        homework_id: i64,
+    ) -> Result<Vec<SubmissionListItem>>;
     /// 删除提交（撤回）
     async fn delete_submission(&self, submission_id: i64) -> Result<bool>;
     /// 更新提交状态
@@ -295,7 +304,7 @@ pub trait Storage: Send + Sync {
         &self,
         homework_id: i64,
         page: i64,
-        size: i64,
+        page_size: i64,
         include_grades: bool,
         graded: Option<bool>,
     ) -> Result<SubmissionSummaryResponse>;

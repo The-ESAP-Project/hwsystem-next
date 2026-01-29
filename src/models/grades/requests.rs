@@ -20,22 +20,14 @@ pub struct UpdateGradeRequest {
 }
 
 /// 评分列表查询参数
-#[derive(Debug, Deserialize, TS)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/grade.ts")]
-pub struct GradeListParams {
+pub struct GradeListQuery {
     #[serde(flatten)]
     #[ts(flatten)]
     pub pagination: PaginationQuery,
     pub submission_id: Option<i64>,
     pub grader_id: Option<i64>,
-}
-
-/// 评分列表存储层查询参数
-#[derive(Debug, Clone, Deserialize)]
-pub struct GradeListQuery {
-    pub page: Option<i64>,
-    pub size: Option<i64>,
-    pub submission_id: Option<i64>,
-    pub grader_id: Option<i64>,
+    #[serde(default)]
     pub homework_id: Option<i64>,
 }

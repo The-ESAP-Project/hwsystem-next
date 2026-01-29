@@ -9,9 +9,6 @@ use tracing::error;
 use super::ClassService;
 use crate::middlewares::RequireJWT;
 use crate::models::class_users::entities::ClassUserRole;
-use crate::models::class_users::requests::ClassUserQuery;
-use crate::models::homeworks::requests::HomeworkListQuery;
-use crate::models::submissions::requests::SubmissionListQuery;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
 
@@ -127,19 +124,9 @@ pub async fn export_class_report(
         }
     }
 
-    // 获取班级所有成员
-    let class_users_query = ClassUserQuery {
-        page: Some(1),
-        size: Some(10000),
-        search: None,
-        role: None,
-    };
-
-    let class_users_response = match storage
-        .list_class_users_with_pagination(class_id, class_users_query)
-        .await
-    {
-        Ok(resp) => resp,
+    // 获取班级所有成员（不分页）
+    let class_users = match storage.list_all_class_users(class_id).await {
+        Ok(users) => users,
         Err(e) => {
             return Ok(
                 HttpResponse::InternalServerError().json(ApiResponse::error_empty(
@@ -151,29 +138,16 @@ pub async fn export_class_report(
     };
 
     // 统计需要提交作业的成员（排除教师）
-    let students: Vec<_> = class_users_response
-        .items
+    let students: Vec<_> = class_users
         .iter()
         .filter(|cu| cu.role != ClassUserRole::Teacher)
         .collect();
     let total_students = students.len() as i64;
     let student_ids: HashSet<i64> = students.iter().map(|cu| cu.user_id).collect();
 
-    // 获取班级所有作业
-    let homework_query = HomeworkListQuery {
-        class_id: Some(class_id),
-        page: Some(1),
-        size: Some(10000),
-        created_by: None,
-        search: None,
-        include_stats: None,
-    };
-
-    let homeworks_response = match storage
-        .list_homeworks_with_pagination(homework_query, None)
-        .await
-    {
-        Ok(resp) => resp,
+    // 获取班级所有作业（不分页）
+    let homeworks = match storage.list_all_homeworks_by_class(class_id).await {
+        Ok(hws) => hws,
         Err(e) => {
             return Ok(
                 HttpResponse::InternalServerError().json(ApiResponse::error_empty(
@@ -184,7 +158,6 @@ pub async fn export_class_report(
         }
     };
 
-    let homeworks = &homeworks_response.items;
     let total_homeworks = homeworks.len() as i64;
 
     // 收集所有作业的提交和评分数据
@@ -193,23 +166,12 @@ pub async fn export_class_report(
         HashMap::new();
     let mut homework_summaries: Vec<HomeworkSummary> = Vec::new();
 
-    for homework in homeworks {
-        let hw_id = homework.homework.id;
+    for homework in &homeworks {
+        let hw_id = homework.id;
 
-        // 获取该作业的所有提交
-        let submissions_query = SubmissionListQuery {
-            homework_id: Some(hw_id),
-            page: Some(1),
-            size: Some(10000),
-            status: None,
-            creator_id: None,
-        };
-
-        let submissions_response = match storage
-            .list_submissions_with_pagination(submissions_query)
-            .await
-        {
-            Ok(resp) => resp,
+        // 获取该作业的所有提交（不分页）
+        let submissions = match storage.list_all_submissions_by_homework(hw_id).await {
+            Ok(subs) => subs,
             Err(e) => {
                 error!("查询作业 {} 的提交失败: {}", hw_id, e);
                 continue;
@@ -221,7 +183,7 @@ pub async fn export_class_report(
             i64,
             &crate::models::submissions::responses::SubmissionListItem,
         > = HashMap::new();
-        for submission in &submissions_response.items {
+        for submission in &submissions {
             if !student_ids.contains(&submission.creator_id) {
                 continue;
             }
@@ -258,8 +220,8 @@ pub async fn export_class_report(
         homework_submissions.insert(hw_id, user_statuses);
 
         homework_summaries.push(HomeworkSummary {
-            title: homework.homework.title.clone(),
-            deadline: homework.homework.deadline.as_ref().map(|d| d.to_string()),
+            title: homework.title.clone(),
+            deadline: homework.deadline.as_ref().map(|d| d.to_string()),
             submitted_count,
             total_students,
             graded_count,
@@ -276,9 +238,9 @@ pub async fn export_class_report(
             let mut score_sum = 0.0f64;
             let mut graded_count = 0i64;
 
-            for homework in homeworks {
+            for homework in &homeworks {
                 let status = homework_submissions
-                    .get(&homework.homework.id)
+                    .get(&homework.id)
                     .and_then(|m| m.get(&student.user_id))
                     .cloned()
                     .unwrap_or(StudentHomeworkStatus::NotSubmitted);
@@ -325,7 +287,7 @@ pub async fn export_class_report(
     };
 
     // 生成 XLSX
-    let homework_titles: Vec<String> = homeworks.iter().map(|h| h.homework.title.clone()).collect();
+    let homework_titles: Vec<String> = homeworks.iter().map(|h| h.title.clone()).collect();
 
     let xlsx_result = generate_xlsx(
         &class.name,

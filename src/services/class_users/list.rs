@@ -7,7 +7,7 @@ use crate::{
     models::{
         ApiResponse, ErrorCode,
         class_users::{
-            requests::{ClassUserListParams, ClassUserQuery},
+            requests::ClassUserListQuery,
             responses::{ClassUserDetail, ClassUserDetailListResponse, UserInfo},
         },
     },
@@ -18,19 +18,12 @@ pub async fn list_class_users_with_pagination(
     service: &ClassUserService,
     request: &HttpRequest,
     class_id: i64,
-    query: ClassUserListParams,
+    query: ClassUserListQuery,
 ) -> ActixResult<HttpResponse> {
     let storage = service.get_storage(request);
 
-    let list_query = ClassUserQuery {
-        page: Some(query.pagination.page),
-        size: Some(query.pagination.size),
-        search: query.search,
-        role: query.role,
-    };
-
     match storage
-        .list_class_users_with_pagination(class_id, list_query)
+        .list_class_users_with_pagination(class_id, query)
         .await
     {
         Ok(response) => {

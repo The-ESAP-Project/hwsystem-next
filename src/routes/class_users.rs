@@ -4,7 +4,7 @@ use once_cell::sync::Lazy;
 use crate::middlewares;
 use crate::models::class_users::entities::ClassUserRole;
 use crate::models::class_users::requests::{
-    ClassUserListParams, JoinClassRequest, UpdateClassUserRequest,
+    ClassUserListQuery, JoinClassRequest, UpdateClassUserRequest,
 };
 use crate::models::users::entities::UserRole;
 use crate::services::ClassUserService;
@@ -33,7 +33,7 @@ pub async fn join_class(
 pub async fn list_class_users_with_pagination(
     req: HttpRequest,
     path: SafeClassIdI64,
-    query: web::Query<ClassUserListParams>,
+    query: web::Query<ClassUserListQuery>,
 ) -> ActixResult<HttpResponse> {
     CLASS_STUDENT_SERVICE
         .list_class_users_with_pagination(&req, path.0, query.into_inner())

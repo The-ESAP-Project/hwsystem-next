@@ -8,7 +8,7 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use std::sync::Arc;
 
 use crate::models::class_users::requests::{
-    ClassUserListParams, JoinClassRequest, UpdateClassUserRequest,
+    ClassUserListQuery, JoinClassRequest, UpdateClassUserRequest,
 };
 use crate::storage::Storage;
 
@@ -48,7 +48,7 @@ impl ClassUserService {
         &self,
         req: &HttpRequest,
         class_id: i64,
-        query: ClassUserListParams,
+        query: ClassUserListQuery,
     ) -> ActixResult<HttpResponse> {
         list::list_class_users_with_pagination(self, req, class_id, query).await
     }

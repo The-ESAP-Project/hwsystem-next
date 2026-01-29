@@ -21,7 +21,7 @@ pub async fn get_submission_summary(
     request: &HttpRequest,
     homework_id: i64,
     page: Option<i64>,
-    size: Option<i64>,
+    page_size: Option<i64>,
     graded: Option<bool>,
 ) -> ActixResult<HttpResponse> {
     let storage = service.get_storage(request);
@@ -103,10 +103,10 @@ pub async fn get_submission_summary(
 
     // 获取提交概览
     let page = page.unwrap_or(1);
-    let size = size.unwrap_or(20);
+    let page_size = page_size.unwrap_or(20);
 
     let summary = match storage
-        .get_submission_summary(homework_id, page, size, include_grades, graded)
+        .get_submission_summary(homework_id, page, page_size, include_grades, graded)
         .await
     {
         Ok(s) => s,

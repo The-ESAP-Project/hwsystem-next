@@ -9,7 +9,7 @@ use crate::{
     models::{
         ApiResponse, ErrorCode,
         classes::{
-            requests::{ClassListQuery, ClassQueryParams},
+            requests::ClassListQuery,
             responses::{ClassDetail, ClassDetailListResponse, ClassListResponse, TeacherInfo},
         },
         users::entities::UserRole,
@@ -20,7 +20,7 @@ use crate::{
 pub async fn list_classes(
     service: &ClassService,
     request: &HttpRequest,
-    query: ClassQueryParams,
+    query: ClassListQuery,
 ) -> ActixResult<HttpResponse> {
     let role = RequireJWT::extract_user_role(request);
     let storage = service.get_storage(request);
@@ -36,8 +36,7 @@ pub async fn list_classes(
     };
 
     let mut list_query = ClassListQuery {
-        page: Some(query.pagination.page),
-        size: Some(query.pagination.size),
+        pagination: query.pagination.clone(),
         teacher_id: None,
         search: query.search,
     };

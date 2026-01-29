@@ -9,7 +9,7 @@ use crate::models::{
     PaginationInfo,
     class_users::{
         entities::{ClassUser, ClassUserRole},
-        requests::{ClassUserQuery, UpdateClassUserRequest},
+        requests::{ClassUserListQuery, UpdateClassUserRequest},
         responses::ClassUserListResponse,
     },
     classes::{entities::Class, requests::ClassListQuery, responses::ClassListResponse},
@@ -113,10 +113,9 @@ impl SeaOrmStorage {
     pub async fn list_class_users_with_pagination_impl(
         &self,
         class_id: i64,
-        query: ClassUserQuery,
+        query: ClassUserListQuery,
     ) -> Result<ClassUserListResponse> {
-        let page = query.page.unwrap_or(1).max(1) as u64;
-        let size = query.size.unwrap_or(10).clamp(1, 200) as u64;
+        let (page, page_size) = query.pagination.normalized();
 
         let mut select = ClassUsers::find()
             .filter(Column::ClassId.eq(class_id))
@@ -149,7 +148,7 @@ impl SeaOrmStorage {
         }
 
         // 分页查询
-        let paginator = select.paginate(&self.db, size);
+        let paginator = select.paginate(&self.db, page_size);
         let total = paginator
             .num_items()
             .await
@@ -169,7 +168,7 @@ impl SeaOrmStorage {
             items: users.into_iter().map(|m| m.into_class_user()).collect(),
             pagination: PaginationInfo {
                 page: page as i64,
-                page_size: size as i64,
+                page_size: page_size as i64,
                 total: total as i64,
                 total_pages: pages as i64,
             },
@@ -182,8 +181,7 @@ impl SeaOrmStorage {
         user_id: i64,
         query: ClassListQuery,
     ) -> Result<ClassListResponse> {
-        let page = query.page.unwrap_or(1).max(1) as u64;
-        let size = query.size.unwrap_or(10).clamp(1, 100) as u64;
+        let (page, page_size) = query.pagination.normalized();
 
         // 查询用户加入的班级 ID
         let class_user_records = ClassUsers::find()
@@ -199,7 +197,7 @@ impl SeaOrmStorage {
                 items: vec![],
                 pagination: PaginationInfo {
                     page: page as i64,
-                    page_size: size as i64,
+                    page_size: page_size as i64,
                     total: 0,
                     total_pages: 0,
                 },
@@ -220,7 +218,7 @@ impl SeaOrmStorage {
         select = select.order_by_desc(ClassColumn::CreatedAt);
 
         // 分页查询
-        let paginator = select.paginate(&self.db, size);
+        let paginator = select.paginate(&self.db, page_size);
         let total = paginator
             .num_items()
             .await
@@ -240,7 +238,7 @@ impl SeaOrmStorage {
             items: classes.into_iter().map(|m| m.into_class()).collect(),
             pagination: PaginationInfo {
                 page: page as i64,
-                page_size: size as i64,
+                page_size: page_size as i64,
                 total: total as i64,
                 total_pages: pages as i64,
             },
@@ -297,5 +295,17 @@ impl SeaOrmStorage {
             .await?;
 
         Ok((class, class_user))
+    }
+
+    /// 获取班级所有成员（不分页，用于内部统计/导出）
+    pub async fn list_all_class_users_impl(&self, class_id: i64) -> Result<Vec<ClassUser>> {
+        let result = ClassUsers::find()
+            .filter(Column::ClassId.eq(class_id))
+            .order_by_desc(Column::JoinedAt)
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询班级用户失败: {e}")))?;
+
+        Ok(result.into_iter().map(|m| m.into_class_user()).collect())
     }
 }

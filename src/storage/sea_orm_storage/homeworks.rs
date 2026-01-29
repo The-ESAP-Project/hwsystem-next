@@ -82,8 +82,7 @@ impl SeaOrmStorage {
         query: HomeworkListQuery,
         current_user_id: Option<i64>,
     ) -> Result<HomeworkListResponse> {
-        let page = Ord::max(query.page.unwrap_or(1), 1) as u64;
-        let size = query.size.unwrap_or(10).clamp(1, 100) as u64;
+        let (page, page_size) = query.pagination.normalized();
 
         let mut select = Homeworks::find();
 
@@ -109,7 +108,7 @@ impl SeaOrmStorage {
         select = select.order_by_desc(Column::CreatedAt);
 
         // 分页查询
-        let paginator = select.paginate(&self.db, size);
+        let paginator = select.paginate(&self.db, page_size);
         let total = paginator
             .num_items()
             .await
@@ -315,7 +314,7 @@ impl SeaOrmStorage {
             items,
             pagination: PaginationInfo {
                 page: page as i64,
-                page_size: size as i64,
+                page_size: page_size as i64,
                 total: total as i64,
                 total_pages: pages as i64,
             },
@@ -615,8 +614,7 @@ impl SeaOrmStorage {
         is_teacher: bool,
         query: AllHomeworksQuery,
     ) -> Result<AllHomeworksResponse> {
-        let page = Ord::max(query.page.unwrap_or(1), 1) as u64;
-        let size = query.size.unwrap_or(10).clamp(1, 100) as u64;
+        let (page, page_size) = query.pagination.normalized();
         let now = chrono::Utc::now();
         let now_ts = now.timestamp();
 
@@ -664,7 +662,7 @@ impl SeaOrmStorage {
                 items: vec![],
                 pagination: PaginationInfo {
                     page: page as i64,
-                    page_size: size as i64,
+                    page_size: page_size as i64,
                     total: 0,
                     total_pages: 0,
                 },
@@ -717,7 +715,7 @@ impl SeaOrmStorage {
                 items: vec![],
                 pagination: PaginationInfo {
                     page: page as i64,
-                    page_size: size as i64,
+                    page_size: page_size as i64,
                     total: 0,
                     total_pages: 0,
                 },
@@ -790,12 +788,12 @@ impl SeaOrmStorage {
 
         // 6. 分页
         let total = filtered_homework_ids.len() as i64;
-        let total_pages = ((total as f64) / (size as f64)).ceil() as i64;
-        let offset = ((page - 1) * size) as usize;
+        let total_pages = ((total as f64) / (page_size as f64)).ceil() as i64;
+        let offset = ((page - 1) * page_size) as usize;
         let paged_ids: Vec<i64> = filtered_homework_ids
             .into_iter()
             .skip(offset)
-            .take(size as usize)
+            .take(page_size as usize)
             .collect();
 
         // 7. 获取分页后的作业详情
@@ -956,11 +954,23 @@ impl SeaOrmStorage {
             items,
             pagination: PaginationInfo {
                 page: page as i64,
-                page_size: size as i64,
+                page_size: page_size as i64,
                 total,
                 total_pages,
             },
             server_time: now.to_rfc3339(),
         })
+    }
+
+    /// 获取班级所有作业（不分页，用于内部统计/导出）
+    pub async fn list_all_homeworks_by_class_impl(&self, class_id: i64) -> Result<Vec<Homework>> {
+        let result = Homeworks::find()
+            .filter(Column::ClassId.eq(class_id))
+            .order_by_desc(Column::CreatedAt)
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询班级作业失败: {e}")))?;
+
+        Ok(result.into_iter().map(|m| m.into_homework()).collect())
     }
 }

@@ -2,7 +2,7 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};
 use once_cell::sync::Lazy;
 
 use crate::middlewares::{self, RateLimit};
-use crate::models::classes::requests::{ClassQueryParams, CreateClassRequest, UpdateClassRequest};
+use crate::models::classes::requests::{ClassListQuery, CreateClassRequest, UpdateClassRequest};
 use crate::models::users::entities::UserRole;
 use crate::services::ClassService;
 use crate::utils::{SafeClassCode, SafeClassIdI64};
@@ -13,7 +13,7 @@ static CLASS_SERVICE: Lazy<ClassService> = Lazy::new(ClassService::new_lazy);
 // HTTP处理程序
 pub async fn list_classes(
     req: HttpRequest,
-    query: web::Query<ClassQueryParams>,
+    query: web::Query<ClassListQuery>,
 ) -> ActixResult<HttpResponse> {
     CLASS_SERVICE.list_classes(&req, query.into_inner()).await
 }

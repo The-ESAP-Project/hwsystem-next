@@ -1,6 +1,11 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+// 分页常量
+pub const DEFAULT_PAGE: i64 = 1;
+pub const DEFAULT_PAGE_SIZE: i64 = 20;
+pub const MAX_PAGE_SIZE: i64 = 100;
+
 // 分页查询参数
 #[derive(Debug, Clone, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/pagination.ts")]
@@ -9,21 +14,27 @@ pub struct PaginationQuery {
         default = "default_page",
         deserialize_with = "deserialize_string_to_i64"
     )]
+    #[ts(type = "number")]
     pub page: i64,
     #[serde(
-        default = "default_size",
+        default = "default_page_size",
         deserialize_with = "deserialize_string_to_i64"
     )]
-    pub size: i64,
+    #[ts(type = "number")]
+    pub page_size: i64,
 }
 
 // 分页响应信息
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/pagination.ts")]
 pub struct PaginationInfo {
+    #[ts(type = "number")]
     pub page: i64,
+    #[ts(type = "number")]
     pub page_size: i64,
+    #[ts(type = "number")]
     pub total: i64,
+    #[ts(type = "number")]
     pub total_pages: i64,
 }
 
@@ -84,15 +95,29 @@ where
 }
 
 fn default_page() -> i64 {
-    1
+    DEFAULT_PAGE
 }
 
-fn default_size() -> i64 {
-    10
+fn default_page_size() -> i64 {
+    DEFAULT_PAGE_SIZE
+}
+
+impl PaginationQuery {
+    /// 返回验证后的分页参数 (u64)
+    /// - page: 最小为 1
+    /// - page_size: 范围 [1, MAX_PAGE_SIZE]
+    pub fn normalized(&self) -> (u64, u64) {
+        let page = self.page.max(DEFAULT_PAGE) as u64;
+        let page_size = self.page_size.clamp(1, MAX_PAGE_SIZE) as u64;
+        (page, page_size)
+    }
 }
 
 impl Default for PaginationQuery {
     fn default() -> Self {
-        Self { page: 1, size: 10 }
+        Self {
+            page: DEFAULT_PAGE,
+            page_size: DEFAULT_PAGE_SIZE,
+        }
     }
 }

@@ -20,9 +20,9 @@ pub struct UpdateSubmissionRequest {
 }
 
 /// 提交列表查询参数
-#[derive(Debug, Deserialize, TS)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/submission.ts")]
-pub struct SubmissionListParams {
+pub struct SubmissionListQuery {
     #[serde(flatten)]
     #[ts(flatten)]
     pub pagination: PaginationQuery,
@@ -31,22 +31,13 @@ pub struct SubmissionListParams {
     pub status: Option<String>,
 }
 
-/// 提交列表存储层查询参数
-#[derive(Debug, Clone, Deserialize)]
-pub struct SubmissionListQuery {
-    pub page: Option<i64>,
-    pub size: Option<i64>,
-    pub homework_id: Option<i64>,
-    pub creator_id: Option<i64>,
-    pub status: Option<String>,
-}
-
 /// 提交概览分页查询参数
-#[derive(Debug, Deserialize, TS)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/submission.ts")]
 pub struct SubmissionSummaryQuery {
-    pub page: Option<i64>,
-    pub size: Option<i64>,
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub pagination: PaginationQuery,
     /// 筛选是否已批改：true=已批改，false=待批改，None=全部
     pub graded: Option<bool>,
 }

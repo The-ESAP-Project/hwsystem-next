@@ -94,8 +94,7 @@ impl SeaOrmStorage {
         user_id: i64,
         query: NotificationListQuery,
     ) -> Result<NotificationListResponse> {
-        let page = query.pagination.page.max(1) as u64;
-        let size = query.pagination.size.clamp(1, 100) as u64;
+        let (page, page_size) = query.pagination.normalized();
 
         let mut select = Notifications::find().filter(Column::UserId.eq(user_id));
 
@@ -108,7 +107,7 @@ impl SeaOrmStorage {
         select = select.order_by_desc(Column::CreatedAt);
 
         // 分页查询
-        let paginator = select.paginate(&self.db, size);
+        let paginator = select.paginate(&self.db, page_size);
         let total = paginator
             .num_items()
             .await
@@ -131,7 +130,7 @@ impl SeaOrmStorage {
                 .collect(),
             pagination: PaginationInfo {
                 page: page as i64,
-                page_size: size as i64,
+                page_size: page_size as i64,
                 total: total as i64,
                 total_pages: pages as i64,
             },

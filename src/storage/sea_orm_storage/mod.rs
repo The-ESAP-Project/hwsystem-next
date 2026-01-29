@@ -121,7 +121,7 @@ impl SeaOrmStorage {
 use crate::models::{
     class_users::{
         entities::{ClassUser, ClassUserRole},
-        requests::{ClassUserQuery, UpdateClassUserRequest},
+        requests::{ClassUserListQuery, UpdateClassUserRequest},
         responses::ClassUserListResponse,
     },
     classes::{
@@ -151,8 +151,8 @@ use crate::models::{
         entities::Submission,
         requests::{CreateSubmissionRequest, SubmissionListQuery},
         responses::{
-            SubmissionListResponse, SubmissionResponse, SubmissionSummaryResponse,
-            UserSubmissionHistoryItem,
+            SubmissionListItem, SubmissionListResponse, SubmissionResponse,
+            SubmissionSummaryResponse, UserSubmissionHistoryItem,
         },
     },
     users::{
@@ -338,7 +338,7 @@ impl Storage for SeaOrmStorage {
     async fn list_class_users_with_pagination(
         &self,
         class_id: i64,
-        query: ClassUserQuery,
+        query: ClassUserListQuery,
     ) -> Result<ClassUserListResponse> {
         self.list_class_users_with_pagination_impl(class_id, query)
             .await
@@ -374,6 +374,10 @@ impl Storage for SeaOrmStorage {
     ) -> Result<(Option<Class>, Option<ClassUser>)> {
         self.get_class_and_class_user_by_class_id_and_code_impl(class_id, invite_code, user_id)
             .await
+    }
+
+    async fn list_all_class_users(&self, class_id: i64) -> Result<Vec<ClassUser>> {
+        self.list_all_class_users_impl(class_id).await
     }
 
     // ============================================
@@ -447,6 +451,10 @@ impl Storage for SeaOrmStorage {
             .await
     }
 
+    async fn list_all_homeworks_by_class(&self, class_id: i64) -> Result<Vec<Homework>> {
+        self.list_all_homeworks_by_class_impl(class_id).await
+    }
+
     // ============================================
     // 提交模块
     // ============================================
@@ -495,6 +503,13 @@ impl Storage for SeaOrmStorage {
         self.list_submissions_with_pagination_impl(query).await
     }
 
+    async fn list_all_submissions_by_homework(
+        &self,
+        homework_id: i64,
+    ) -> Result<Vec<SubmissionListItem>> {
+        self.list_all_submissions_by_homework_impl(homework_id).await
+    }
+
     async fn delete_submission(&self, submission_id: i64) -> Result<bool> {
         self.delete_submission_impl(submission_id).await
     }
@@ -522,11 +537,11 @@ impl Storage for SeaOrmStorage {
         &self,
         homework_id: i64,
         page: i64,
-        size: i64,
+        page_size: i64,
         include_grades: bool,
         graded: Option<bool>,
     ) -> Result<SubmissionSummaryResponse> {
-        self.get_submission_summary_impl(homework_id, page, size, include_grades, graded)
+        self.get_submission_summary_impl(homework_id, page, page_size, include_grades, graded)
             .await
     }
 

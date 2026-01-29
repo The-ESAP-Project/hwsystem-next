@@ -110,8 +110,15 @@ pub async fn get_submission_summary(
     path: SafeHomeworkIdI64, // homework_id
     query: web::Query<SubmissionSummaryQuery>,
 ) -> ActixResult<HttpResponse> {
+    let query = query.into_inner();
     SUBMISSION_SERVICE
-        .get_submission_summary(&req, path.0, query.page, query.size, query.graded)
+        .get_submission_summary(
+            &req,
+            path.0,
+            Some(query.pagination.page),
+            Some(query.pagination.page_size),
+            query.graded,
+        )
         .await
 }
 

@@ -111,8 +111,7 @@ impl SeaOrmStorage {
         &self,
         query: SettingAuditQuery,
     ) -> Result<SettingAuditListResponse> {
-        let page = query.page.unwrap_or(1).max(1);
-        let size = query.size.unwrap_or(20).clamp(1, 100);
+        let (page, page_size) = query.pagination.normalized();
 
         let mut find = SystemSettingsAudit::find();
 
@@ -134,21 +133,21 @@ impl SeaOrmStorage {
                 crate::entity::system_settings_audit::Column::ChangedAt,
                 Order::Desc,
             )
-            .offset(((page - 1) * size) as u64)
-            .limit(size as u64)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
             .all(&self.db)
             .await
             .map_err(|e| HWSystemError::database_operation(format!("获取审计日志失败: {e}")))?;
 
-        let total_pages = (total + size - 1) / size;
+        let total_pages = ((total as u64) + page_size - 1) / page_size;
 
         Ok(SettingAuditListResponse {
             audits: audits.into_iter().map(|a| a.into_audit()).collect(),
             pagination: PaginationInfo {
-                page,
-                page_size: size,
+                page: page as i64,
+                page_size: page_size as i64,
                 total,
-                total_pages,
+                total_pages: total_pages as i64,
             },
         })
     }

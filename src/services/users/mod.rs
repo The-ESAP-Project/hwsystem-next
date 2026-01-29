@@ -12,7 +12,7 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use std::sync::Arc;
 
 use crate::models::users::requests::{
-    CreateUserRequest, UpdateUserRequest, UserExportParams, UserListParams,
+    CreateUserRequest, UpdateUserRequest, UserExportParams, UserListQuery,
 };
 use crate::storage::Storage;
 
@@ -40,7 +40,7 @@ impl UserService {
     // 获取用户列表
     pub async fn list_users(
         &self,
-        query: UserListParams,
+        query: UserListQuery,
         request: &HttpRequest,
     ) -> ActixResult<HttpResponse> {
         list::list_users(self, query, request).await

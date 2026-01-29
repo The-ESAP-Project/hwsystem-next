@@ -8,7 +8,7 @@ pub mod update;
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use std::sync::Arc;
 
-use crate::models::classes::requests::{ClassQueryParams, CreateClassRequest, UpdateClassRequest};
+use crate::models::classes::requests::{ClassListQuery, CreateClassRequest, UpdateClassRequest};
 use crate::storage::Storage;
 
 pub struct ClassService {
@@ -36,7 +36,7 @@ impl ClassService {
     pub async fn list_classes(
         &self,
         request: &HttpRequest,
-        query: ClassQueryParams,
+        query: ClassListQuery,
     ) -> ActixResult<HttpResponse> {
         list::list_classes(self, request, query).await
     }

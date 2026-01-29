@@ -9,8 +9,6 @@ use tracing::error;
 use super::HomeworkService;
 use crate::middlewares::RequireJWT;
 use crate::models::class_users::entities::ClassUserRole;
-use crate::models::class_users::requests::ClassUserQuery;
-use crate::models::submissions::requests::SubmissionListQuery;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
 
@@ -108,19 +106,9 @@ pub async fn export_homework_stats(
         }
     }
 
-    // 获取班级所有成员（不分页，获取全部）
-    let class_users_query = ClassUserQuery {
-        page: Some(1),
-        size: Some(10000),
-        search: None,
-        role: None,
-    };
-
-    let class_users_response = match storage
-        .list_class_users_with_pagination(class_id, class_users_query)
-        .await
-    {
-        Ok(resp) => resp,
+    // 获取班级所有成员（不分页）
+    let class_users = match storage.list_all_class_users(class_id).await {
+        Ok(users) => users,
         Err(e) => {
             return Ok(
                 HttpResponse::InternalServerError().json(ApiResponse::error_empty(
@@ -132,28 +120,16 @@ pub async fn export_homework_stats(
     };
 
     // 统计需要提交作业的成员（排除教师）
-    let students: Vec<_> = class_users_response
-        .items
+    let students: Vec<_> = class_users
         .iter()
         .filter(|cu| cu.role != ClassUserRole::Teacher)
         .collect();
     let total_students = students.len() as i64;
     let student_ids: HashSet<i64> = students.iter().map(|cu| cu.user_id).collect();
 
-    // 获取该作业的所有提交
-    let submissions_query = SubmissionListQuery {
-        homework_id: Some(homework_id),
-        page: Some(1),
-        size: Some(10000),
-        status: None,
-        creator_id: None,
-    };
-
-    let submissions_response = match storage
-        .list_submissions_with_pagination(submissions_query)
-        .await
-    {
-        Ok(resp) => resp,
+    // 获取该作业的所有提交（不分页）
+    let submissions = match storage.list_all_submissions_by_homework(homework_id).await {
+        Ok(subs) => subs,
         Err(e) => {
             return Ok(
                 HttpResponse::InternalServerError().json(ApiResponse::error_empty(
@@ -169,7 +145,7 @@ pub async fn export_homework_stats(
         i64,
         &crate::models::submissions::responses::SubmissionListItem,
     > = HashMap::new();
-    for submission in &submissions_response.items {
+    for submission in &submissions {
         if !student_ids.contains(&submission.creator_id) {
             continue;
         }

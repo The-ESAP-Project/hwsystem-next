@@ -5,7 +5,7 @@ use once_cell::sync::Lazy;
 use crate::middlewares;
 use crate::models::users::entities::UserRole;
 use crate::models::users::requests::{
-    CreateUserRequest, ImportTemplateParams, UpdateUserRequest, UserExportParams, UserListParams,
+    CreateUserRequest, ImportTemplateParams, UpdateUserRequest, UserExportParams, UserListQuery,
 };
 use crate::services::UserService;
 use crate::utils::SafeIDI64;
@@ -16,7 +16,7 @@ static USER_SERVICE: Lazy<UserService> = Lazy::new(UserService::new_lazy);
 // HTTP处理程序
 pub async fn list_users(
     req: HttpRequest,
-    query: web::Query<UserListParams>,
+    query: web::Query<UserListQuery>,
 ) -> ActixResult<HttpResponse> {
     USER_SERVICE.list_users(query.into_inner(), &req).await
 }

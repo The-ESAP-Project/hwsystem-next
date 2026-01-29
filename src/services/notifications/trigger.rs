@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use tracing::{error, info};
 
-use crate::models::class_users::requests::ClassUserQuery;
+use crate::models::class_users::entities::ClassUserRole;
 use crate::models::notifications::{
     entities::{NotificationType, ReferenceType},
     requests::CreateNotificationRequest,
@@ -86,21 +86,8 @@ pub async fn send_notification(
 
 /// 获取班级所有学生的 user_id 列表（排除教师角色）
 pub async fn get_class_student_ids(storage: &Arc<dyn Storage>, class_id: i64) -> Vec<i64> {
-    use crate::models::class_users::entities::ClassUserRole;
-
-    let query = ClassUserQuery {
-        page: Some(1),
-        size: Some(10000),
-        search: None,
-        role: None,
-    };
-
-    match storage
-        .list_class_users_with_pagination(class_id, query)
-        .await
-    {
-        Ok(response) => response
-            .items
+    match storage.list_all_class_users(class_id).await {
+        Ok(class_users) => class_users
             .into_iter()
             .filter(|cu| cu.role != ClassUserRole::Teacher)
             .map(|cu| cu.user_id)

@@ -99,10 +99,10 @@ impl SubmissionService {
         request: &HttpRequest,
         homework_id: i64,
         page: Option<i64>,
-        size: Option<i64>,
+        page_size: Option<i64>,
         graded: Option<bool>,
     ) -> ActixResult<HttpResponse> {
-        summary::get_submission_summary(self, request, homework_id, page, size, graded).await
+        summary::get_submission_summary(self, request, homework_id, page, page_size, graded).await
     }
 
     /// 获取某学生某作业的所有版本（教师视角）

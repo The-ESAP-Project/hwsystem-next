@@ -96,8 +96,7 @@ impl SeaOrmStorage {
         &self,
         query: UserListQuery,
     ) -> Result<UserListResponse> {
-        let page = query.page.unwrap_or(1).max(1) as u64;
-        let size = query.size.unwrap_or(10).clamp(1, 100) as u64;
+        let (page, page_size) = query.pagination.normalized();
 
         let mut select = Users::find();
 
@@ -128,7 +127,7 @@ impl SeaOrmStorage {
         select = select.order_by_desc(Column::CreatedAt);
 
         // 分页查询
-        let paginator = select.paginate(&self.db, size);
+        let paginator = select.paginate(&self.db, page_size);
         let total = paginator
             .num_items()
             .await
@@ -148,7 +147,7 @@ impl SeaOrmStorage {
             items: users.into_iter().map(|m| m.into_user()).collect(),
             pagination: PaginationInfo {
                 page: page as i64,
-                page_size: size as i64,
+                page_size: page_size as i64,
                 total: total as i64,
                 total_pages: pages as i64,
             },

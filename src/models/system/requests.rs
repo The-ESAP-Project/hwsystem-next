@@ -1,3 +1,4 @@
+use crate::models::common::PaginationQuery;
 use serde::Deserialize;
 use ts_rs::TS;
 
@@ -27,8 +28,9 @@ pub struct UpdateSettingItem {
 #[ts(export, export_to = "../frontend/src/types/generated/system.ts")]
 pub struct SettingAuditQuery {
     pub key: Option<String>,
-    pub page: Option<i64>,
-    pub size: Option<i64>,
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub pagination: PaginationQuery,
 }
 
 /// WebSocket 连接查询参数

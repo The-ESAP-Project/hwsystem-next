@@ -52,7 +52,7 @@
 - **作业列表创建者查询**: `src/storage/sea_orm_storage/homeworks.rs` - ~~循环逐个查询用户~~ ✅ 已改为 IN 批量查询
 - **作业统计班级学生数**: `src/storage/sea_orm_storage/homeworks.rs` - ~~循环逐个 COUNT~~ ✅ 已改为 GROUP BY 批量查询（2 处）
 - **提交详情附件查询**: `src/storage/sea_orm_storage/submissions.rs` - ~~循环逐个查询文件~~ ✅ 已改为 IN 批量查询
-- **提交概览**: `src/storage/sea_orm_storage/submissions.rs:443-448` - 先查询所有提交再内存聚合（暂缓，需较大重构）
+- **提交概览**: `src/storage/sea_orm_storage/submissions.rs:443-448` - ~~先查询所有提交再内存聚合~~ ✅ 已改为 GROUP BY 数据库聚合 + 数据库分页
 
 #### 3.2 文件下载全量加载
 - **文件**: `src/services/files/download.rs`
@@ -165,7 +165,7 @@
 | 严重程度 | 总数 | 已修复 | 剩余 |
 |---------|------|--------|------|
 | 🔴 严重 | 6 | 4 | 2 |
-| 🟠 中等 | 10 | 8 | 2 |
+| 🟠 中等 | 10 | 9 | 1 |
 | 🟡 低 | 8 | 8 | 0 |
 
 ---
@@ -185,7 +185,7 @@
    - [x] 更新 API 文档
 
 3. **第三优先级 - 性能优化**
-   - [x] 修复 N+1 查询（5 处已修复，1 处暂缓）
+   - [x] 修复 N+1 查询（6 处全部修复）
    - [x] 实现流式文件下载（NamedFile + Range 支持）
    - [x] 前端分页参数优化（page_size 调整）
 

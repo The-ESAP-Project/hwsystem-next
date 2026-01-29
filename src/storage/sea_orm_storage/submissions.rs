@@ -1,6 +1,6 @@
 //! 提交存储操作
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::SeaOrmStorage;
 use crate::entity::grades::{Column as GradeColumn, Entity as Grades};
@@ -26,8 +26,8 @@ use crate::models::{
     },
 };
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
-    QuerySelect, Set,
+    ActiveModelTrait, ColumnTrait, EntityTrait, FromQueryResult, PaginatorTrait, QueryFilter,
+    QueryOrder, QuerySelect, Set,
 };
 
 impl SeaOrmStorage {
@@ -439,15 +439,27 @@ impl SeaOrmStorage {
         let page = page.max(1) as u64;
         let size = size.clamp(1, 100) as u64;
 
-        // 1. 查询该作业所有提交（按 creator_id 和 version 倒序）
-        let all_submissions = Submissions::find()
+        // === 步骤 1: 数据库聚合查询 - 获取每个 creator 的统计信息 ===
+        #[derive(FromQueryResult)]
+        struct CreatorStats {
+            creator_id: i64,
+            latest_submission_id: i64,
+            total_versions: i64,
+        }
+
+        let all_stats: Vec<CreatorStats> = Submissions::find()
             .filter(Column::HomeworkId.eq(homework_id))
-            .order_by_desc(Column::Version)
+            .select_only()
+            .column(Column::CreatorId)
+            .column_as(Column::Id.max(), "latest_submission_id")
+            .column_as(Column::Id.count(), "total_versions")
+            .group_by(Column::CreatorId)
+            .into_model::<CreatorStats>()
             .all(&self.db)
             .await
-            .map_err(|e| HWSystemError::database_operation(format!("查询提交列表失败: {e}")))?;
+            .map_err(|e| HWSystemError::database_operation(format!("聚合查询失败: {e}")))?;
 
-        if all_submissions.is_empty() {
+        if all_stats.is_empty() {
             return Ok(SubmissionSummaryResponse {
                 items: vec![],
                 pagination: PaginationInfo {
@@ -459,53 +471,67 @@ impl SeaOrmStorage {
             });
         }
 
-        // 2. 按 creator_id 聚合，取每个用户的最新提交和版本数
-        let mut user_latest: HashMap<i64, (&crate::entity::submissions::Model, i32)> =
-            HashMap::new();
-        for sub in &all_submissions {
-            user_latest
-                .entry(sub.creator_id)
-                .and_modify(|(_, count)| *count += 1)
-                .or_insert((sub, 1));
-        }
+        // 构建 creator_id -> stats 映射和所有最新提交 ID
+        let stats_map: HashMap<i64, &CreatorStats> =
+            all_stats.iter().map(|s| (s.creator_id, s)).collect();
+        let all_submission_ids: Vec<i64> =
+            all_stats.iter().map(|s| s.latest_submission_id).collect();
 
-        // 3. 如果需要按 graded 筛选，先查询所有最新提交的评分信息
-        let all_submission_ids: Vec<i64> = user_latest.values().map(|(sub, _)| sub.id).collect();
-        let all_grades = Grades::find()
-            .filter(GradeColumn::SubmissionId.is_in(all_submission_ids))
+        // === 步骤 2: 查询评分状态并根据 graded 参数筛选 ===
+        let graded_submission_ids: HashSet<i64> = Grades::find()
+            .filter(GradeColumn::SubmissionId.is_in(all_submission_ids.clone()))
+            .select_only()
+            .column(GradeColumn::SubmissionId)
+            .into_tuple::<i64>()
             .all(&self.db)
             .await
-            .map_err(|e| HWSystemError::database_operation(format!("查询评分信息失败: {e}")))?;
-        let grade_map: HashMap<i64, _> = all_grades
+            .map_err(|e| HWSystemError::database_operation(format!("查询评分状态失败: {e}")))?
             .into_iter()
-            .map(|g| (g.submission_id, g))
             .collect();
 
-        // 4. 根据 graded 参数筛选
-        let mut user_data: Vec<_> = user_latest.into_iter().collect();
-        if let Some(is_graded) = graded {
-            user_data.retain(|(_, (sub, _))| {
-                let has_grade = grade_map.contains_key(&sub.id);
-                has_grade == is_graded
+        // 根据 graded 参数筛选 submission_ids
+        let filtered_submission_ids: Vec<i64> = match graded {
+            Some(true) => all_submission_ids
+                .into_iter()
+                .filter(|id| graded_submission_ids.contains(id))
+                .collect(),
+            Some(false) => all_submission_ids
+                .into_iter()
+                .filter(|id| !graded_submission_ids.contains(id))
+                .collect(),
+            None => all_submission_ids,
+        };
+
+        let total = filtered_submission_ids.len() as u64;
+        let pages = total.div_ceil(size);
+
+        if filtered_submission_ids.is_empty() {
+            return Ok(SubmissionSummaryResponse {
+                items: vec![],
+                pagination: PaginationInfo {
+                    page: page as i64,
+                    page_size: size as i64,
+                    total: 0,
+                    total_pages: 0,
+                },
             });
         }
 
-        // 5. 分页
-        let total = user_data.len() as u64;
-        let pages = total.div_ceil(size);
-        let skip = ((page - 1) * size) as usize;
+        // === 步骤 3: 数据库分页查询提交详情 ===
+        let paged_submissions = Submissions::find()
+            .filter(Column::Id.is_in(filtered_submission_ids))
+            .order_by_desc(Column::SubmittedAt)
+            .offset((page - 1) * size)
+            .limit(size)
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("分页查询失败: {e}")))?;
 
-        // 按提交时间倒序排序
-        user_data.sort_by(|a, b| b.1.0.submitted_at.cmp(&a.1.0.submitted_at));
+        // === 步骤 4: 批量查询关联数据（用户、评分） ===
+        let paged_ids: Vec<i64> = paged_submissions.iter().map(|s| s.id).collect();
+        let creator_ids: Vec<i64> = paged_submissions.iter().map(|s| s.creator_id).collect();
 
-        let paged_data: Vec<_> = user_data
-            .into_iter()
-            .skip(skip)
-            .take(size as usize)
-            .collect();
-
-        // 6. 批量查询用户信息
-        let creator_ids: Vec<i64> = paged_data.iter().map(|(id, _)| *id).collect();
+        // 批量查询用户
         let users = Users::find()
             .filter(UserColumn::Id.is_in(creator_ids.clone()))
             .all(&self.db)
@@ -513,11 +539,27 @@ impl SeaOrmStorage {
             .map_err(|e| HWSystemError::database_operation(format!("查询用户信息失败: {e}")))?;
         let user_map: HashMap<i64, _> = users.into_iter().map(|u| (u.id, u)).collect();
 
-        // 7. 组装结果（grade_map 已在步骤 3 中查询）
-        let items = paged_data
+        // 批量查询评分（仅当需要时）
+        let grade_map: HashMap<i64, _> = if include_grades && !paged_ids.is_empty() {
+            Grades::find()
+                .filter(GradeColumn::SubmissionId.is_in(paged_ids))
+                .all(&self.db)
+                .await
+                .map_err(|e| HWSystemError::database_operation(format!("查询评分信息失败: {e}")))?
+                .into_iter()
+                .map(|g| (g.submission_id, g))
+                .collect()
+        } else {
+            HashMap::new()
+        };
+
+        // === 步骤 5: 组装结果 ===
+        let items = paged_submissions
             .into_iter()
-            .map(|(creator_id, (sub, version_count))| {
-                let user = user_map.get(&creator_id);
+            .map(|sub| {
+                let user = user_map.get(&sub.creator_id);
+                let stats = stats_map.get(&sub.creator_id);
+
                 // 根据 include_grades 参数决定是否返回成绩
                 let grade = if include_grades {
                     grade_map.get(&sub.id).map(|g| SubmissionGradeInfo {
@@ -534,7 +576,7 @@ impl SeaOrmStorage {
 
                 SubmissionSummaryItem {
                     creator: SubmissionCreator {
-                        id: creator_id,
+                        id: sub.creator_id,
                         username: user
                             .map(|u| u.username.clone())
                             .unwrap_or_else(|| "未知用户".to_string()),
@@ -551,7 +593,7 @@ impl SeaOrmStorage {
                             .unwrap_or_default(),
                     },
                     grade,
-                    total_versions: version_count,
+                    total_versions: stats.map(|s| s.total_versions as i32).unwrap_or(1),
                 }
             })
             .collect();

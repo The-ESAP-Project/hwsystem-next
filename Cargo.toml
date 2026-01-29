@@ -66,7 +66,7 @@ paste = "1.0"
 migration = { path = "migration" }
 sea-orm = { version = "2.0.0-rc.30", features = ["sqlx-sqlite", "sqlx-postgres", "sqlx-mysql", "runtime-tokio-rustls", "macros"] }
 rust-embed = "8.11.0"
-ts-rs = { version = "11.1", features = ["chrono-impl", "serde-json-impl"] }
+ts-rs = { version = "11.1", features = ["chrono-impl", "serde-json-impl", "no-serde-warnings"] }
 actix-ws = { version = "0.3.1", default-features = false }
 csv = "1.4"
 calamine = "0.26"

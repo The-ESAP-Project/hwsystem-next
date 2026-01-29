@@ -1,13 +1,23 @@
+# 前端构建阶段
+FROM node:24-alpine AS frontend-builder
+
+RUN apk add git --no-cache
+RUN npm install -g bun@latest
+
+COPY ./.git /app/.git
+
+WORKDIR /app/frontend
+
+# 复制前端依赖文件
+COPY ./frontend /app/frontend
+RUN bun install --frozen-lockfile
+RUN bun run build
+
 # 多阶段构建 - 构建阶段
 FROM rust:1.92-slim AS builder
 
-# 安装构建依赖，包含完整的 OpenSSL 开发库
+# 安装 musl 工具链（项目使用 rustls，不需要 OpenSSL）
 RUN apt-get update && apt-get install -y \
-    pkg-config \
-    libssl-dev \
-    libssl3 \
-    openssl \
-    ca-certificates \
     musl-tools \
     musl-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -20,12 +30,13 @@ WORKDIR /app
 
 # 复制源代码
 COPY Cargo.toml Cargo.lock ./
+COPY migration ./migration
 COPY src ./src
 
-# 设置 OpenSSL 环境变量和编译选项
-ENV PKG_CONFIG_ALLOW_CROSS=1
-ENV OPENSSL_STATIC=1
-ENV OPENSSL_DIR=/usr
+# 从前端构建阶段复制构建产物
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+
+# 编译选项
 ENV RUSTFLAGS="-C link-arg=-s -C opt-level=z -C target-feature=+crt-static"
 
 # 静态链接编译 - 使用 musl 目标
@@ -36,7 +47,7 @@ RUN touch src/main.rs && \
 FROM scratch
 
 LABEL maintainer="AptS:1547 <apts-1547@esaps.net>"
-LABEL description="A next-generation hardware system for Rust"
+LABEL description="A next-generation homework system based on Rust and Actix-web."
 LABEL version="0.0.1"
 LABEL homepage="https://github.com/The-ESAP-Project/rust-hwsystem-next"
 LABEL license="MIT"
@@ -51,10 +62,6 @@ EXPOSE 8080
 
 # 设置环境变量
 ENV DOCKER_ENV=1
-ENV SERVER_HOST=0.0.0.0
-ENV SERVER_PORT=8080
-ENV DATABASE_URL=/data/hwsystem.db
-ENV RUST_LOG=info
 
 # 启动命令
 ENTRYPOINT ["/rust-hwsystem-next"]

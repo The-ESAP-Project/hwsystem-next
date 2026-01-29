@@ -1,6 +1,7 @@
 # 开发环境配置
 
 [app]
+system_name = "Homework Management System"
 environment = "development"
 log_level = "debug"
 

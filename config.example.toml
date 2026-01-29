@@ -2,6 +2,8 @@
 # 复制此文件为 config.toml 或 config.{environment}.toml 并根据需要修改
 
 [app]
+# 系统名称
+system_name = "Homework Management System"
 # 应用环境: development, production
 environment = "development"
 # 日志级别: trace, debug, info, warn, error

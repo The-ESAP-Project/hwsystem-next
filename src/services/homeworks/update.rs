@@ -15,7 +15,7 @@ pub async fn update_homework(
     req: UpdateHomeworkRequest,
     user_id: i64,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
     let user_role = RequireJWT::extract_user_role(request);
 
     // 获取作业信息

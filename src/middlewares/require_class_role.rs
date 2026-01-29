@@ -229,9 +229,7 @@ async fn get_class_user_by_user_id_and_class_id(
 ) -> Option<ClassUser> {
     let storage = req
         .app_data::<actix_web::web::Data<Arc<dyn Storage>>>()
-        .expect("Storage not found in app data")
-        .get_ref()
-        .clone();
+        .map(|data| data.get_ref().clone())?;
 
     match storage
         .get_class_user_by_user_id_and_class_id(user_id, class_id)

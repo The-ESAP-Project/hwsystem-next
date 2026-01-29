@@ -1,6 +1,7 @@
 use serde::Serialize;
 use ts_rs::TS;
 
+use crate::models::common::serialization::serialize_i64_as_string;
 use crate::models::{
     PaginationInfo,
     class_users::entities::{ClassUser, ClassUserRole},
@@ -10,6 +11,8 @@ use crate::models::{
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/class-user.ts")]
 pub struct UserInfo {
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub id: i64,
     pub username: String,
     pub display_name: Option<String>,
@@ -20,8 +23,14 @@ pub struct UserInfo {
 #[derive(Debug, Serialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/class-user.ts")]
 pub struct ClassUserDetail {
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub id: i64,
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub class_id: i64,
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub user_id: i64,
     pub role: ClassUserRole,
     pub joined_at: chrono::DateTime<chrono::Utc>,

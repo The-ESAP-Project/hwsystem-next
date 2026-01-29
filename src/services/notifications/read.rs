@@ -10,7 +10,7 @@ pub async fn mark_as_read(
     request: &HttpRequest,
     notification_id: i64,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     // 获取当前用户 ID
     let current_user_id = match RequireJWT::extract_user_id(request) {
@@ -70,7 +70,7 @@ pub async fn mark_all_as_read(
     request: &HttpRequest,
     user_id: i64,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     match storage.mark_all_notifications_as_read(user_id).await {
         Ok(count) => Ok(HttpResponse::Ok().json(ApiResponse::success(

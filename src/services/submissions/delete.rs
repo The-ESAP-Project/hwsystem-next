@@ -11,7 +11,7 @@ pub async fn delete_submission(
     submission_id: i64,
     user_id: i64,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
     let user_role = RequireJWT::extract_user_role(request);
 
     // 获取提交信息

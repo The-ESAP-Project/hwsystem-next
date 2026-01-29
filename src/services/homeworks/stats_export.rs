@@ -28,7 +28,7 @@ pub async fn export_homework_stats(
     request: &HttpRequest,
     homework_id: i64,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     // 获取当前用户
     let user_id = match RequireJWT::extract_user_id(request) {

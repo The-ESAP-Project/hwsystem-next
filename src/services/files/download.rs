@@ -19,7 +19,7 @@ pub async fn handle_download(
     request: &HttpRequest,
     file_token: String,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     let db_file = match storage.get_file_by_token(&file_token).await {
         Ok(Some(f)) => f,

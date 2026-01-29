@@ -28,7 +28,7 @@ pub async fn join_class(
         }
     };
 
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
     let invite_code = &join_data.invite_code;
 
     let (class, class_user) = match storage

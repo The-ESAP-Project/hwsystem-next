@@ -11,7 +11,7 @@ pub async fn delete_user(
     user_id: i64,
     request: &HttpRequest,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     // 获取当前操作者信息
     let current_user = match RequireJWT::extract_user_claims(request) {

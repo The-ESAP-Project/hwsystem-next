@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::models::common::serialization::{
+    serialize_i64_as_string, serialize_option_i64_as_string,
+};
+
 /// 通知类型
 #[derive(Debug, Clone, Serialize, PartialEq, TS)]
 #[serde(rename_all = "snake_case")]
@@ -127,12 +131,18 @@ impl std::str::FromStr for ReferenceType {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/notification.ts")]
 pub struct Notification {
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub id: i64,
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub user_id: i64,
     pub notification_type: NotificationType,
     pub title: String,
     pub content: Option<String>,
     pub reference_type: Option<ReferenceType>,
+    #[serde(serialize_with = "serialize_option_i64_as_string")]
+    #[ts(type = "string | null")]
     pub reference_id: Option<i64>,
     pub is_read: bool,
     pub created_at: chrono::DateTime<chrono::Utc>,

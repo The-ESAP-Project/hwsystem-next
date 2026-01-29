@@ -1,3 +1,4 @@
+use crate::models::common::serialization::serialize_i64_as_string;
 use crate::models::users::entities::User;
 use serde::Serialize;
 use ts_rs::TS;
@@ -7,6 +8,8 @@ use ts_rs::TS;
 #[ts(export, export_to = "../frontend/src/types/generated/auth.ts")]
 pub struct LoginResponse {
     pub access_token: String,
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub expires_in: i64,
     pub user: User,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -16,6 +19,8 @@ pub struct LoginResponse {
 #[ts(export, export_to = "../frontend/src/types/generated/auth.ts")]
 pub struct RefreshTokenResponse {
     pub access_token: String,
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub expires_in: i64,
 }
 

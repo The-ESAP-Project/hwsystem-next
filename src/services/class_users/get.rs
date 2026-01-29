@@ -26,7 +26,7 @@ pub async fn get_class_user(
     };
 
     let current_class_user = RequireClassRole::extract_user_class_user(req);
-    let storage = service.get_storage(req);
+    let storage = service.get_storage(req)?;
 
     // 通过 user_id 和 class_id 获取目标班级用户信息
     let target_class_user = match storage

@@ -49,7 +49,12 @@ async fn validate_token_and_get_user(req: &HttpRequest, token: &str) -> Result<U
     // 尝试从缓存获取用户
     let cache = req
         .app_data::<web::Data<Arc<dyn ObjectCache>>>()
-        .expect("Cache not found")
+        .ok_or_else(|| {
+            HttpResponse::InternalServerError().json(ApiResponse::<()>::error_empty(
+                ErrorCode::InternalServerError,
+                "Cache service unavailable",
+            ))
+        })?
         .get_ref()
         .clone();
 
@@ -62,7 +67,12 @@ async fn validate_token_and_get_user(req: &HttpRequest, token: &str) -> Result<U
     // 从数据库获取用户
     let storage = req
         .app_data::<web::Data<Arc<dyn Storage>>>()
-        .expect("Storage not found")
+        .ok_or_else(|| {
+            HttpResponse::InternalServerError().json(ApiResponse::<()>::error_empty(
+                ErrorCode::InternalServerError,
+                "Storage service unavailable",
+            ))
+        })?
         .get_ref()
         .clone();
 

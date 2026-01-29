@@ -1,4 +1,5 @@
 use crate::models::common::PaginationQuery;
+use crate::models::common::serialization::deserialize_option_string_to_i64;
 use serde::Deserialize;
 use ts_rs::TS;
 
@@ -9,7 +10,8 @@ pub struct ClassListQuery {
     #[serde(flatten)]
     #[ts(flatten)]
     pub pagination: PaginationQuery,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_option_string_to_i64")]
+    #[ts(type = "string | null")]
     pub teacher_id: Option<i64>,
     pub search: Option<String>,
 }
@@ -26,6 +28,8 @@ pub struct ClassListQuery {
 #[derive(Debug, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/class.ts")]
 pub struct CreateClassRequest {
+    #[serde(default, deserialize_with = "deserialize_option_string_to_i64")]
+    #[ts(type = "string | null")]
     pub teacher_id: Option<i64>,
     pub name: String,
     pub description: Option<String>,

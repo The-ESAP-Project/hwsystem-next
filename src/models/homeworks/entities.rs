@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::models::common::serialization::serialize_i64_as_string;
+
 /// 作业用户状态（学生视角）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -33,8 +35,12 @@ pub enum DeadlineFilter {
 #[ts(export, export_to = "../frontend/src/types/generated/homework.ts")]
 pub struct Homework {
     // 唯一 ID
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub id: i64,
     // 关联的班级 ID
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub class_id: i64,
     // 作业标题
     pub title: String,
@@ -47,6 +53,8 @@ pub struct Homework {
     // 是否允许迟交
     pub allow_late: bool,
     // 创建者 ID
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub created_by: i64,
     // 作业创建时间
     pub created_at: chrono::DateTime<chrono::Utc>,

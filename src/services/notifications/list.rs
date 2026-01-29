@@ -10,7 +10,7 @@ pub async fn list_notifications(
     user_id: i64,
     query: NotificationListQuery,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     match storage
         .list_notifications_with_pagination(user_id, query)

@@ -20,7 +20,7 @@ pub async fn list_class_users_with_pagination(
     class_id: i64,
     query: ClassUserListQuery,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     match storage
         .list_class_users_with_pagination(class_id, query)

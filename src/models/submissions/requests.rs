@@ -1,4 +1,7 @@
 use crate::models::common::PaginationQuery;
+use crate::models::common::serialization::{
+    deserialize_option_string_to_i64, deserialize_string_to_i64,
+};
 use serde::Deserialize;
 use ts_rs::TS;
 
@@ -6,6 +9,8 @@ use ts_rs::TS;
 #[derive(Debug, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/submission.ts")]
 pub struct CreateSubmissionRequest {
+    #[serde(deserialize_with = "deserialize_string_to_i64")]
+    #[ts(type = "string")]
     pub homework_id: i64,
     pub content: String,
     pub attachments: Option<Vec<String>>,
@@ -26,7 +31,11 @@ pub struct SubmissionListQuery {
     #[serde(flatten)]
     #[ts(flatten)]
     pub pagination: PaginationQuery,
+    #[serde(default, deserialize_with = "deserialize_option_string_to_i64")]
+    #[ts(type = "string | null")]
     pub homework_id: Option<i64>,
+    #[serde(default, deserialize_with = "deserialize_option_string_to_i64")]
+    #[ts(type = "string | null")]
     pub creator_id: Option<i64>,
     pub status: Option<String>,
 }

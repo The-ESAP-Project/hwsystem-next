@@ -103,7 +103,7 @@ pub async fn get_submission_grade(
     request: &HttpRequest,
     submission_id: i64,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     // 获取当前用户信息
     let current_user = match RequireJWT::extract_user_claims(request) {

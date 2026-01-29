@@ -140,7 +140,7 @@ pub async fn handle_upload(
         )));
     }
 
-    let storage = service.get_storage(req);
+    let storage = service.get_storage(req)?;
 
     let user_id = match RequireJWT::extract_user_id(req) {
         Some(id) => id,

@@ -23,7 +23,7 @@ pub async fn get_class(
     class_id: i64,
 ) -> ActixResult<HttpResponse> {
     let role = RequireJWT::extract_user_role(request);
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     let uid = match RequireJWT::extract_user_id(request) {
         Some(id) => id,
@@ -142,7 +142,7 @@ pub async fn get_class_by_code(
     request: &HttpRequest,
     code: String,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     match storage.get_class_by_code(&code).await {
         Ok(Some(class)) => Ok(HttpResponse::Ok().json(ApiResponse::success(

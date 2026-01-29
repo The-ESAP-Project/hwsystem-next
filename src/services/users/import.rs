@@ -58,7 +58,7 @@ pub async fn import_users(
     mut payload: Multipart,
     request: &HttpRequest,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     // 读取文件内容
     let (file_bytes, file_name) = match read_file_from_multipart(&mut payload).await {

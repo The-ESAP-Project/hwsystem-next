@@ -9,7 +9,7 @@ pub async fn get_user(
     user_id: i64,
     request: &HttpRequest,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     match storage.get_user_by_id(user_id).await {
         Ok(Some(user)) => Ok(HttpResponse::Ok().json(ApiResponse::success(

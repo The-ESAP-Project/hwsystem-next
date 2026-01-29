@@ -21,7 +21,7 @@ pub async fn update_class_user(
     user_id: i64,
     update_data: UpdateClassUserRequest,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     let user = match RequireJWT::extract_user_claims(request) {
         Some(user) => user,

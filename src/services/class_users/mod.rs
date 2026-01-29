@@ -10,6 +10,7 @@ use std::sync::Arc;
 use crate::models::class_users::requests::{
     ClassUserListQuery, JoinClassRequest, UpdateClassUserRequest,
 };
+use crate::models::{ApiResponse, ErrorCode};
 use crate::storage::Storage;
 
 pub struct ClassUserService {
@@ -21,15 +22,26 @@ impl ClassUserService {
         Self { storage: None }
     }
 
-    pub(crate) fn get_storage(&self, request: &HttpRequest) -> Arc<dyn Storage> {
+    pub(crate) fn get_storage(
+        &self,
+        request: &HttpRequest,
+    ) -> Result<Arc<dyn Storage>, actix_web::Error> {
         if let Some(storage) = &self.storage {
-            storage.clone()
+            Ok(storage.clone())
         } else {
             request
                 .app_data::<actix_web::web::Data<Arc<dyn Storage>>>()
-                .expect("Storage not found in app data")
-                .get_ref()
-                .clone()
+                .map(|data| data.get_ref().clone())
+                .ok_or_else(|| {
+                    actix_web::error::InternalError::from_response(
+                        "Storage service unavailable",
+                        HttpResponse::InternalServerError().json(ApiResponse::<()>::error_empty(
+                            ErrorCode::InternalServerError,
+                            "Storage service unavailable",
+                        )),
+                    )
+                    .into()
+                })
         }
     }
 

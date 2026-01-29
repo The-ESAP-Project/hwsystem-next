@@ -1,7 +1,7 @@
 # 数据库设计文档
 
-> 版本：v2.3
-> 更新日期：2026-01-26
+> 版本：v2.4
+> 更新日期：2026-01-29
 > 数据库：SQLite（开发）/ PostgreSQL（生产）
 
 ---
@@ -701,6 +701,7 @@ WHERE cu.class_id = (SELECT class_id FROM homeworks WHERE id = ?)
 
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
+| v2.4 | 2026-01-29 | 同步版本号，确认与代码一致 |
 | v2.3 | 2026-01-26 | 修正 system_settings_audit 索引命名；添加 changed_by 索引；补充 SettingValueType 和 ReferenceType 枚举定义 |
 | v2.2 | 2026-01-26 | 补充 system_settings 和 system_settings_audit 表；补充 users 表的 avatar_url 和 last_login 字段；修正索引命名 |
 | v2.1 | 2026-01-24 | 修正 ID 字段类型：TEXT (UUID) → INTEGER (自增主键)，与实际代码保持一致 |

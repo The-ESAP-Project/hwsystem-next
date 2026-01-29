@@ -63,35 +63,43 @@
 
 ### 4. 错误处理问题
 
-#### 4.1 expect/panic 使用不当
-多处使用 `expect()` 可能导致服务崩溃：
-- `src/middlewares/require_jwt.rs:122, 142`
-- `src/routes/websocket.rs:52, 65`
-- `src/cache/object_cache/redis.rs:28`
+#### 4.1 ~~expect/panic 使用不当~~ ✅ 已修复
+~~多处使用 `expect()` 可能导致服务崩溃：~~
+- ~~`src/middlewares/require_jwt.rs:122, 142`~~
+- ~~`src/routes/websocket.rs:52, 65`~~
+- ~~`src/cache/object_cache/redis.rs:28`~~
+- ✅ 中间件/路由改用 `ok_or_else` 返回错误
+- ✅ Service 层 `get_storage` 返回 `Result<Arc<dyn Storage>, actix_web::Error>`
 
-#### 4.2 前端空 catch 块吞掉错误
-- **文件**: `frontend/src/stores/useUserStore.ts:72-74, 111-112`
-- **问题**: 完全吞掉错误，连日志都没有
+#### 4.2 ~~前端空 catch 块吞掉错误~~ ✅ 已修复
+- ~~**文件**: `frontend/src/stores/useUserStore.ts:72-74, 111-112`~~
+- ~~**问题**: 完全吞掉错误，连日志都没有~~
+- ✅ 创建统一的 `src/lib/logger.ts` 模块
+- ✅ 所有 catch 块添加 `logger.error` 或 `logger.warn`
 
 ### 5. 类型安全问题
 
-#### 5.1 过度使用类型断言
-- **文件**: `frontend/src/features/auth/services/auth.ts:22, 27, 54`
-```typescript
-return response.data.data! as unknown as Stringify<LoginResponse>;
-```
+#### 5.1 ~~过度使用类型断言~~ ✅ 已修复
+- **文件**: `frontend/src/features/auth/services/auth.ts` 等多个文件
+- ~~**问题**: 大量使用 `as unknown as Stringify<T>` 断言~~
+- ✅ 移除了 `Stringify<T>` 类型工具和所有相关断言
+- ✅ 直接使用 ts-rs 生成的类型（后端已将 i64 序列化为 string）
 
-#### 5.2 bigint 类型转换精度丢失风险
+#### 5.2 ~~bigint 类型转换精度丢失风险~~ ✅ 已修复
 - **文件**: `frontend/src/features/homework/services/homeworkService.ts:129`
-```typescript
-Number(classId)  // class_id 是 bigint，Number 会丢精度
-```
+- ~~**问题**: ts-rs 将 i64 生成为 bigint，Number 转换会丢精度~~
+- ✅ 后端所有 i64/u64 字段现在序列化为 string，前端类型全部为 string
+- ✅ 使用 `#[serde(serialize_with = "serialize_i64_as_string")]` + `#[ts(type = "string")]`
 
 ### 6. 文档不一致
 
-#### 6.1 API 文档与实现不同步
-- 登出 API: 文档标注未实现 (`docs/API.md:243`)，实际已实现
-- 分页参数: 文档用 `size`，实现用 `page_size`
+#### 6.1 ~~API 文档与实现不同步~~ ✅ 已修复
+- ~~登出 API: 文档标注未实现 (`docs/API.md:243`)，实际已实现~~
+- ~~分页参数: 文档用 `size`，实现用 `page_size`~~
+- ✅ 更新文档版本至 v3.0
+- ✅ 移除登出 API 的"未实现"标记
+- ✅ 统一分页参数为 `page_size`
+- ✅ 更新文件删除 API 文档（路径改为 `/files/{token}`，添加完整说明）
 
 ### 7. 用户体验问题
 

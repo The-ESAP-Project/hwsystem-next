@@ -15,7 +15,7 @@ pub async fn delete_class_user(
     user_id: i64,
 ) -> ActixResult<HttpResponse> {
     let user_role = RequireJWT::extract_user_role(req);
-    let storage = service.get_storage(req);
+    let storage = service.get_storage(req)?;
 
     let uid = match RequireJWT::extract_user_id(req) {
         Some(id) => id,

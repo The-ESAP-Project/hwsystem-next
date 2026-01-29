@@ -1,4 +1,5 @@
 use crate::models::common::pagination::PaginationInfo;
+use crate::models::common::serialization::serialize_i64_as_string;
 use crate::models::files::responses::FileInfo;
 use crate::models::homeworks::entities::Homework;
 use serde::Serialize;
@@ -7,6 +8,8 @@ use ts_rs::TS;
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/homework.ts")]
 pub struct HomeworkCreator {
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub id: i64,
     pub username: String,
     pub display_name: Option<String>,
@@ -16,6 +19,8 @@ pub struct HomeworkCreator {
 #[derive(Debug, Serialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/homework.ts")]
 pub struct HomeworkResponse {
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub id: i64,
     pub title: String,
     pub description: Option<String>,
@@ -44,6 +49,8 @@ pub struct HomeworkWithCreator {
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/homework.ts")]
 pub struct MySubmissionSummary {
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub id: i64,
     pub version: i32,
     pub status: String,
@@ -56,10 +63,16 @@ pub struct MySubmissionSummary {
 #[ts(export, export_to = "../frontend/src/types/generated/homework.ts")]
 pub struct HomeworkStatsSummary {
     /// 班级学生总数
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub total_students: i64,
     /// 已提交人数
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub submitted_count: i64,
     /// 已评分人数
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub graded_count: i64,
 }
 
@@ -98,12 +111,20 @@ pub struct HomeworkListResponse {
 #[ts(export, export_to = "../frontend/src/types/generated/homework.ts")]
 pub struct MyHomeworkStatsResponse {
     /// 待完成（未提交）
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub pending: i64,
     /// 已提交待批改
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub submitted: i64,
     /// 已批改
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub graded: i64,
     /// 总数
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub total: i64,
 }
 
@@ -112,12 +133,20 @@ pub struct MyHomeworkStatsResponse {
 #[ts(export, export_to = "../frontend/src/types/generated/homework.ts")]
 pub struct TeacherHomeworkStatsResponse {
     /// 作业总数
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub total_homeworks: i64,
     /// 待批改提交数
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub pending_review: i64,
     /// 总提交数
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub total_submissions: i64,
     /// 已批改数
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub graded_submissions: i64,
 }
 

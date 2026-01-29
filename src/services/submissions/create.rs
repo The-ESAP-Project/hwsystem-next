@@ -14,7 +14,7 @@ pub async fn create_submission(
     creator_role: UserRole,
     req: CreateSubmissionRequest,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     // 检查作业是否存在并获取班级信息
     let homework = match storage.get_homework_by_id(req.homework_id).await {

@@ -1,4 +1,7 @@
 use crate::models::common::PaginationQuery;
+use crate::models::common::serialization::{
+    deserialize_option_string_to_i64, deserialize_string_to_i64,
+};
 use serde::Deserialize;
 use ts_rs::TS;
 
@@ -6,6 +9,8 @@ use ts_rs::TS;
 #[derive(Debug, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/grade.ts")]
 pub struct CreateGradeRequest {
+    #[serde(deserialize_with = "deserialize_string_to_i64")]
+    #[ts(type = "string")]
     pub submission_id: i64,
     pub score: f64,
     pub comment: Option<String>,
@@ -26,8 +31,13 @@ pub struct GradeListQuery {
     #[serde(flatten)]
     #[ts(flatten)]
     pub pagination: PaginationQuery,
+    #[serde(default, deserialize_with = "deserialize_option_string_to_i64")]
+    #[ts(type = "string | null")]
     pub submission_id: Option<i64>,
+    #[serde(default, deserialize_with = "deserialize_option_string_to_i64")]
+    #[ts(type = "string | null")]
     pub grader_id: Option<i64>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_option_string_to_i64")]
+    #[ts(type = "string | null")]
     pub homework_id: Option<i64>,
 }

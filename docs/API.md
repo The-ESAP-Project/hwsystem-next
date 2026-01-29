@@ -1,7 +1,7 @@
 # API 文档
 
-> 版本：v2.9
-> 更新日期：2026-01-26
+> 版本：v3.0
+> 更新日期：2026-01-29
 > 基础路径：`/api/v1`
 
 ---
@@ -43,7 +43,7 @@ Authorization: Bearer <access_token>
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | page | number | 1 | 页码，从 1 开始 |
-| size | number | 20 | 每页数量，最大 100 |
+| page_size | number | 20 | 每页数量，最大 100 |
 
 分页响应格式：
 
@@ -59,7 +59,19 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 1.4 错误码
+### 1.4 i64 字段序列化
+
+所有 `i64` 类型字段在 JSON 中序列化为**字符串**，防止 JavaScript 精度丢失。涉及字段包括：所有 `id`、`*_id`、`expires_in`、`file_size`、统计计数字段（`unread_count`、`member_count`、`marked_count` 等）。
+
+示例：
+```json
+{
+    "id": "1234567890123456789",
+    "user_id": "9876543210987654321"
+}
+```
+
+### 1.5 错误码
 
 | 错误码 | 说明 |
 |--------|------|
@@ -108,6 +120,17 @@ Authorization: Bearer <access_token>
 | 7002 | 导入文件缺少必需列 |
 | 7003 | 导入文件数据无效 |
 | 7010 | 导出失败 |
+| 8000 | 作业未找到 |
+| 8001 | 作业创建失败 |
+| 8002 | 作业更新失败 |
+| 8003 | 作业删除失败 |
+| 9000 | 提交未找到 |
+| 9001 | 提交创建失败 |
+| 9002 | 提交删除失败 |
+| 10000 | 成绩未找到 |
+| 10001 | 成绩创建失败 |
+| 10002 | 成绩更新失败 |
+| 11000 | 通知未找到 |
 
 ---
 
@@ -132,14 +155,18 @@ Authorization: Bearer <access_token>
 ```json
 {
     "access_token": "eyJhbGci...",
-    "expires_in": 900,
+    "expires_in": "900",
     "user": {
-        "id": 1,
+        "id": "1",
         "username": "john_doe",
         "email": "john@example.com",
         "display_name": "John Doe",
         "role": "user",
-        "status": "active"
+        "status": "active",
+        "avatar_url": null,
+        "last_login": "2026-01-24T12:00:00Z",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
     },
     "created_at": "2026-01-24T12:00:00Z"
 }
@@ -177,7 +204,7 @@ Authorization: Bearer <access_token>
 ```json
 {
     "access_token": "eyJhbGci...",
-    "expires_in": 900
+    "expires_in": "900"
 }
 ```
 
@@ -203,13 +230,18 @@ Authorization: Bearer <access_token>
 **响应**：
 ```json
 {
-    "id": 1,
-    "username": "john_doe",
-    "email": "john@example.com",
-    "display_name": "John Doe",
-    "role": "user",
-    "status": "active",
-    "created_at": "2026-01-01T00:00:00Z"
+    "user": {
+        "id": "1",
+        "username": "john_doe",
+        "email": "john@example.com",
+        "display_name": "John Doe",
+        "role": "user",
+        "status": "active",
+        "avatar_url": null,
+        "last_login": "2026-01-24T12:00:00Z",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+    }
 }
 ```
 
@@ -230,21 +262,25 @@ Authorization: Bearer <access_token>
 ```json
 {
     "user": {
-        "id": 1,
+        "id": "1",
         "username": "john_doe",
         "email": "john@example.com",
         "display_name": "新名称",
         "role": "user",
-        "status": "active"
+        "status": "active",
+        "avatar_url": null,
+        "last_login": "2026-01-24T12:00:00Z",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
     }
 }
 ```
 
-### 2.7 POST /auth/logout ⚠️ 未实现
+### 2.7 POST /auth/logout
 
 用户登出，清除 Refresh Token。
 
-**权限**：JWT
+**权限**：公开
 
 **响应**：
 ```json
@@ -267,7 +303,7 @@ Authorization: Bearer <access_token>
 | 参数 | 类型 | 说明 |
 |------|------|------|
 | page | number | 页码 |
-| size | number | 每页数量 |
+| page_size | number | 每页数量 |
 | role | string | 按角色筛选 |
 | status | string | 按状态筛选 |
 | search | string | 搜索用户名/邮箱 |
@@ -277,13 +313,16 @@ Authorization: Bearer <access_token>
 {
     "items": [
         {
-            "id": 1,
-            "username": "...",
-            "email": "...",
-            "display_name": "...",
+            "id": "1",
+            "username": "john_doe",
+            "email": "john@example.com",
+            "display_name": "John Doe",
             "role": "user",
             "status": "active",
-            "created_at": "..."
+            "avatar_url": null,
+            "last_login": "2026-01-24T12:00:00Z",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
         }
     ],
     "pagination": {
@@ -351,6 +390,7 @@ Authorization: Bearer <access_token>
 | format | string | 导出格式：`csv` / `xlsx`（默认 csv） |
 | role | string | 按角色筛选 |
 | status | string | 按状态筛选 |
+| search | string | 搜索用户名/邮箱 |
 
 **响应**：文件下载（Content-Type: text/csv 或 application/vnd.openxmlformats-officedocument.spreadsheetml.sheet）
 
@@ -399,23 +439,23 @@ Authorization: Bearer <access_token>
 **响应**：
 ```json
 {
-    "class_count": 3,
-    "total_students": 90,
-    "homework_pending": 5,
-    "homework_submitted": 3,
-    "homework_graded": 12,
-    "pending_review": 15,
+    "class_count": "3",
+    "total_students": "90",
+    "homework_pending": "5",
+    "homework_submitted": "3",
+    "homework_graded": "12",
+    "pending_review": "15",
     "server_time": "2026-01-26T12:00:00Z"
 }
 ```
 
 **说明**：
 - `class_count`：用户加入/创建的班级数量
-- `total_students`：教师视角下的学生总数（学生视角为 0）
+- `total_students`：教师视角下的学生总数（学生视角为 "0"）
 - `homework_pending`：学生视角下待完成的作业数
 - `homework_submitted`：学生视角下已提交待批改的作业数
 - `homework_graded`：学生视角下已批改的作业数
-- `pending_review`：教师视角下待批改的提交数（学生视角为 0）
+- `pending_review`：教师视角下待批改的提交数（学生视角为 "0"）
 - `server_time`：服务器时间（ISO 8601），用于前端统一时间判断
 
 ---
@@ -427,6 +467,14 @@ Authorization: Bearer <access_token>
 获取班级列表。
 
 **权限**：JWT
+
+**查询参数**：
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| page | number | 页码 |
+| page_size | number | 每页数量 |
+| teacher_id | string | 按教师 ID 筛选 |
+| search | string | 搜索班级名称 |
 
 **说明**：
 - 普通用户：返回自己加入的班级
@@ -444,23 +492,27 @@ Authorization: Bearer <access_token>
     },
     "items": [
         {
-            "id": 1,
+            "id": "1",
             "name": "数据结构",
             "description": "2026春季班",
-            "teacher_id": 2,
+            "teacher_id": "2",
             "invite_code": "ABC123",
             "created_at": "2026-01-24T00:00:00Z",
             "updated_at": "2026-01-24T00:00:00Z",
             "teacher": {
-                "id": 2,
+                "id": "2",
                 "username": "teacher1",
                 "display_name": "张老师"
             },
-            "member_count": 30
+            "member_count": "30",
+            "my_role": "student"
         }
     ]
 }
 ```
+
+**说明**：
+- `my_role`：当前用户在该班级的角色，可选值 `student` / `class_representative` / `teacher`，非班级成员时为 `null`
 
 ### 4.2 POST /classes
 
@@ -483,7 +535,7 @@ Authorization: Bearer <access_token>
 **请求（管理员创建）**：
 ```json
 {
-    "teacher_id": 2,
+    "teacher_id": "2",
     "name": "数据结构",
     "description": "2026春季班"
 }
@@ -492,12 +544,13 @@ Authorization: Bearer <access_token>
 **响应**：
 ```json
 {
-    "id": 1,
+    "id": "1",
     "name": "数据结构",
     "description": "2026春季班",
     "invite_code": "ABC123",
-    "teacher_id": 2,
-    "created_at": "..."
+    "teacher_id": "2",
+    "created_at": "2026-01-24T00:00:00Z",
+    "updated_at": "2026-01-24T00:00:00Z"
 }
 ```
 
@@ -515,14 +568,20 @@ Authorization: Bearer <access_token>
 **响应**：
 ```json
 {
-    "id": 1,
+    "id": "1",
     "name": "数据结构",
     "description": "2026春季班",
+    "teacher_id": "2",
+    "invite_code": "ABC123",
+    "created_at": "2026-01-24T00:00:00Z",
+    "updated_at": "2026-01-24T00:00:00Z",
     "teacher": {
-        "id": 2,
+        "id": "2",
+        "username": "teacher1",
         "display_name": "张老师"
     },
-    "member_count": 30
+    "member_count": "30",
+    "my_role": null
 }
 ```
 
@@ -535,19 +594,20 @@ Authorization: Bearer <access_token>
 **响应**：
 ```json
 {
-    "id": 1,
+    "id": "1",
     "name": "数据结构",
     "description": "2026春季班",
-    "teacher_id": 2,
+    "teacher_id": "2",
     "invite_code": "ABC123",
     "created_at": "2026-01-24T00:00:00Z",
     "updated_at": "2026-01-24T00:00:00Z",
     "teacher": {
-        "id": 2,
+        "id": "2",
         "username": "teacher1",
         "display_name": "张老师"
     },
-    "member_count": 30
+    "member_count": "30",
+    "my_role": "student"
 }
 ```
 
@@ -606,6 +666,14 @@ Authorization: Bearer <access_token>
 
 **权限**：课代表+ 或 Admin
 
+**查询参数**：
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| page | number | 页码 |
+| page_size | number | 每页数量 |
+| search | string | 搜索用户名 |
+| role | string | 按班级角色筛选 |
+
 **响应**：
 ```json
 {
@@ -617,13 +685,13 @@ Authorization: Bearer <access_token>
     },
     "items": [
         {
-            "id": 1,
-            "class_id": 1,
-            "user_id": 3,
+            "id": "1",
+            "class_id": "1",
+            "user_id": "3",
             "role": "student",
             "joined_at": "2026-01-24T00:00:00Z",
             "user": {
-                "id": 3,
+                "id": "3",
                 "username": "student1",
                 "display_name": "张三",
                 "avatar_url": null
@@ -671,34 +739,57 @@ Authorization: Bearer <access_token>
 **查询参数**：
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| class_id | number | 班级 ID（必填） |
 | page | number | 页码 |
-| size | number | 每页数量 |
-| status | string | `upcoming`/`ongoing`/`ended` |
+| page_size | number | 每页数量 |
+| class_id | string | 班级 ID（可选） |
+| created_by | string | 创建者 ID（可选） |
+| search | string | 搜索作业标题 |
+| include_stats | boolean | 是否包含统计摘要（教师视角） |
 
 **响应**：
 ```json
 {
     "items": [
         {
-            "id": 1,
+            "id": "1",
+            "class_id": "1",
             "title": "链表实现",
             "description": "实现单链表的基本操作",
             "max_score": 100.0,
             "deadline": "2026-01-25T00:00:00Z",
             "allow_late": false,
-            "attachment_count": 2,
+            "created_by": "2",
+            "created_at": "2026-01-24T00:00:00Z",
+            "updated_at": "2026-01-24T00:00:00Z",
+            "creator": {
+                "id": "2",
+                "username": "teacher1",
+                "display_name": "张老师",
+                "avatar_url": null
+            },
             "my_submission": {
-                "id": 1,
+                "id": "1",
                 "version": 2,
                 "status": "graded",
+                "is_late": false,
                 "score": 85.0
             },
-            "created_at": "..."
+            "stats_summary": null
         }
-    ]
+    ],
+    "pagination": {
+        "page": 1,
+        "page_size": 20,
+        "total": 10,
+        "total_pages": 1
+    }
 }
 ```
+
+**说明**：
+- `creator`：作业创建者信息
+- `my_submission`：当前用户的最新提交（仅学生视角有值）
+- `stats_summary`：作业统计摘要（仅教师/管理员视角且 `include_stats=true` 时有值），包含 `total_students`、`submitted_count`、`graded_count`（均为字符串）
 
 ### 6.2 POST /homeworks
 
@@ -709,7 +800,7 @@ Authorization: Bearer <access_token>
 **请求**：
 ```json
 {
-    "class_id": 1,
+    "class_id": "1",
     "title": "链表实现",
     "description": "实现单链表的基本操作",
     "max_score": 100.0,
@@ -727,23 +818,30 @@ Authorization: Bearer <access_token>
 **响应**：
 ```json
 {
-    "id": 1,
-    "class_id": 1,
+    "id": "1",
+    "class_id": "1",
     "title": "链表实现",
-    "description": "...",
+    "description": "实现单链表的基本操作",
     "max_score": 100.0,
     "deadline": "2026-01-25T00:00:00Z",
     "allow_late": false,
+    "created_by": "2",
+    "created_at": "2026-01-24T00:00:00Z",
+    "updated_at": "2026-01-24T00:00:00Z",
     "attachments": [
         {
-            "id": 1,
+            "download_token": "abc123...",
             "original_name": "要求.pdf",
-            "file_size": 102400,
-            "download_token": "..."
+            "file_size": "102400",
+            "file_type": "application/pdf"
         }
     ],
-    "created_by": 2,
-    "created_at": "..."
+    "creator": {
+        "id": "2",
+        "username": "teacher1",
+        "display_name": "张老师",
+        "avatar_url": null
+    }
 }
 ```
 
@@ -756,24 +854,30 @@ Authorization: Bearer <access_token>
 **响应**：
 ```json
 {
-    "id": 1,
-    "class_id": 3,
+    "id": "1",
+    "class_id": "3",
     "title": "链表实现",
     "description": "实现单链表的基本操作",
     "max_score": 100.0,
     "deadline": "2026-01-25T00:00:00Z",
     "allow_late": false,
-    "created_by": 2,
+    "created_by": "2",
     "created_at": "2026-01-24T00:00:00Z",
     "updated_at": "2026-01-24T00:00:00Z",
     "attachments": [
         {
             "download_token": "abc123...",
             "original_name": "要求.pdf",
-            "file_size": 102400,
+            "file_size": "102400",
             "file_type": "application/pdf"
         }
-    ]
+    ],
+    "creator": {
+        "id": "2",
+        "username": "teacher1",
+        "display_name": "张老师",
+        "avatar_url": null
+    }
 }
 ```
 
@@ -815,11 +919,11 @@ Authorization: Bearer <access_token>
 **响应**：
 ```json
 {
-    "homework_id": 1,
-    "total_students": 30,
-    "submitted_count": 25,
-    "graded_count": 20,
-    "late_count": 3,
+    "homework_id": "1",
+    "total_students": "30",
+    "submitted_count": "25",
+    "graded_count": "20",
+    "late_count": "3",
     "submission_rate": 83.33,
     "score_stats": {
         "average": 85.5,
@@ -827,15 +931,15 @@ Authorization: Bearer <access_token>
         "min": 62.0
     },
     "score_distribution": [
-        { "range": "90-100", "count": 5 },
-        { "range": "80-89", "count": 8 },
-        { "range": "70-79", "count": 4 },
-        { "range": "60-69", "count": 2 },
-        { "range": "0-59", "count": 1 }
+        { "range": "90-100", "count": "5" },
+        { "range": "80-89", "count": "8" },
+        { "range": "70-79", "count": "4" },
+        { "range": "60-69", "count": "2" },
+        { "range": "0-59", "count": "1" }
     ],
     "unsubmitted_students": [
         {
-            "id": 1,
+            "id": "1",
             "username": "student1",
             "display_name": "张三",
             "avatar_url": null
@@ -861,10 +965,10 @@ Authorization: Bearer <access_token>
 **响应**：
 ```json
 {
-    "total": 10,
-    "pending": 3,
-    "submitted": 5,
-    "graded": 2
+    "pending": "3",
+    "submitted": "5",
+    "graded": "2",
+    "total": "10"
 }
 ```
 
@@ -877,10 +981,10 @@ Authorization: Bearer <access_token>
 **响应**：
 ```json
 {
-    "total_homeworks": 15,
-    "pending_review": 25,
-    "total_submissions": 120,
-    "graded_submissions": 95
+    "total_homeworks": "15",
+    "pending_review": "25",
+    "total_submissions": "120",
+    "graded_submissions": "95"
 }
 ```
 
@@ -894,7 +998,7 @@ Authorization: Bearer <access_token>
 | 参数 | 类型 | 说明 |
 |------|------|------|
 | page | number | 页码 |
-| size | number | 每页数量 |
+| page_size | number | 每页数量 |
 | status | string | 按用户提交状态筛选：`pending`/`submitted`/`graded` |
 | deadline_filter | string | 按截止时间筛选：`active`/`expired`/`all` |
 | search | string | 搜索作业标题 |
@@ -905,24 +1009,24 @@ Authorization: Bearer <access_token>
 {
     "items": [
         {
-            "id": 1,
-            "class_id": 1,
+            "id": "1",
+            "class_id": "1",
             "title": "链表实现",
             "description": "...",
             "max_score": 100.0,
             "deadline": "2026-01-25T00:00:00Z",
             "allow_late": false,
-            "created_by": 2,
-            "created_at": "...",
-            "updated_at": "...",
+            "created_by": "2",
+            "created_at": "2026-01-24T00:00:00Z",
+            "updated_at": "2026-01-24T00:00:00Z",
             "creator": {
-                "id": 2,
+                "id": "2",
                 "username": "teacher1",
                 "display_name": "张老师",
                 "avatar_url": null
             },
             "my_submission": {
-                "id": 1,
+                "id": "1",
                 "version": 2,
                 "status": "graded",
                 "is_late": false,
@@ -952,43 +1056,46 @@ Authorization: Bearer <access_token>
 
 ### 7.1 GET /submissions
 
-获取提交列表（教师/课代表视图）。
+获取提交列表。
 
-**权限**：班级教师 或 课代表
+**权限**：JWT
 
 **查询参数**：
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| homework_id | number | 作业 ID（必填） |
 | page | number | 页码 |
-| size | number | 每页数量 |
+| page_size | number | 每页数量 |
+| homework_id | string | 作业 ID（可选） |
+| creator_id | string | 提交者 ID（可选） |
 | status | string | `pending`/`graded`/`late` |
-| latest_only | boolean | 只显示最新版本（默认 true） |
 
 **响应**：
 ```json
 {
     "items": [
         {
-            "id": 1,
+            "id": "1",
+            "homework_id": "1",
+            "creator_id": "3",
             "creator": {
-                "id": 3,
-                "username": "...",
-                "display_name": "..."
+                "id": "3",
+                "username": "student1",
+                "display_name": "张三",
+                "avatar_url": null
             },
             "version": 2,
             "content": "...",
             "status": "graded",
             "is_late": false,
-            "attachment_count": 1,
-            "grade": {
-                "score": 85.0,
-                "comment": "Good work!",
-                "graded_at": "..."
-            },
-            "submitted_at": "..."
+            "submitted_at": "2026-01-24T12:00:00Z"
         }
-    ]
+    ],
+    "pagination": {
+        "page": 1,
+        "page_size": 20,
+        "total": 25,
+        "total_pages": 2
+    }
 }
 ```
 
@@ -1001,24 +1108,43 @@ Authorization: Bearer <access_token>
 **请求**：
 ```json
 {
-    "homework_id": 1,
+    "homework_id": "1",
     "content": "这是我的作业内容...",
-    "attachments": ["file_id_1"]
+    "attachments": ["download_token_1"]
 }
 ```
 
 **响应**：
 ```json
 {
-    "id": 1,
-    "homework_id": 1,
-    "creator_id": 3,
-    "version": 2,
-    "content": "...",
+    "id": "1",
+    "homework_id": "1",
+    "creator": {
+        "id": "3",
+        "username": "student1",
+        "display_name": "张三",
+        "avatar_url": null
+    },
+    "content": "这是我的作业内容...",
+    "attachments": [
+        {
+            "download_token": "abc123...",
+            "original_name": "作业.pdf",
+            "file_size": "102400",
+            "file_type": "application/pdf"
+        }
+    ],
     "status": "pending",
+    "submitted_at": "2026-01-24T12:00:00Z",
+    "grade": null,
+    "version": 2,
     "is_late": false,
-    "attachments": [...],
-    "submitted_at": "..."
+    "homework": {
+        "id": "1",
+        "title": "链表实现",
+        "max_score": 100.0,
+        "deadline": "2026-01-25T00:00:00Z"
+    }
 }
 ```
 
@@ -1036,30 +1162,43 @@ Authorization: Bearer <access_token>
 {
     "items": [
         {
-            "id": 1,
+            "id": "1",
+            "homework_id": "1",
             "version": 1,
             "content": "...",
             "status": "graded",
             "is_late": false,
-            "attachments": [...],
+            "submitted_at": "2026-01-24T10:00:00Z",
+            "attachments": [
+                {
+                    "download_token": "abc123...",
+                    "original_name": "作业v1.pdf",
+                    "file_size": "102400",
+                    "file_type": "application/pdf"
+                }
+            ],
             "grade": {
+                "id": "1",
                 "score": 75.0,
-                "comment": "需要改进"
-            },
-            "submitted_at": "..."
+                "comment": "需要改进",
+                "graded_at": "2026-01-24T14:00:00Z"
+            }
         },
         {
-            "id": 2,
+            "id": "2",
+            "homework_id": "1",
             "version": 2,
             "content": "...",
             "status": "graded",
             "is_late": false,
-            "attachments": [...],
+            "submitted_at": "2026-01-24T16:00:00Z",
+            "attachments": [],
             "grade": {
+                "id": "2",
                 "score": 85.0,
-                "comment": "Good work!"
-            },
-            "submitted_at": "..."
+                "comment": "Good work!",
+                "graded_at": "2026-01-24T18:00:00Z"
+            }
         }
     ]
 }
@@ -1078,24 +1217,31 @@ Authorization: Bearer <access_token>
 {
     "code": 0,
     "data": {
-        "id": 1,
-        "homework_id": 1,
-        "creator_id": 3,
+        "id": "1",
+        "homework_id": "1",
+        "creator": {
+            "id": "3",
+            "username": "student1",
+            "display_name": "张三",
+            "avatar_url": null
+        },
         "version": 1,
         "content": "作业内容",
         "attachments": [
             {
                 "download_token": "abc123...",
                 "original_name": "作业.pdf",
-                "file_size": 102400,
+                "file_size": "102400",
                 "file_type": "application/pdf"
             }
         ],
         "submitted_at": "2026-01-24T12:00:00Z",
         "is_late": false,
+        "status": "pending",
         "grade": null
     },
-    "message": "查询成功"
+    "message": "查询成功",
+    "timestamp": "2026-01-24T12:00:00Z"
 }
 ```
 
@@ -1104,25 +1250,57 @@ Authorization: Bearer <access_token>
 {
     "code": 0,
     "data": null,
-    "message": "暂无提交"
+    "message": "暂无提交",
+    "timestamp": "2026-01-24T12:00:00Z"
 }
 ```
 
 ### 7.5 GET /homeworks/{homework_id}/submissions/summary
 
-获取提交概览（教师视图）。
+获取提交概览（教师视图，按学生聚合的分页列表）。
 
 **权限**：班级教师 或 课代表
+
+**查询参数**：
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| page | number | 页码 |
+| page_size | number | 每页数量 |
+| graded | boolean | 筛选是否已批改：`true`=已批改，`false`=待批改，不传=全部 |
 
 **响应**：
 ```json
 {
-    "homework_id": 1,
-    "total_students": 30,
-    "submitted_count": 25,
-    "graded_count": 20,
-    "pending_count": 5,
-    "late_count": 3
+    "items": [
+        {
+            "creator": {
+                "id": "3",
+                "username": "student1",
+                "display_name": "张三",
+                "avatar_url": null
+            },
+            "latest_submission": {
+                "id": "1",
+                "version": 2,
+                "status": "graded",
+                "is_late": false,
+                "submitted_at": "2026-01-24T12:00:00Z"
+            },
+            "grade": {
+                "id": "1",
+                "score": 85.0,
+                "comment": "Good work!",
+                "graded_at": "2026-01-24T14:00:00Z"
+            },
+            "total_versions": 2
+        }
+    ],
+    "pagination": {
+        "page": 1,
+        "page_size": 20,
+        "total": 25,
+        "total_pages": 2
+    }
 }
 ```
 
@@ -1147,11 +1325,7 @@ Authorization: Bearer <access_token>
 **错误**：
 - 如果作业已截止，不允许撤回
 
----
-
-## 八、评分管理
-
-### 8.1 GET /submissions/{submission_id}/grade
+### 7.9 GET /submissions/{id}/grade
 
 获取提交的评分。
 
@@ -1160,18 +1334,37 @@ Authorization: Bearer <access_token>
 **响应**：
 ```json
 {
-    "id": 1,
-    "submission_id": 1,
+    "id": "1",
+    "submission_id": "1",
     "grader": {
-        "id": 2,
-        "username": "...",
-        "display_name": "..."
+        "id": "2",
+        "username": "teacher1",
+        "display_name": "张老师"
     },
     "score": 85.0,
     "comment": "Good work!",
     "graded_at": "2026-01-24T12:00:00Z"
 }
 ```
+
+---
+
+## 八、评分管理
+
+### 8.1 GET /grades
+
+获取评分列表。
+
+**权限**：JWT
+
+**查询参数**：
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| page | number | 页码 |
+| page_size | number | 每页数量 |
+| submission_id | string | 按提交 ID 筛选 |
+| grader_id | string | 按评分者 ID 筛选 |
+| homework_id | string | 按作业 ID 筛选 |
 
 ### 8.2 POST /grades
 
@@ -1182,7 +1375,7 @@ Authorization: Bearer <access_token>
 **请求**：
 ```json
 {
-    "submission_id": 1,
+    "submission_id": "1",
     "score": 85.0,
     "comment": "Good work!"
 }
@@ -1195,7 +1388,13 @@ Authorization: Bearer <access_token>
 **错误**：
 - 如果已存在评分，返回 409 冲突
 
-### 8.3 PUT /grades/{id}
+### 8.3 GET /grades/{id}
+
+获取评分详情。
+
+**权限**：JWT
+
+### 8.4 PUT /grades/{id}
 
 修改评分。
 
@@ -1231,7 +1430,7 @@ Authorization: Bearer <access_token>
 {
     "download_token": "abc123...",
     "file_name": "document.pdf",
-    "size": 102400,
+    "size": "102400",
     "content_type": "application/pdf",
     "created_at": "2026-01-26T12:00:00Z"
 }
@@ -1243,11 +1442,36 @@ Authorization: Bearer <access_token>
 
 **权限**：JWT
 
-### 9.3 DELETE /files/{file_id} ⚠️ 未实现
+### 9.3 DELETE /files/{token}
 
 删除文件。
 
-**权限**：上传者 或 Admin
+**权限**：上传者
+
+**路径参数**：
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| token | string | 文件的 download_token |
+
+**响应**：
+```json
+{
+    "code": 0,
+    "message": "文件删除成功",
+    "data": null,
+    "timestamp": "2026-01-26T12:00:00Z"
+}
+```
+
+**错误码**：
+- 1001：未授权（未登录）
+- 1003：权限不足（只有上传者可以删除）
+- 3000：文件不存在
+
+**说明**：
+- 只有文件上传者可以删除文件
+- 如果文件被作业或提交引用（citation_count > 0），只删除数据库记录，不删除物理文件
+- 如果文件未被引用，同时删除数据库记录和物理文件
 
 ---
 
@@ -1263,27 +1487,45 @@ Authorization: Bearer <access_token>
 | 参数 | 类型 | 说明 |
 |------|------|------|
 | page | number | 页码 |
-| size | number | 每页数量 |
-| is_read | boolean | 筛选已读/未读 |
-| type | string | 筛选通知类型 |
+| page_size | number | 每页数量 |
+| unread_only | boolean | 是否只显示未读通知 |
 
 **响应**：
 ```json
 {
     "items": [
         {
-            "id": 1,
-            "type": "homework_created",
+            "id": "1",
+            "user_id": "3",
+            "notification_type": "homework_created",
             "title": "新作业发布",
             "content": "《数据结构》作业已发布",
             "reference_type": "homework",
-            "reference_id": 1,
+            "reference_id": "1",
             "is_read": false,
-            "created_at": "..."
+            "created_at": "2026-01-24T12:00:00Z"
         }
-    ]
+    ],
+    "pagination": {
+        "page": 1,
+        "page_size": 20,
+        "total": 10,
+        "total_pages": 1
+    }
 }
 ```
+
+**通知类型**：
+| 类型 | 说明 |
+|------|------|
+| homework_created | 新作业发布 |
+| homework_updated | 作业更新 |
+| homework_deadline | 作业即将截止 |
+| submission_received | 收到新提交（通知教师） |
+| grade_received | 收到评分（通知学生） |
+| grade_updated | 评分修改（通知学生） |
+| class_joined | 加入班级 |
+| class_role_changed | 班级角色变更 |
 
 ### 10.2 GET /notifications/unread-count
 
@@ -1294,7 +1536,7 @@ Authorization: Bearer <access_token>
 **响应**：
 ```json
 {
-    "unread_count": 5
+    "unread_count": "5"
 }
 ```
 
@@ -1309,6 +1551,13 @@ Authorization: Bearer <access_token>
 标记所有通知为已读。
 
 **权限**：JWT
+
+**响应**：
+```json
+{
+    "marked_count": "5"
+}
+```
 
 ### 10.5 DELETE /notifications/{id}
 
@@ -1333,13 +1582,15 @@ Authorization: Bearer <access_token>
 {
     "type": "notification",
     "payload": {
-        "id": 1,
-        "type": "homework_created",
+        "id": "1",
+        "user_id": "3",
+        "notification_type": "homework_created",
         "title": "新作业发布",
         "content": "《数据结构》作业已发布",
         "reference_type": "homework",
-        "reference_id": 1,
-        "created_at": "..."
+        "reference_id": "1",
+        "is_read": false,
+        "created_at": "2026-01-24T12:00:00Z"
     }
 }
 ```
@@ -1383,7 +1634,7 @@ Authorization: Bearer <access_token>
 ```json
 {
     "system_name": "作业管理系统",
-    "max_file_size": 10485760,
+    "max_file_size": "10485760",
     "allowed_file_types": [".png", ".jpg", ".jpeg", ".gif", ".pdf", ".txt", ".zip"],
     "environment": "development",
     "log_level": "info"
@@ -1401,12 +1652,12 @@ Authorization: Bearer <access_token>
 {
     "settings": [
         {
-            "key": "upload_max_size",
+            "key": "upload.max_size",
             "value": "10485760",
             "value_type": "integer",
             "description": "文件上传大小限制（字节）",
             "updated_at": "2026-01-24T12:00:00Z",
-            "updated_by": 1
+            "updated_by": "1"
         }
     ]
 }
@@ -1428,10 +1679,14 @@ Authorization: Bearer <access_token>
 **响应**：
 ```json
 {
-    "key": "upload_max_size",
-    "value": "20971520",
-    "value_type": "integer",
-    "updated_at": "2026-01-24T12:00:00Z"
+    "setting": {
+        "key": "upload.max_size",
+        "value": "20971520",
+        "value_type": "integer",
+        "description": "文件上传大小限制（字节）",
+        "updated_at": "2026-01-24T12:00:00Z",
+        "updated_by": "1"
+    }
 }
 ```
 
@@ -1446,11 +1701,11 @@ Authorization: Bearer <access_token>
 {
     "audits": [
         {
-            "id": 1,
-            "setting_key": "upload_max_size",
+            "id": "1",
+            "setting_key": "upload.max_size",
             "old_value": "10485760",
             "new_value": "20971520",
-            "changed_by": 1,
+            "changed_by": "1",
             "changed_at": "2026-01-24T12:00:00Z",
             "ip_address": "192.168.1.1"
         }
@@ -1499,6 +1754,8 @@ Authorization: Bearer <access_token>
 
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
+| v3.1 | 2026-01-29 | 全面修正文档与代码一致性：所有 i64 字段 JSON 示例改为字符串；补充错误码 8000-11000（作业/提交/成绩/通知）；修正 GET /auth/me 响应为 `{user:{...}}` 包裹格式；班级响应添加 `my_role` 字段；修正 GET /homeworks 查询参数（删除 status，添加 created_by/search/include_stats，class_id 改为可选）；修正作业列表响应（删除 attachment_count，添加 creator/stats_summary）；修正 POST /submissions 响应为完整 SubmissionResponse 格式；重写提交概览为按学生聚合的分页列表；修正通知查询参数（is_read/type → unread_only）；修正通知字段名（type → notification_type）；修正系统设置更新响应为 `{setting:{...}}` 包裹格式；补充评分列表端点和查询参数；补充 GET /users/export 的 search 参数 |
+| v3.0 | 2026-01-29 | 修正文档：登出 API 已实现；文件删除 API 已实现（路径 `/files/{token}`）；统一分页参数为 `page_size`；i64 字段序列化为 string |
 | v2.9 | 2026-01-26 | 新增端点：`/users/me/stats`、`/homeworks/all`、`/ws/status`；修正响应格式：文件上传、系统设置、用户导入、教师统计、审计日志 |
 | v2.8 | 2026-01-26 | 补充缺失端点（用户导入导出、作业统计、班级导出、系统设置管理）；补全错误码；修正响应字段 |
 | v2.7 | 2026-01-24 | 修正文档与代码一致：ID 改为数字类型；分页参数 `page_size` → `size`；标注未实现端点；新增提交概览端点 |

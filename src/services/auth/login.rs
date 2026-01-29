@@ -14,7 +14,7 @@ pub async fn handle_login(
     login_request: LoginRequest,
     request: &HttpRequest,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
     let config = service.get_config();
 
     // 1. 根据用户名或邮箱获取用户信息

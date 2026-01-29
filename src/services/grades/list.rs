@@ -11,7 +11,7 @@ pub async fn list_grades(
     request: &HttpRequest,
     query: GradeListQuery,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     // 获取当前用户信息
     let current_user = match RequireJWT::extract_user_claims(request) {

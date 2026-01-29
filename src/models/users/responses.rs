@@ -1,5 +1,6 @@
 use super::entities::User;
 use crate::models::common::PaginationInfo;
+use crate::models::common::serialization::serialize_i64_as_string;
 use serde::Serialize;
 use ts_rs::TS;
 
@@ -43,16 +44,28 @@ pub struct UserImportResponse {
 #[ts(export, export_to = "../frontend/src/types/generated/user.ts")]
 pub struct UserStatsResponse {
     /// 班级数量
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub class_count: i64,
     /// 学生总数（教师视角）
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub total_students: i64,
     /// 待完成作业（学生视角：未提交）
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub homework_pending: i64,
     /// 已提交作业（学生视角：已提交待批改）
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub homework_submitted: i64,
     /// 已批改作业（学生视角：已批改）
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub homework_graded: i64,
     /// 待批改数（教师视角：待批改的提交数）
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub pending_review: i64,
     /// 服务器时间（ISO 8601）
     pub server_time: String,

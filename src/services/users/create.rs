@@ -46,7 +46,7 @@ pub async fn create_user(
         }
     };
 
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     match storage.create_user(user_data).await {
         Ok(user) => Ok(HttpResponse::Created()

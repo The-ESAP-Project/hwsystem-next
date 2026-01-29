@@ -2,12 +2,15 @@ use serde::Serialize;
 use ts_rs::TS;
 
 use crate::models::PaginationInfo;
+use crate::models::common::serialization::serialize_i64_as_string;
 use crate::models::files::responses::FileInfo;
 
 /// 提交者信息
 #[derive(Debug, Serialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/submission.ts")]
 pub struct SubmissionCreator {
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub id: i64,
     pub username: String,
     pub display_name: Option<String>,
@@ -18,6 +21,8 @@ pub struct SubmissionCreator {
 #[derive(Debug, Serialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/submission.ts")]
 pub struct SubmissionHomeworkInfo {
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub id: i64,
     pub title: String,
     pub max_score: f64,
@@ -28,7 +33,11 @@ pub struct SubmissionHomeworkInfo {
 #[derive(Debug, Serialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/submission.ts")]
 pub struct SubmissionResponse {
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub id: i64,
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub homework_id: i64,
     pub creator: SubmissionCreator,
     pub content: String,
@@ -45,6 +54,8 @@ pub struct SubmissionResponse {
 #[derive(Debug, Serialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/submission.ts")]
 pub struct SubmissionGradeInfo {
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub id: i64,
     pub score: f64,
     pub comment: Option<String>,
@@ -55,8 +66,14 @@ pub struct SubmissionGradeInfo {
 #[derive(Debug, Serialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/submission.ts")]
 pub struct SubmissionListItem {
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub id: i64,
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub homework_id: i64,
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub creator_id: i64,
     pub creator: SubmissionCreator,
     pub version: i32,
@@ -78,7 +95,11 @@ pub struct SubmissionListResponse {
 #[derive(Debug, Serialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/submission.ts")]
 pub struct UserSubmissionHistoryItem {
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub id: i64,
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub homework_id: i64,
     pub version: i32,
     pub content: Option<String>,
@@ -102,6 +123,8 @@ pub struct UserSubmissionHistoryResponse {
 #[derive(Debug, Serialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/submission.ts")]
 pub struct LatestSubmissionInfo {
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub id: i64,
     pub version: i32,
     pub status: String,

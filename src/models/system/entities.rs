@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::models::common::serialization::{
+    serialize_i64_as_string, serialize_option_i64_as_string,
+};
+
 /// 配置值类型
 #[derive(Debug, Clone, Serialize, PartialEq, TS)]
 #[serde(rename_all = "snake_case")]
@@ -138,6 +142,8 @@ pub struct SystemSetting {
     pub value_type: SettingValueType,
     pub description: Option<String>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
+    #[serde(serialize_with = "serialize_option_i64_as_string")]
+    #[ts(type = "string | null")]
     pub updated_by: Option<i64>,
 }
 
@@ -145,10 +151,14 @@ pub struct SystemSetting {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/system.ts")]
 pub struct SettingAudit {
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub id: i64,
     pub setting_key: String,
     pub old_value: Option<String>,
     pub new_value: String,
+    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[ts(type = "string")]
     pub changed_by: i64,
     pub changed_at: chrono::DateTime<chrono::Utc>,
     pub ip_address: Option<String>,

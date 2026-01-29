@@ -134,10 +134,11 @@ impl SeaOrmStorage {
             let config = AppConfig::get();
             let file_path = format!("{}/{}", config.upload.dir, file.stored_name);
             if std::path::Path::new(&file_path).exists()
-                && let Err(e) = std::fs::remove_file(&file_path) {
-                    // 物理文件删除失败只记录日志，不影响返回结果
-                    tracing::warn!("删除物理文件失败: {} - {}", file_path, e);
-                }
+                && let Err(e) = std::fs::remove_file(&file_path)
+            {
+                // 物理文件删除失败只记录日志，不影响返回结果
+                tracing::warn!("删除物理文件失败: {} - {}", file_path, e);
+            }
         }
 
         Ok(true)

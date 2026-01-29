@@ -11,7 +11,7 @@ pub async fn list_submissions(
     request: &HttpRequest,
     mut query: SubmissionListQuery,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
     let user_role = RequireJWT::extract_user_role(request);
     let user_id = RequireJWT::extract_user_id(request);
 

@@ -9,7 +9,7 @@ pub async fn get_unread_count(
     request: &HttpRequest,
     user_id: i64,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     match storage.get_unread_notification_count(user_id).await {
         Ok(count) => Ok(HttpResponse::Ok().json(ApiResponse::success(

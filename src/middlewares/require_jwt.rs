@@ -119,7 +119,7 @@ async fn extract_and_validate_jwt(req: &ServiceRequest) -> Result<entities::User
 
     let cache = req
         .app_data::<actix_web::web::Data<Arc<dyn ObjectCache>>>()
-        .expect("Cache not found in app data")
+        .ok_or_else(|| "Cache not found in app data".to_string())?
         .get_ref()
         .clone();
 
@@ -139,7 +139,7 @@ async fn extract_and_validate_jwt(req: &ServiceRequest) -> Result<entities::User
 
     let storage = req
         .app_data::<actix_web::web::Data<Arc<dyn Storage>>>()
-        .expect("Storage not found in app data")
+        .ok_or_else(|| "Storage not found in app data".to_string())?
         .get_ref()
         .clone();
 

@@ -14,7 +14,7 @@ pub async fn create_homework(
     created_by: i64,
     req: CreateHomeworkRequest,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
     let user_role = RequireJWT::extract_user_role(request);
 
     // 检查班级是否存在

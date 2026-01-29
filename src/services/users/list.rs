@@ -8,7 +8,7 @@ pub async fn list_users(
     query: UserListQuery,
     request: &HttpRequest,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     match storage.list_users_with_pagination(query).await {
         Ok(response) => Ok(HttpResponse::Ok().json(ApiResponse::success(

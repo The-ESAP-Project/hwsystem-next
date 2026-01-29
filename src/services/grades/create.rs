@@ -14,7 +14,7 @@ pub async fn create_grade(
     grader_id: i64,
     req: CreateGradeRequest,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
     let user_role = RequireJWT::extract_user_role(request);
 
     // 检查提交是否存在

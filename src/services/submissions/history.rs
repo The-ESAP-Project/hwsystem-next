@@ -10,7 +10,7 @@ pub async fn list_user_submissions(
     homework_id: i64,
     creator_id: i64,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     match storage.list_user_submissions(homework_id, creator_id).await {
         Ok(items) => {

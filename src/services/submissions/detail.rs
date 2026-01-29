@@ -11,7 +11,7 @@ pub async fn get_submission(
     request: &HttpRequest,
     submission_id: i64,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
     let user_role = RequireJWT::extract_user_role(request);
     let user_id = RequireJWT::extract_user_id(request);
 
@@ -128,7 +128,7 @@ pub async fn get_latest_submission(
     homework_id: i64,
     creator_id: i64,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     // 使用 list_user_submissions（已含 grade 和 attachments）取最新一条
     match storage.list_user_submissions(homework_id, creator_id).await {

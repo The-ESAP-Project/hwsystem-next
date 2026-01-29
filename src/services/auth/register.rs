@@ -12,7 +12,7 @@ pub async fn handle_register(
     mut create_request: CreateUserRequest,
     request: &HttpRequest,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     // 1. 检查用户名是否已存在
     if let Err(response) = check_username_exists(&storage, &create_request.username).await {

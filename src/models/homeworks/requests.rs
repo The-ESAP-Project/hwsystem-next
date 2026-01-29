@@ -1,4 +1,7 @@
 use crate::models::common::pagination::PaginationQuery;
+use crate::models::common::serialization::{
+    deserialize_option_string_to_i64, deserialize_string_to_i64,
+};
 use crate::models::homeworks::entities::{DeadlineFilter, HomeworkUserStatus};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
@@ -8,6 +11,8 @@ use ts_rs::TS;
 #[derive(Debug, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/homework.ts")]
 pub struct CreateHomeworkRequest {
+    #[serde(deserialize_with = "deserialize_string_to_i64")]
+    #[ts(type = "string")]
     pub class_id: i64,
     pub title: String,
     pub description: Option<String>,
@@ -36,7 +41,11 @@ pub struct HomeworkListQuery {
     #[serde(flatten)]
     #[ts(flatten)]
     pub pagination: PaginationQuery,
+    #[serde(default, deserialize_with = "deserialize_option_string_to_i64")]
+    #[ts(type = "string | null")]
     pub class_id: Option<i64>,
+    #[serde(default, deserialize_with = "deserialize_option_string_to_i64")]
+    #[ts(type = "string | null")]
     pub created_by: Option<i64>,
     pub search: Option<String>,
     /// 是否包含统计信息（教师/管理员视角）

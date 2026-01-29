@@ -23,7 +23,7 @@ pub async fn list_classes(
     query: ClassListQuery,
 ) -> ActixResult<HttpResponse> {
     let role = RequireJWT::extract_user_role(request);
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     let uid = match RequireJWT::extract_user_id(request) {
         Some(id) => id,

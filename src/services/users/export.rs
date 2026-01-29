@@ -14,7 +14,7 @@ pub async fn export_users(
     params: UserExportParams,
     request: &HttpRequest,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     // 最多导出 10000 条
     let users = match storage

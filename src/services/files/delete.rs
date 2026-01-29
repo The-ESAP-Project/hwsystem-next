@@ -18,7 +18,7 @@ pub async fn handle_delete(
         }
     };
 
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     match storage.delete_file(&file_token, user_id).await {
         Ok(true) => Ok(HttpResponse::Ok().json(ApiResponse::success_empty("文件删除成功"))),

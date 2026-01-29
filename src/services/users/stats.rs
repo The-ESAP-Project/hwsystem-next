@@ -10,7 +10,7 @@ pub async fn get_my_stats(
     service: &UserService,
     request: &HttpRequest,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     // 获取当前用户
     let current_user = match RequireJWT::extract_user_claims(request) {

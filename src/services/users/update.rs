@@ -14,7 +14,7 @@ pub async fn update_user(
     mut update_data: UpdateUserRequest,
     request: &HttpRequest,
 ) -> ActixResult<HttpResponse> {
-    let storage = service.get_storage(request);
+    let storage = service.get_storage(request)?;
 
     // 获取当前操作者信息
     let current_user = match RequireJWT::extract_user_claims(request) {

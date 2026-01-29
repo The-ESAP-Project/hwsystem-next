@@ -90,6 +90,7 @@ impl AppConfig {
             "default",
             "development",
             "test",
+            "default_secret_key",
         ];
 
         if self.jwt.secret.is_empty() {

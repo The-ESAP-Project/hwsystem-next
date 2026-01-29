@@ -118,7 +118,7 @@
 
 #### 8.1 重复代码
 - Storage 获取模式在所有 Service 中重复
-- 防抖搜索模式在多个组件中重复 (`ClassListPage`, `UserListPage`, `HomeworkListCard`)
+- ~~防抖搜索模式在多个组件中重复 (`ClassListPage`, `UserListPage`, `HomeworkListCard`)~~ ✅ 已创建 `useDebouncedSearch` hook
 - 布局组件重复 (`NotificationLayout`, `SettingsLayout`)
 
 #### 8.2 组件过大
@@ -126,41 +126,44 @@
 - `HomeworkDetailPage.tsx`: 451 行
 - `HomeworkListCard.tsx`: 260 行
 
-#### 8.3 魔法数字
-- `frontend/src/lib/api.ts:47`: `timeout: 10000`
-- `frontend/src/features/class/pages/ClassListPage.tsx:44`: `pageSize = 12`
+#### 8.3 ~~魔法数字~~ ✅ 已修复
+- ~~`frontend/src/lib/api.ts:47`: `timeout: 10000`~~
+- ~~`frontend/src/features/class/pages/ClassListPage.tsx:44`: `pageSize = 12`~~
+- ✅ 已创建 `frontend/src/lib/constants.ts` 集中管理常量
 
 ### 9. 可访问性问题
 
-#### 9.1 缺少 ARIA 标签
-- **文件**: `frontend/src/features/auth/pages/LoginPage.tsx:116-128`
-- 密码可见性切换按钮无 `aria-label`
+#### 9.1 ~~缺少 ARIA 标签~~ ✅ 已修复
+- ~~**文件**: `frontend/src/features/auth/pages/LoginPage.tsx:116-128`~~
+- ~~密码可见性切换按钮无 `aria-label`~~
+- ✅ 已添加 `aria-label` 属性和 i18n 键
 
-#### 9.2 颜色对比度依赖
+#### 9.2 ~~颜色对比度依赖~~ ✅ 非问题
 - **文件**: `frontend/src/features/admin/pages/UserListPage.tsx:53-65`
-- 角色和状态仅通过颜色区分
+- ~~角色和状态仅通过颜色区分~~
+- ✅ 经审查，代码已正确使用文字标签配合颜色（符合 WCAG 1.4.1）
 
 ### 10. 配置问题
 
-#### 10.1 JWT Secret 硬编码默认值
+#### 10.1 ~~JWT Secret 硬编码默认值~~ ✅ 已修复
 - **文件**: `config.toml:37`
-```toml
-secret = "default_secret_key"
-```
+- ~~`secret = "default_secret_key"` 未在黑名单中~~
+- ✅ 已在 `src/config/impl.rs` 的 `validate_security()` 黑名单中添加 `"default_secret_key"`
 
-#### 10.2 Argon2 配置未使用
-- **配置**: `config.toml` 中定义了 Argon2 配置
-- **实际**: `src/services/auth/register.rs:115-122` 使用 `Argon2::default()`
+#### 10.2 ~~Argon2 配置未使用~~ ✅ 已修复
+- ~~**配置**: `config.toml` 中定义了 Argon2 配置~~
+- ~~**实际**: `src/services/auth/register.rs:115-122` 使用 `Argon2::default()`~~
+- ✅ 已删除局部 `hash_password` 函数，改用 `crate::utils::password::hash_password`
 
 ---
 
 ## 问题统计
 
-| 严重程度 | 数量 | 类别 |
-|---------|------|------|
-| 🔴 严重 | 6 | 安全、API 缺失 |
-| 🟠 中等 | 10 | 性能、错误处理、类型安全、文档、UX |
-| 🟡 低 | 8 | 代码质量、可访问性、配置 |
+| 严重程度 | 总数 | 已修复 | 剩余 |
+|---------|------|--------|------|
+| 🔴 严重 | 6 | 3 | 3 |
+| 🟠 中等 | 10 | 8 | 2 |
+| 🟡 低 | 8 | 6 | 2 |
 
 ---
 
@@ -169,6 +172,8 @@ secret = "default_secret_key"
 1. **第一优先级 - 安全修复**
    - [x] 修复 CORS 配置
    - [x] 移除 fallback token 机制
+   - [x] 修复 JWT Secret 黑名单验证
+   - [x] 修复 Argon2 配置未使用
    - [ ] 修复文件下载权限检查
    - [ ] 考虑 token 存储方案改进
 
@@ -182,9 +187,11 @@ secret = "default_secret_key"
    - [x] 前端分页参数优化（page_size 调整）
 
 4. **第四优先级 - 代码质量**
-   - [ ] 提取重复代码
+   - [x] 提取防抖搜索重复代码（`useDebouncedSearch` hook）
+   - [x] 提取魔法数字为常量（`constants.ts`）
+   - [x] 添加 ARIA 可访问性标签
    - [ ] 拆分过大组件
-   - [ ] 改进错误处理
+   - [ ] Storage 获取模式重复
 
 ---
 

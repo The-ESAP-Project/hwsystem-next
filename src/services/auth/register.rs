@@ -1,8 +1,7 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
-use argon2::Argon2;
-use argon2::password_hash::{PasswordHasher, SaltString, rand_core::OsRng};
 
 use crate::models::{ApiResponse, ErrorCode, users::requests::CreateUserRequest};
+use crate::utils::password::hash_password;
 use crate::utils::validate::{validate_email, validate_password, validate_username};
 
 use super::AuthService;
@@ -109,14 +108,4 @@ async fn check_email_exists(
             )),
         ),
     }
-}
-
-// 生成密码哈希
-fn hash_password(password: &str) -> Result<String, argon2::password_hash::Error> {
-    let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
-
-    argon2
-        .hash_password(password.as_bytes(), &salt)
-        .map(|hash| hash.to_string())
 }

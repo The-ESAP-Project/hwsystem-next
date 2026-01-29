@@ -11,6 +11,7 @@ use crate::middlewares::RequireJWT;
 use crate::models::class_users::entities::ClassUserRole;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::StorageProvider;
 
 /// 学生明细信息
 struct StudentDetail {

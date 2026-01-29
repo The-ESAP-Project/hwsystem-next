@@ -6,6 +6,7 @@ use crate::middlewares::RequireJWT;
 use crate::models::class_users::entities::ClassUserRole;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::StorageProvider;
 use crate::services::submissions::SubmissionService;
 
 /// 获取作业提交概览（按学生聚合）

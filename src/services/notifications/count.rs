@@ -3,6 +3,7 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use super::NotificationService;
 use crate::models::notifications::responses::UnreadCountResponse;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::StorageProvider;
 
 pub async fn get_unread_count(
     service: &NotificationService,

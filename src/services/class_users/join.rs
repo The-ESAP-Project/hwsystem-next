@@ -3,6 +3,7 @@ use tracing::error;
 
 use super::ClassUserService;
 use crate::models::notifications::entities::{NotificationType, ReferenceType};
+use crate::services::StorageProvider;
 use crate::services::notifications::trigger::send_notification;
 use crate::{
     middlewares::RequireJWT,

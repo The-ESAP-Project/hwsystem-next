@@ -11,7 +11,6 @@ use std::sync::Arc;
 
 use crate::models::submissions::requests::{CreateSubmissionRequest, SubmissionListQuery};
 use crate::models::users::entities::UserRole;
-use crate::models::{ApiResponse, ErrorCode};
 use crate::storage::Storage;
 
 pub struct SubmissionService {
@@ -21,29 +20,6 @@ pub struct SubmissionService {
 impl SubmissionService {
     pub fn new_lazy() -> Self {
         Self { storage: None }
-    }
-
-    pub(crate) fn get_storage(
-        &self,
-        request: &HttpRequest,
-    ) -> Result<Arc<dyn Storage>, actix_web::Error> {
-        if let Some(storage) = &self.storage {
-            Ok(storage.clone())
-        } else {
-            request
-                .app_data::<actix_web::web::Data<Arc<dyn Storage>>>()
-                .map(|data| data.get_ref().clone())
-                .ok_or_else(|| {
-                    actix_web::error::InternalError::from_response(
-                        "Storage service unavailable",
-                        HttpResponse::InternalServerError().json(ApiResponse::<()>::error_empty(
-                            ErrorCode::InternalServerError,
-                            "Storage service unavailable",
-                        )),
-                    )
-                    .into()
-                })
-        }
     }
 
     /// 创建提交
@@ -134,5 +110,13 @@ impl SubmissionService {
         submission_id: i64,
     ) -> ActixResult<HttpResponse> {
         grade::get_submission_grade(self, request, submission_id).await
+    }
+}
+
+use crate::services::StorageProvider;
+
+impl StorageProvider for SubmissionService {
+    fn storage_ref(&self) -> Option<Arc<dyn Storage>> {
+        self.storage.clone()
     }
 }

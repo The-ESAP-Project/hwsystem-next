@@ -9,6 +9,7 @@ use crate::utils::password::hash_password;
 use crate::utils::validate::validate_password_simple;
 
 use super::AuthService;
+use crate::services::StorageProvider;
 
 pub async fn handle_update_profile(
     service: &AuthService,

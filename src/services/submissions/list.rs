@@ -5,6 +5,7 @@ use crate::middlewares::RequireJWT;
 use crate::models::submissions::requests::SubmissionListQuery;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::StorageProvider;
 
 pub async fn list_submissions(
     service: &SubmissionService,

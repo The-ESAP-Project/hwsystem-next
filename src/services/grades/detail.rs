@@ -6,6 +6,7 @@ use crate::middlewares::RequireJWT;
 use crate::models::class_users::entities::ClassUserRole;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::StorageProvider;
 use crate::storage::Storage;
 
 /// 检查用户是否有权限访问某个提交的评分

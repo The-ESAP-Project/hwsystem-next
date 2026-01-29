@@ -4,6 +4,7 @@ use super::NotificationService;
 use crate::middlewares::RequireJWT;
 use crate::models::notifications::responses::MarkAllReadResponse;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::StorageProvider;
 
 pub async fn mark_as_read(
     service: &NotificationService,

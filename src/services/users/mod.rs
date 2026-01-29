@@ -14,7 +14,6 @@ use std::sync::Arc;
 use crate::models::users::requests::{
     CreateUserRequest, UpdateUserRequest, UserExportParams, UserListQuery,
 };
-use crate::models::{ApiResponse, ErrorCode};
 use crate::storage::Storage;
 
 pub struct UserService {
@@ -24,29 +23,6 @@ pub struct UserService {
 impl UserService {
     pub fn new_lazy() -> Self {
         Self { storage: None }
-    }
-
-    pub(crate) fn get_storage(
-        &self,
-        request: &HttpRequest,
-    ) -> Result<Arc<dyn Storage>, actix_web::Error> {
-        if let Some(storage) = &self.storage {
-            Ok(storage.clone())
-        } else {
-            request
-                .app_data::<actix_web::web::Data<Arc<dyn Storage>>>()
-                .map(|data| data.get_ref().clone())
-                .ok_or_else(|| {
-                    actix_web::error::InternalError::from_response(
-                        "Storage service unavailable",
-                        HttpResponse::InternalServerError().json(ApiResponse::<()>::error_empty(
-                            ErrorCode::InternalServerError,
-                            "Storage service unavailable",
-                        )),
-                    )
-                    .into()
-                })
-        }
     }
 
     // 获取用户列表
@@ -117,5 +93,13 @@ impl UserService {
     // 获取当前用户统计
     pub async fn get_my_stats(&self, request: &HttpRequest) -> ActixResult<HttpResponse> {
         stats::get_my_stats(self, request).await
+    }
+}
+
+use crate::services::StorageProvider;
+
+impl StorageProvider for UserService {
+    fn storage_ref(&self) -> Option<Arc<dyn Storage>> {
+        self.storage.clone()
     }
 }

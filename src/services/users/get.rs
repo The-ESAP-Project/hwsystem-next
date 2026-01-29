@@ -3,6 +3,7 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use super::UserService;
 use crate::models::users::responses::UserResponse;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::StorageProvider;
 
 pub async fn get_user(
     service: &UserService,

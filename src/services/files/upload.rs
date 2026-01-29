@@ -13,6 +13,7 @@ use crate::errors::HWSystemError;
 use crate::middlewares::RequireJWT;
 use crate::models::ErrorCode;
 use crate::models::{ApiResponse, files::responses::FileUploadResponse};
+use crate::services::StorageProvider;
 use crate::services::system::DynamicConfig;
 use crate::utils::validate_magic_bytes;
 

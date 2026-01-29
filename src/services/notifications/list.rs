@@ -3,6 +3,7 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use super::NotificationService;
 use crate::models::notifications::requests::NotificationListQuery;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::StorageProvider;
 
 pub async fn list_notifications(
     service: &NotificationService,

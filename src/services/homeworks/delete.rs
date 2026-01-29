@@ -4,6 +4,7 @@ use super::HomeworkService;
 use crate::middlewares::RequireJWT;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::StorageProvider;
 
 pub async fn delete_homework(
     service: &HomeworkService,

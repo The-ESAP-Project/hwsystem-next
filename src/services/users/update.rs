@@ -6,6 +6,7 @@ use crate::models::{
     ApiResponse, ErrorCode,
     users::{entities::UserRole, requests::UpdateUserRequest, responses::UserResponse},
 };
+use crate::services::StorageProvider;
 use crate::utils::validate::validate_password_simple;
 
 pub async fn update_user(

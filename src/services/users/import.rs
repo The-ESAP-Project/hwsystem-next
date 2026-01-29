@@ -13,6 +13,7 @@ use crate::models::users::entities::UserRole;
 use crate::models::users::requests::CreateUserRequest;
 use crate::models::users::responses::{ImportRowError, UserImportResponse};
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::StorageProvider;
 use crate::utils::password::hash_password;
 use crate::utils::validate::{validate_email, validate_password_simple, validate_username};
 

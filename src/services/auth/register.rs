@@ -5,6 +5,7 @@ use crate::utils::password::hash_password;
 use crate::utils::validate::{validate_email, validate_password, validate_username};
 
 use super::AuthService;
+use crate::services::StorageProvider;
 
 pub async fn handle_register(
     service: &AuthService,

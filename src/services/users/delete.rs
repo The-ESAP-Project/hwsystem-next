@@ -1,6 +1,7 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use super::UserService;
+use crate::services::StorageProvider;
 use crate::{
     middlewares::RequireJWT,
     models::{ApiResponse, ErrorCode, users::entities::UserRole},

@@ -11,7 +11,7 @@ use crate::{
         classes::entities::Class,
         users::entities::{User, UserRole},
     },
-    services::ClassUserService,
+    services::{ClassUserService, StorageProvider},
 };
 
 pub async fn update_class_user(

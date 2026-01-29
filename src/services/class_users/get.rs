@@ -5,7 +5,7 @@ use crate::{
         class_users::entities::{ClassUser, ClassUserRole},
         users::entities::{User, UserRole},
     },
-    services::ClassUserService,
+    services::{ClassUserService, StorageProvider},
 };
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 

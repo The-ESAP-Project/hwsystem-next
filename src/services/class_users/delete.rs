@@ -4,7 +4,7 @@ use crate::{
         ApiResponse, ErrorCode, class_users::entities::ClassUser, classes::entities::Class,
         users::entities::UserRole,
     },
-    services::ClassUserService,
+    services::{ClassUserService, StorageProvider},
 };
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 

@@ -11,7 +11,7 @@ use crate::{
             responses::{ClassUserDetail, ClassUserDetailListResponse, UserInfo},
         },
     },
-    services::ClassUserService,
+    services::{ClassUserService, StorageProvider},
 };
 
 pub async fn list_class_users_with_pagination(

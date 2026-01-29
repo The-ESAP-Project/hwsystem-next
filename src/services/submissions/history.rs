@@ -3,6 +3,7 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use super::SubmissionService;
 use crate::models::submissions::responses::UserSubmissionHistoryResponse;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::StorageProvider;
 
 pub async fn list_user_submissions(
     service: &SubmissionService,

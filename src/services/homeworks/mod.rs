@@ -15,7 +15,6 @@ use std::sync::Arc;
 use crate::models::homeworks::requests::{
     AllHomeworksQuery, CreateHomeworkRequest, HomeworkListQuery, UpdateHomeworkRequest,
 };
-use crate::models::{ApiResponse, ErrorCode};
 use crate::storage::Storage;
 
 pub struct HomeworkService {
@@ -25,29 +24,6 @@ pub struct HomeworkService {
 impl HomeworkService {
     pub fn new_lazy() -> Self {
         Self { storage: None }
-    }
-
-    pub(crate) fn get_storage(
-        &self,
-        request: &HttpRequest,
-    ) -> Result<Arc<dyn Storage>, actix_web::Error> {
-        if let Some(storage) = &self.storage {
-            Ok(storage.clone())
-        } else {
-            request
-                .app_data::<actix_web::web::Data<Arc<dyn Storage>>>()
-                .map(|data| data.get_ref().clone())
-                .ok_or_else(|| {
-                    actix_web::error::InternalError::from_response(
-                        "Storage service unavailable",
-                        HttpResponse::InternalServerError().json(ApiResponse::<()>::error_empty(
-                            ErrorCode::InternalServerError,
-                            "Storage service unavailable",
-                        )),
-                    )
-                    .into()
-                })
-        }
     }
 
     pub async fn list_homeworks(
@@ -127,5 +103,13 @@ impl HomeworkService {
         query: AllHomeworksQuery,
     ) -> ActixResult<HttpResponse> {
         list_all::list_all_homeworks(self, request, query).await
+    }
+}
+
+use crate::services::StorageProvider;
+
+impl StorageProvider for HomeworkService {
+    fn storage_ref(&self) -> Option<Arc<dyn Storage>> {
+        self.storage.clone()
     }
 }

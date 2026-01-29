@@ -3,6 +3,7 @@ use std::sync::Arc;
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use super::ClassService;
+use crate::services::StorageProvider;
 use crate::{
     middlewares::RequireJWT,
     models::{

@@ -4,6 +4,7 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use crate::middlewares::RequireJWT;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::StorageProvider;
 use crate::services::users::UserService;
 
 pub async fn get_my_stats(

@@ -8,6 +8,7 @@ use crate::utils::jwt;
 use crate::utils::password::verify_password;
 
 use super::AuthService;
+use crate::services::StorageProvider;
 
 pub async fn handle_login(
     service: &AuthService,

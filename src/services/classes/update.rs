@@ -2,6 +2,7 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use tracing::error;
 
 use super::ClassService;
+use crate::services::StorageProvider;
 use crate::{
     middlewares::RequireJWT,
     models::{

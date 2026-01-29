@@ -7,6 +7,7 @@ use tracing::error;
 use super::UserService;
 use crate::models::users::requests::UserExportParams;
 use crate::models::{ApiResponse, ErrorCode};
+use crate::services::StorageProvider;
 
 /// 导出用户列表
 pub async fn export_users(

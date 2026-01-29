@@ -9,7 +9,6 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use std::sync::Arc;
 
 use crate::models::classes::requests::{ClassListQuery, CreateClassRequest, UpdateClassRequest};
-use crate::models::{ApiResponse, ErrorCode};
 use crate::storage::Storage;
 
 pub struct ClassService {
@@ -19,29 +18,6 @@ pub struct ClassService {
 impl ClassService {
     pub fn new_lazy() -> Self {
         Self { storage: None }
-    }
-
-    pub(crate) fn get_storage(
-        &self,
-        request: &HttpRequest,
-    ) -> Result<Arc<dyn Storage>, actix_web::Error> {
-        if let Some(storage) = &self.storage {
-            Ok(storage.clone())
-        } else {
-            request
-                .app_data::<actix_web::web::Data<Arc<dyn Storage>>>()
-                .map(|data| data.get_ref().clone())
-                .ok_or_else(|| {
-                    actix_web::error::InternalError::from_response(
-                        "Storage service unavailable",
-                        HttpResponse::InternalServerError().json(ApiResponse::<()>::error_empty(
-                            ErrorCode::InternalServerError,
-                            "Storage service unavailable",
-                        )),
-                    )
-                    .into()
-                })
-        }
     }
 
     // 获取班级列表
@@ -101,5 +77,13 @@ impl ClassService {
         class_id: i64,
     ) -> ActixResult<HttpResponse> {
         export::export_class_report(self, req, class_id).await
+    }
+}
+
+use crate::services::StorageProvider;
+
+impl StorageProvider for ClassService {
+    fn storage_ref(&self) -> Option<Arc<dyn Storage>> {
+        self.storage.clone()
     }
 }

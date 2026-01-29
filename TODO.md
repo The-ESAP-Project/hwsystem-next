@@ -19,9 +19,12 @@
 - ~~**问题**: JWT 生成失败时使用可预测的 fallback token~~
 - ✅ 已移除 fallback 机制，改为直接返回 `Result<TokenPair, String>`
 
-#### 1.3 前端 Token 存储在 localStorage
-- **文件**: `frontend/src/stores/useUserStore.ts:39-43`
-- **风险**: XSS 攻击可窃取 token
+#### 1.3 ~~前端 Token 存储在 localStorage~~ ✅ 已修复
+- **文件**: `frontend/src/stores/useUserStore.ts`
+- ~~**风险**: XSS 攻击可窃取 token~~
+- ✅ Access Token 改为存储在 Zustand 内存 store 中
+- ✅ 页面刷新后通过 httpOnly cookie 的 refresh token 自动恢复
+- ✅ 修改了 `api.ts`、`providers.tsx`、`useWebSocket.ts`、`fileService.ts` 统一从 store 获取 token
 
 #### 1.4 Token 暴露在 WebSocket URL
 - **文件**: `frontend/src/hooks/useWebSocket.ts:126-129`
@@ -161,7 +164,7 @@
 
 | 严重程度 | 总数 | 已修复 | 剩余 |
 |---------|------|--------|------|
-| 🔴 严重 | 6 | 3 | 3 |
+| 🔴 严重 | 6 | 4 | 2 |
 | 🟠 中等 | 10 | 8 | 2 |
 | 🟡 低 | 8 | 8 | 0 |
 
@@ -174,8 +177,8 @@
    - [x] 移除 fallback token 机制
    - [x] 修复 JWT Secret 黑名单验证
    - [x] 修复 Argon2 配置未使用
+   - [x] Token 存储方案改进（Access Token 存内存，Refresh Token 用 httpOnly cookie）
    - [ ] 修复文件下载权限检查
-   - [ ] 考虑 token 存储方案改进
 
 2. **第二优先级 - 功能修复**
    - [x] 实现文件删除 API

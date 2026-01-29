@@ -53,16 +53,21 @@ format!("fallback_token_{}_{}", self.id, chrono::Utc::now().timestamp())
 ### 3. 性能问题
 
 #### 3.1 N+1 查询问题
-- **教师统计**: `src/storage/sea_orm_storage/users.rs:370-381` - 循环中逐个查询班级学生数
-- **提交概览**: `src/storage/sea_orm_storage/submissions.rs:443-448` - 先查询所有提交再内存聚合
+- **教师统计**: `src/storage/sea_orm_storage/users.rs` - ~~循环中逐个查询班级学生数~~ ✅ 已改为 GROUP BY 批量查询
+- **作业列表创建者查询**: `src/storage/sea_orm_storage/homeworks.rs` - ~~循环逐个查询用户~~ ✅ 已改为 IN 批量查询
+- **作业统计班级学生数**: `src/storage/sea_orm_storage/homeworks.rs` - ~~循环逐个 COUNT~~ ✅ 已改为 GROUP BY 批量查询（2 处）
+- **提交详情附件查询**: `src/storage/sea_orm_storage/submissions.rs` - ~~循环逐个查询文件~~ ✅ 已改为 IN 批量查询
+- **提交概览**: `src/storage/sea_orm_storage/submissions.rs:443-448` - 先查询所有提交再内存聚合（暂缓，需较大重构）
 
 #### 3.2 文件下载全量加载
-- **文件**: `src/services/files/download.rs:67-76`
-- **问题**: 整个文件读入内存，大文件会 OOM
+- **文件**: `src/services/files/download.rs`
+- ~~**问题**: 整个文件读入内存，大文件会 OOM~~
+- ✅ 已改用 `actix_files::NamedFile` 流式传输，支持 Range 请求（断点续传）
 
 #### 3.3 前端大列表一次性加载
-- **文件**: `frontend/src/features/homework/components/HomeworkListCard.tsx:63-71`
-- **问题**: 一次性加载 200 条数据后前端分页
+- **文件**: `frontend/src/features/homework/components/HomeworkListCard.tsx`
+- ~~**问题**: 一次性加载 200 条数据后前端分页~~
+- ✅ `TeacherHomeworksPage` 班级列表 page_size 100→20，`useAllClassesHomeworks` page_size 100→50
 
 ### 4. 错误处理问题
 
@@ -172,9 +177,9 @@ secret = "default_secret_key"
    - [ ] 更新 API 文档
 
 3. **第三优先级 - 性能优化**
-   - [ ] 修复 N+1 查询
-   - [ ] 实现流式文件下载
-   - [ ] 前端改用服务端分页
+   - [x] 修复 N+1 查询（5 处已修复，1 处暂缓）
+   - [x] 实现流式文件下载（NamedFile + Range 支持）
+   - [x] 前端分页参数优化（page_size 调整）
 
 4. **第四优先级 - 代码质量**
    - [ ] 提取重复代码

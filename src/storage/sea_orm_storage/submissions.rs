@@ -719,17 +719,26 @@ impl SeaOrmStorage {
 
         // 3. 查询附件
         let file_ids = self.get_submission_file_ids_impl(submission_id).await?;
-        let mut attachments = Vec::new();
-        for file_id in file_ids {
-            if let Some(file) = self.get_file_by_id_impl(file_id).await? {
-                attachments.push(FileInfo {
-                    download_token: file.download_token,
-                    original_name: file.original_name,
-                    file_size: file.file_size,
-                    file_type: file.file_type,
-                });
-            }
-        }
+        let attachments = if file_ids.is_empty() {
+            Vec::new()
+        } else {
+            use crate::entity::files::{Column as FileColumn, Entity as Files};
+            let files = Files::find()
+                .filter(FileColumn::Id.is_in(file_ids))
+                .all(&self.db)
+                .await
+                .map_err(|e| HWSystemError::database_operation(format!("查询文件信息失败: {e}")))?;
+
+            files
+                .into_iter()
+                .map(|f| FileInfo {
+                    download_token: f.download_token,
+                    original_name: f.original_name,
+                    file_size: f.file_size,
+                    file_type: f.file_type,
+                })
+                .collect()
+        };
 
         // 4. 查询评分
         let grade = Grades::find()

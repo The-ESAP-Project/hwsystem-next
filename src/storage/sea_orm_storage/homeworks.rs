@@ -10,6 +10,7 @@ use crate::entity::homework_files::{
 };
 use crate::entity::homeworks::{ActiveModel, Column, Entity as Homeworks};
 use crate::entity::submissions::{Column as SubmissionColumn, Entity as Submissions};
+use crate::entity::users::{Column as UserColumn, Entity as Users};
 use crate::errors::{HWSystemError, Result};
 use crate::models::{
     PaginationInfo,
@@ -26,8 +27,8 @@ use crate::models::{
 };
 use crate::utils::escape_like_pattern;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, EntityTrait, ExprTrait, PaginatorTrait, QueryFilter, QueryOrder,
-    Set,
+    ActiveModelTrait, ColumnTrait, EntityTrait, ExprTrait, FromQueryResult, PaginatorTrait,
+    QueryFilter, QueryOrder, QuerySelect, Set,
 };
 
 impl SeaOrmStorage {
@@ -135,21 +136,33 @@ impl SeaOrmStorage {
             .into_iter()
             .collect();
 
-        // 查询创建者信息
-        let mut creator_map: HashMap<i64, HomeworkCreator> = HashMap::new();
-        for creator_id in creator_ids {
-            if let Ok(Some(user)) = self.get_user_by_id_impl(creator_id).await {
-                creator_map.insert(
-                    creator_id,
-                    HomeworkCreator {
-                        id: user.id,
-                        username: user.username,
-                        display_name: user.display_name,
-                        avatar_url: user.avatar_url,
-                    },
-                );
-            }
-        }
+        // 批量查询所有创建者
+        let creator_map: HashMap<i64, HomeworkCreator> = if creator_ids.is_empty() {
+            HashMap::new()
+        } else {
+            let users = Users::find()
+                .filter(UserColumn::Id.is_in(creator_ids))
+                .all(&self.db)
+                .await
+                .map_err(|e| {
+                    HWSystemError::database_operation(format!("查询创建者信息失败: {e}"))
+                })?;
+
+            users
+                .into_iter()
+                .map(|user| {
+                    (
+                        user.id,
+                        HomeworkCreator {
+                            id: user.id,
+                            username: user.username,
+                            display_name: user.display_name,
+                            avatar_url: user.avatar_url,
+                        },
+                    )
+                })
+                .collect()
+        };
 
         // 查询当前用户的提交状态（如果提供了 current_user_id）
         let mut my_submission_map: HashMap<i64, MySubmissionSummary> = HashMap::new();
@@ -214,21 +227,48 @@ impl SeaOrmStorage {
         if query.include_stats.unwrap_or(false) && !homeworks.is_empty() {
             let homework_ids: Vec<i64> = homeworks.iter().map(|h| h.id).collect();
 
-            // 获取每个作业所属班级的需要提交作业的人数（学生和课代表，排除教师）
-            for hw in &homeworks {
-                let total_students = ClassUsers::find()
-                    .filter(ClassUserColumn::ClassId.eq(hw.class_id))
+            // 批量查询每个班级的学生数（按 class_id 去重，单次 GROUP BY）
+            let unique_class_ids: Vec<i64> = homeworks
+                .iter()
+                .map(|hw| hw.class_id)
+                .collect::<std::collections::HashSet<_>>()
+                .into_iter()
+                .collect();
+
+            let class_student_counts: HashMap<i64, i64> = if unique_class_ids.is_empty() {
+                HashMap::new()
+            } else {
+                #[derive(FromQueryResult)]
+                struct ClassCount {
+                    class_id: i64,
+                    count: i64,
+                }
+
+                let counts: Vec<ClassCount> = ClassUsers::find()
+                    .filter(ClassUserColumn::ClassId.is_in(unique_class_ids))
                     .filter(ClassUserColumn::Role.is_in(["student", "class_representative"]))
-                    .count(&self.db)
+                    .select_only()
+                    .column(ClassUserColumn::ClassId)
+                    .column_as(ClassUserColumn::Id.count(), "count")
+                    .group_by(ClassUserColumn::ClassId)
+                    .into_model::<ClassCount>()
+                    .all(&self.db)
                     .await
                     .map_err(|e| {
                         HWSystemError::database_operation(format!("查询班级学生数失败: {e}"))
-                    })? as i64;
+                    })?;
 
+                counts.into_iter().map(|c| (c.class_id, c.count)).collect()
+            };
+
+            for hw in &homeworks {
                 stats_map.insert(
                     hw.id,
                     HomeworkStatsSummary {
-                        total_students,
+                        total_students: class_student_counts
+                            .get(&hw.class_id)
+                            .copied()
+                            .unwrap_or(0),
                         submitted_count: 0,
                         graded_count: 0,
                     },
@@ -837,20 +877,48 @@ impl SeaOrmStorage {
         // 9. 查询统计信息（如果 include_stats=true）
         let mut stats_map: HashMap<i64, HomeworkStatsSummary> = HashMap::new();
         if query.include_stats.unwrap_or(false) && !ordered_homeworks.is_empty() {
-            for hw in &ordered_homeworks {
-                let total_students = ClassUsers::find()
-                    .filter(ClassUserColumn::ClassId.eq(hw.class_id))
+            // 批量查询每个班级的学生数（按 class_id 去重，单次 GROUP BY）
+            let unique_class_ids: Vec<i64> = ordered_homeworks
+                .iter()
+                .map(|hw| hw.class_id)
+                .collect::<std::collections::HashSet<_>>()
+                .into_iter()
+                .collect();
+
+            let class_student_counts: HashMap<i64, i64> = if unique_class_ids.is_empty() {
+                HashMap::new()
+            } else {
+                #[derive(FromQueryResult)]
+                struct ClassCount {
+                    class_id: i64,
+                    count: i64,
+                }
+
+                let counts: Vec<ClassCount> = ClassUsers::find()
+                    .filter(ClassUserColumn::ClassId.is_in(unique_class_ids))
                     .filter(ClassUserColumn::Role.is_in(["student", "class_representative"]))
-                    .count(&self.db)
+                    .select_only()
+                    .column(ClassUserColumn::ClassId)
+                    .column_as(ClassUserColumn::Id.count(), "count")
+                    .group_by(ClassUserColumn::ClassId)
+                    .into_model::<ClassCount>()
+                    .all(&self.db)
                     .await
                     .map_err(|e| {
                         HWSystemError::database_operation(format!("查询班级学生数失败: {e}"))
-                    })? as i64;
+                    })?;
 
+                counts.into_iter().map(|c| (c.class_id, c.count)).collect()
+            };
+
+            for hw in &ordered_homeworks {
                 stats_map.insert(
                     hw.id,
                     HomeworkStatsSummary {
-                        total_students,
+                        total_students: class_student_counts
+                            .get(&hw.class_id)
+                            .copied()
+                            .unwrap_or(0),
                         submitted_count: 0,
                         graded_count: 0,
                     },

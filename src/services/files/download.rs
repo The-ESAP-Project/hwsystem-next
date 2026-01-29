@@ -1,6 +1,5 @@
+use actix_files::NamedFile;
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, http::header};
-use std::fs::File;
-use std::io::Read;
 use std::path::Path;
 
 use super::FileService;
@@ -51,36 +50,27 @@ pub async fn handle_download(
         )));
     }
 
-    let mut file = match File::open(&file_path) {
-        Ok(f) => f,
+    // 使用 NamedFile 进行流式传输（自动支持 Range 请求）
+    match NamedFile::open(&file_path) {
+        Ok(file) => {
+            // 设置 Content-Disposition（使用原始文件名）
+            let file = file.set_content_disposition(header::ContentDisposition {
+                disposition: header::DispositionType::Attachment,
+                parameters: vec![header::DispositionParam::Filename(
+                    db_file.original_name.clone(),
+                )],
+            });
+
+            Ok(file.into_response(request))
+        }
         Err(e) => {
             tracing::error!("{:?}", HWSystemError::file_operation(format!("{e:?}")));
-            return Ok(
+            Ok(
                 HttpResponse::InternalServerError().json(ApiResponse::error_empty(
                     ErrorCode::InternalServerError,
                     "File open failed",
                 )),
-            );
+            )
         }
-    };
-
-    let mut buf = Vec::new();
-    if file.read_to_end(&mut buf).is_err() {
-        tracing::error!("{:?}", HWSystemError::file_operation("File read failed"));
-        return Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                "File read failed",
-            )),
-        );
     }
-
-    // 使用数据库中的原始文件名
-    Ok(HttpResponse::Ok()
-        .insert_header((header::CONTENT_TYPE, db_file.file_type.as_str()))
-        .insert_header((
-            header::CONTENT_DISPOSITION,
-            format!("attachment; filename=\"{}\"", db_file.original_name),
-        ))
-        .body(buf))
 }

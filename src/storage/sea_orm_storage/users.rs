@@ -11,8 +11,8 @@ use crate::models::{
 };
 use crate::utils::escape_like_pattern;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
-    QuerySelect, Set,
+    ActiveModelTrait, ColumnTrait, Condition, EntityTrait, FromQueryResult, PaginatorTrait,
+    QueryFilter, QueryOrder, QuerySelect, Set,
 };
 
 impl SeaOrmStorage {
@@ -366,19 +366,34 @@ impl SeaOrmStorage {
 
             let class_count = class_ids.len() as i64;
 
-            // 统计所有班级的学生数
-            let mut total_students = 0i64;
-            for class_id in &class_ids {
-                let count = ClassUsers::find()
-                    .filter(ClassUserColumn::ClassId.eq(*class_id))
+            // 统计所有班级的学生数（单次 GROUP BY 查询）
+            let total_students = if class_ids.is_empty() {
+                0i64
+            } else {
+                #[derive(FromQueryResult)]
+                struct ClassStudentCount {
+                    count: i64,
+                }
+
+                let counts: Vec<ClassStudentCount> = ClassUsers::find()
+                    .filter(
+                        ClassUserColumn::ClassId
+                            .is_in(class_ids.iter().cloned().collect::<Vec<_>>()),
+                    )
                     .filter(ClassUserColumn::Role.is_in(["student", "class_representative"]))
-                    .count(&self.db)
+                    .select_only()
+                    .column(ClassUserColumn::ClassId)
+                    .column_as(ClassUserColumn::Id.count(), "count")
+                    .group_by(ClassUserColumn::ClassId)
+                    .into_model::<ClassStudentCount>()
+                    .all(&self.db)
                     .await
                     .map_err(|e| {
                         HWSystemError::database_operation(format!("查询班级学生数失败: {e}"))
-                    })? as i64;
-                total_students += count;
-            }
+                    })?;
+
+                counts.iter().map(|c| c.count).sum()
+            };
 
             (class_count, total_students)
         } else {

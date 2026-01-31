@@ -210,6 +210,185 @@
 
 ---
 
+## 后端性能深度审计 (2026-01-31)
+
+基于对 storage / services / cache / middlewares 四层的全面审计，发现以下性能问题。
+
+---
+
+### 🔴 严重问题
+
+#### P1. ~~限流器竞态条件（可绕过）~~ ✅ 已修复
+- **文件**: `src/middlewares/rate_limit.rs:248-263`
+- ~~**问题**: `get` 和 `insert` 之间不是原子操作，并发请求可同时读到相同计数值再各自 +1，导致实际放行请求远超限制~~
+- ~~**影响**: 安全问题，限流形同虚设。10 个并发请求在 limit=5 时可能全部放行~~
+- ✅ 已改为 `Cache<String, Arc<AtomicU32>>`，使用 `get_with()` 原子获取或创建计数器，`fetch_add` 原子递增
+
+#### P2. ~~班级导出报表 N+1 查询（三层嵌套）~~ ✅ 已修复
+- **文件**: `src/services/classes/export.rs:170-278`
+- ~~**问题**:~~
+  - ~~外层：对每个作业调用 `list_all_submissions_by_homework`（N 次查询）~~
+  - ~~内层：对每个提交调用 `get_grade_by_submission_id`（M 次查询）~~
+  - ~~再对每个学生调用 `get_user_by_id`（K 次查询）~~
+- ~~**影响**: 30 人班级 10 个作业 → 约 340+ 次数据库查询~~
+- ✅ 已新增 3 个批量方法并改用批量查询：
+  - `list_all_submissions_by_homework_ids` — 一次查询所有作业的提交
+  - `get_grades_by_submission_ids` — 一次查询所有评分
+  - `get_users_by_ids` — 一次查询所有用户
+- ✅ 查询数量从 ~340 次降为 4 次
+
+#### P3. ~~作业列表创建者 N+1 查询（storage 层残留）~~ ✅ 已修复
+- **文件**: `src/storage/sea_orm_storage/homeworks.rs:854-875`
+- ~~**问题**: `list_all_homeworks_impl` 中循环逐个查询 creator 用户信息~~
+- ✅ 已改为 `UserColumn::Id.is_in(creator_ids)` 批量查询（与第 140-165 行模式一致）
+
+---
+
+### 🟠 高优先级
+
+#### P4. 多处写操作缺少事务保护
+- `src/storage/sea_orm_storage/homeworks.rs:36-68` — 创建作业 + 关联附件不在同一事务
+- `src/storage/sea_orm_storage/homeworks.rs:364-416` — 更新作业 + 附件同理
+- `src/storage/sea_orm_storage/submissions.rs:34-98` — 创建提交 + 关联附件
+- `src/storage/sea_orm_storage/grades.rs:22-50` — 创建评分 + 更新提交状态
+- `src/storage/sea_orm_storage/system_settings.rs:41-88` — 更新设置 + 审计日志
+- **影响**: 任一步失败会导致数据不一致
+- **建议**: 使用 `self.db.begin()` 包裹为事务
+
+#### P5. JWT 重复解码
+- **文件**: `src/middlewares/require_jwt.rs:115-149`
+- **问题**: 先调 `verify_access_token()` 验签（内部已解码），再调 `decode_token()` 重新解码。两次完整解码
+- **建议**: 只调一次 `verify_token()`，直接使用返回的 Claims
+
+#### P6. 班级角色中间件每请求查数据库
+- **文件**: `src/middlewares/require_class_role.rs:225-242`
+- **问题**: `RequireClassRole` 中间件无缓存，每个请求都查 `class_user` 表
+- **影响**: 班级相关接口在高并发下产生大量重复查询
+- **建议**: 短期缓存（如 5 分钟）班级成员角色信息，成员变动时失效
+
+#### P7. Moka 缓存忽略单项 TTL
+- **文件**: `src/cache/object_cache/moka.rs:49-58`
+- **问题**: `insert_raw` 的 `ttl` 参数被完全忽略，所有缓存项使用全局 TTL
+- **建议**: 使用 Moka 的 `policy::expiration()` 或 `expiry` trait 支持按项 TTL
+
+#### P8. payload 限制与上传限制冲突
+- **文件**: `config.example.toml`
+- **问题**: `max_payload_size = 1MB`，但 `upload.max_size = 10MB`，大文件上传会被全局 payload 限制直接拒绝
+- **建议**: 将 `max_payload_size` 调整为 >= `upload.max_size`，或对上传接口单独配置
+
+---
+
+### 🟡 中等优先级
+
+#### P9. Services 层多处顺序查询应改为批量
+| 文件 | 行号 | 问题 |
+|------|------|------|
+| `src/services/classes/list.rs` | 126-153 | 循环查教师信息，应批量 |
+| `src/services/homeworks/stats.rs` | 155-160 | 循环查每个提交的评分 |
+| `src/services/homeworks/stats.rs` | 189-201 | 循环查未提交学生的用户信息 |
+| `src/services/homeworks/detail.rs` | 56-70 | 循环查文件信息 |
+| `src/services/notifications/trigger.rs` | 88-100 | 每次发通知都查班级学生列表，可缓存 |
+
+#### P10. Storage 更新操作重复查询
+- **文件**: `src/storage/sea_orm_storage/users.rs:172-221`
+- **问题**: 更新前查一次确认存在，更新后又查一次返回。`update()` 本身返回更新后数据
+- **同样问题**: `classes.rs:122-156`、`grades.rs:76-110`
+- **建议**: 直接使用 `update()` 返回值构造结果
+
+#### P11. 批量通知逐条插入
+- **文件**: `src/storage/sea_orm_storage/notifications.rs:46-76`
+- **问题**: 循环中逐条 `insert`
+- **建议**: 使用 SeaORM `insert_many` 批量插入
+
+#### P12. 作业列表内存中全量过滤分页
+- **文件**: `src/storage/sea_orm_storage/homeworks.rs:746-764`
+- **问题**: 先查出所有作业到内存，在应用层做状态过滤和分页
+- **影响**: 数据量大时内存消耗高
+- **建议**: 将状态过滤下推到 SQL 层，使用数据库分页
+
+#### P13. `Cache-Control: no-cache` 全局禁用浏览器缓存
+- **文件**: `src/main.rs:117-123`
+- **问题**: 所有响应（包括前端静态资源 JS/CSS/图片）都加了 `no-cache, no-store, must-revalidate`
+- **影响**: 每次页面加载都重新拉取所有静态资源
+- **建议**: 仅对 API 响应禁用缓存，对静态资源设置合理的 Cache-Control
+
+#### P14. 数据库连接池可能不足
+- **文件**: `config.example.toml`
+- **问题**: `pool_size = 10`，但 `max_workers` 可达 32。高并发时连接池成为瓶颈
+- **建议**: `pool_size >= workers * 2`
+
+#### P15. XLSX 导出阻塞请求线程
+- **文件**: `src/services/classes/export.rs:290-327`
+- **问题**: XLSX 文件生成在 Actix worker 线程同步执行，大数据量时阻塞线程
+- **建议**: 使用 `actix_web::web::block` 放到线程池执行
+
+---
+
+### 🔵 低优先级
+
+#### P16. JWT 缓存键使用完整 token 字符串
+- **文件**: `src/middlewares/require_jwt.rs:127`
+- **问题**: JWT token 长度 200-500+ 字符，作为缓存 key 浪费内存
+- **建议**: 使用 token hash 或 user_id + token_version 作为 key
+
+#### P17. JWT Secret 每次操作都 clone
+- **文件**: `src/utils/jwt.rs:26-29`
+- **问题**: `get_secret()` 每次都 clone String 并重新构建 `DecodingKey`/`EncodingKey`
+- **建议**: 用 `OnceLock` 缓存 `DecodingKey` 和 `EncodingKey`
+
+#### P18. 限流器固定窗口算法
+- **文件**: `src/middlewares/rate_limit.rs:46-51`
+- **问题**: 固定窗口限流在窗口边界允许 2x burst
+- **建议**: 改用滑动窗口或令牌桶算法
+
+#### P19. 限流器 hot path 多次字符串分配
+- **文件**: `src/middlewares/rate_limit.rs:237-245`
+- **问题**: 每个请求多次 `format!` 创建新 String
+- **建议**: 预分配或使用 `write!` 到 buffer
+
+#### P20. 动态配置每次读取加 RwLock + clone
+- **文件**: `src/services/system/settings_cache.rs:54-60`
+- **问题**: 频繁读取的配置每次都要获取读锁并 clone String
+- **建议**: 使用 `DashMap` 或 `Arc<str>` 减少锁竞争和分配
+
+#### P21. 缓存注册表使用 RwLock（仅启动时用）
+- **文件**: `src/cache/register.rs:15-32`
+- **问题**: 注册表仅在启动时写入，运行时只读，RwLock 多余
+- **建议**: 改用 `OnceLock` 或 `LazyLock`
+
+---
+
+### 性能问题统计
+
+| 严重程度 | 数量 | 已修复 | 问题编号 |
+|---------|------|--------|---------|
+| 🔴 严重 | 3 | 3 | P1 ✅, P2 ✅, P3 ✅ |
+| 🟠 高 | 5 | 0 | P4-P8 |
+| 🟡 中 | 7 | 0 | P9-P15 |
+| 🔵 低 | 6 | 0 | P16-P21 |
+
+### 建议修复顺序
+
+1. **第一批 — 安全 + 数据完整性**
+   - [x] P1: 限流器竞态修复 ✅
+   - [ ] P4: 事务保护
+
+2. **第二批 — 高频路径优化**
+   - [ ] P5: JWT 去重解码
+   - [ ] P6: 中间件缓存
+   - [ ] P8: payload 限制修正
+
+3. **第三批 — 查询优化**
+   - [x] P2: 导出报表 N+1 ✅
+   - [x] P3: 作业列表 N+1 ✅
+   - [ ] P9: Services 层批量化
+   - [ ] P12: 数据库层分页
+
+4. **第四批 — 运行时优化**
+   - [ ] P7, P13, P14, P15 及低优先级项
+
+---
+
 ## 验证方式
 
 修复后需要验证：
@@ -218,3 +397,5 @@
 3. 手动测试文件上传/下载/删除流程
 4. 使用 OWASP ZAP 或类似工具进行安全扫描
 5. 检查生产环境 CORS 配置是否正确
+6. 对 N+1 修复项进行 SQL 日志对比验证（修复前后查询数量）
+7. 使用 `wrk` 或 `hey` 对限流器进行并发压测

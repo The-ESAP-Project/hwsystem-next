@@ -14,6 +14,7 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, Condition, EntityTrait, FromQueryResult, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, Set,
 };
+use std::collections::HashMap;
 
 impl SeaOrmStorage {
     /// 创建用户
@@ -429,5 +430,20 @@ impl SeaOrmStorage {
             pending_review,
             server_time: now.to_rfc3339(),
         })
+    }
+
+    /// 批量获取用户信息
+    pub async fn get_users_by_ids_impl(&self, ids: &[i64]) -> Result<HashMap<i64, User>> {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let users = Users::find()
+            .filter(Column::Id.is_in(ids.to_vec()))
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("批量查询用户失败: {e}")))?;
+
+        Ok(users.into_iter().map(|u| (u.id, u.into_user())).collect())
     }
 }

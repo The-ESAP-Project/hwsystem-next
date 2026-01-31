@@ -860,10 +860,18 @@ impl SeaOrmStorage {
             .collect();
 
         let mut creator_map: HashMap<i64, HomeworkCreator> = HashMap::new();
-        for creator_id in creator_ids {
-            if let Ok(Some(user)) = self.get_user_by_id_impl(creator_id).await {
+        if !creator_ids.is_empty() {
+            let users = Users::find()
+                .filter(UserColumn::Id.is_in(creator_ids))
+                .all(&self.db)
+                .await
+                .map_err(|e| {
+                    HWSystemError::database_operation(format!("查询创建者信息失败: {e}"))
+                })?;
+
+            for user in users {
                 creator_map.insert(
-                    creator_id,
+                    user.id,
                     HomeworkCreator {
                         id: user.id,
                         username: user.username,

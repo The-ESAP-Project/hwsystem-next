@@ -36,14 +36,16 @@ use futures_util::future::{LocalBoxFuture, Ready, ready};
 use moka::future::Cache;
 use once_cell::sync::Lazy;
 use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 use tracing::warn;
 
 use crate::models::{ApiResponse, ErrorCode};
 
 /// 全局速率限制缓存
-/// 键: IP:路由前缀，值: 请求计数
-static RATE_LIMIT_CACHE: Lazy<Cache<String, u32>> = Lazy::new(|| {
+/// 键: IP:路由前缀，值: 原子计数器
+static RATE_LIMIT_CACHE: Lazy<Cache<String, Arc<AtomicU32>>> = Lazy::new(|| {
     Cache::builder()
         .time_to_live(Duration::from_secs(60)) // 1分钟过期
         .max_capacity(100_000)
@@ -244,23 +246,27 @@ where
                 format!("{}:{}", key_prefix, identifier)
             };
 
-            // 获取当前计数
-            let current_count = RATE_LIMIT_CACHE.get(&cache_key).await.unwrap_or(0);
+            // 原子获取或创建计数器
+            let counter = RATE_LIMIT_CACHE
+                .get_with(cache_key.clone(), async { Arc::new(AtomicU32::new(0)) })
+                .await;
+
+            // 原子递增，返回递增前的值
+            let current_count = counter.fetch_add(1, Ordering::Relaxed);
 
             // 检查是否超过限制
             if current_count >= max_requests {
+                // 回退计数（超限请求不应计入）
+                counter.fetch_sub(1, Ordering::Relaxed);
                 warn!(
                     "Rate limit exceeded for key: {} (count: {}/{})",
-                    cache_key, current_count, max_requests
+                    cache_key,
+                    current_count + 1,
+                    max_requests
                 );
                 return Ok(req
                     .into_response(create_rate_limit_response(window_secs).map_into_right_body()));
             }
-
-            // 增加计数
-            RATE_LIMIT_CACHE
-                .insert(cache_key.clone(), current_count + 1)
-                .await;
 
             // 添加速率限制头
             let remaining = max_requests.saturating_sub(current_count + 1);

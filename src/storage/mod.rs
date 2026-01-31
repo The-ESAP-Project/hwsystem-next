@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::models::{
@@ -93,6 +94,8 @@ pub trait Storage: Send + Sync {
     ) -> Result<Vec<User>>;
     /// 获取用户综合统计（合并学生和教师视角）
     async fn get_user_stats(&self, user_id: i64, role: UserRole) -> Result<UserStatsResponse>;
+    /// 批量获取用户信息
+    async fn get_users_by_ids(&self, ids: &[i64]) -> Result<HashMap<i64, User>>;
 
     // ============================================
     // 文件管理方法
@@ -286,6 +289,11 @@ pub trait Storage: Send + Sync {
         &self,
         homework_id: i64,
     ) -> Result<Vec<SubmissionListItem>>;
+    /// 批量获取多个作业的所有提交（不分页，用于导出）
+    async fn list_all_submissions_by_homework_ids(
+        &self,
+        homework_ids: &[i64],
+    ) -> Result<Vec<SubmissionListItem>>;
     /// 删除提交（撤回）
     async fn delete_submission(&self, submission_id: i64) -> Result<bool>;
     /// 更新提交状态
@@ -338,6 +346,11 @@ pub trait Storage: Send + Sync {
     /// 列出评分（分页）
     async fn list_grades_with_pagination(&self, query: GradeListQuery)
     -> Result<GradeListResponse>;
+    /// 批量获取评分（通过提交ID列表），返回 submission_id -> Grade 的映射
+    async fn get_grades_by_submission_ids(
+        &self,
+        submission_ids: &[i64],
+    ) -> Result<HashMap<i64, Grade>>;
 
     // ============================================
     // 通知管理方法

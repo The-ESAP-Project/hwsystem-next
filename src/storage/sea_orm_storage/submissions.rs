@@ -891,4 +891,71 @@ impl SeaOrmStorage {
 
         Ok(items)
     }
+
+    /// 批量获取多个作业的所有提交（不分页，用于导出）
+    pub async fn list_all_submissions_by_homework_ids_impl(
+        &self,
+        homework_ids: &[i64],
+    ) -> Result<Vec<SubmissionListItem>> {
+        if homework_ids.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let submissions = Submissions::find()
+            .filter(Column::HomeworkId.is_in(homework_ids.to_vec()))
+            .order_by_desc(Column::SubmittedAt)
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("批量查询提交列表失败: {e}")))?;
+
+        if submissions.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // 批量查询用户信息
+        let creator_ids: Vec<i64> = submissions
+            .iter()
+            .map(|s| s.creator_id)
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        let users = Users::find()
+            .filter(UserColumn::Id.is_in(creator_ids))
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询用户信息失败: {e}")))?;
+
+        let user_map: HashMap<i64, _> = users.into_iter().map(|u| (u.id, u)).collect();
+
+        // 组装 SubmissionListItem
+        let items = submissions
+            .into_iter()
+            .map(|s| {
+                let creator = user_map.get(&s.creator_id);
+                SubmissionListItem {
+                    id: s.id,
+                    homework_id: s.homework_id,
+                    creator_id: s.creator_id,
+                    creator: SubmissionCreator {
+                        id: creator.map(|u| u.id).unwrap_or(s.creator_id),
+                        username: creator
+                            .map(|u| u.username.clone())
+                            .unwrap_or_else(|| "未知用户".to_string()),
+                        display_name: creator.and_then(|u| u.display_name.clone()),
+                        avatar_url: creator.and_then(|u| u.avatar_url.clone()),
+                    },
+                    version: s.version,
+                    content: s.content,
+                    status: s.status,
+                    is_late: s.is_late,
+                    submitted_at: chrono::DateTime::from_timestamp(s.submitted_at, 0)
+                        .map(|dt| dt.to_rfc3339())
+                        .unwrap_or_default(),
+                }
+            })
+            .collect();
+
+        Ok(items)
+    }
 }

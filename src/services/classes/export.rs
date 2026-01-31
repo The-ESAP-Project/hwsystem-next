@@ -161,57 +161,103 @@ pub async fn export_class_report(
 
     let total_homeworks = homeworks.len() as i64;
 
-    // 收集所有作业的提交和评分数据
-    // homework_id -> (user_id -> StudentHomeworkStatus)
+    // === P2 优化：批量查询所有数据，从 ~N+1 降到 4 次查询 ===
+
+    // 1. 一次查询所有作业的提交
+    let homework_ids: Vec<i64> = homeworks.iter().map(|h| h.id).collect();
+    let all_submissions = match storage
+        .list_all_submissions_by_homework_ids(&homework_ids)
+        .await
+    {
+        Ok(subs) => subs,
+        Err(e) => {
+            return Ok(
+                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
+                    ErrorCode::InternalServerError,
+                    format!("批量查询提交失败: {e}"),
+                )),
+            );
+        }
+    };
+
+    // 2. 在内存中按 homework_id 分组，为每个学生保留最新版本
+    // homework_id -> (creator_id -> SubmissionListItem)
+    let mut submissions_by_hw: HashMap<
+        i64,
+        HashMap<i64, &crate::models::submissions::responses::SubmissionListItem>,
+    > = HashMap::new();
+    for submission in &all_submissions {
+        if !student_ids.contains(&submission.creator_id) {
+            continue;
+        }
+        let hw_map = submissions_by_hw.entry(submission.homework_id).or_default();
+        let entry = hw_map.entry(submission.creator_id).or_insert(submission);
+        if submission.version > entry.version {
+            *entry = submission;
+        }
+    }
+
+    // 3. 收集所有最新提交的 submission IDs，一次查询所有评分
+    let all_latest_submission_ids: Vec<i64> = submissions_by_hw
+        .values()
+        .flat_map(|hw_map| hw_map.values().map(|s| s.id))
+        .collect();
+    let grades_map = match storage
+        .get_grades_by_submission_ids(&all_latest_submission_ids)
+        .await
+    {
+        Ok(grades) => grades,
+        Err(e) => {
+            return Ok(
+                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
+                    ErrorCode::InternalServerError,
+                    format!("批量查询评分失败: {e}"),
+                )),
+            );
+        }
+    };
+
+    // 4. 收集所有学生 user_ids，一次查询所有用户信息
+    let student_user_ids: Vec<i64> = students.iter().map(|s| s.user_id).collect();
+    let users_map = match storage.get_users_by_ids(&student_user_ids).await {
+        Ok(users) => users,
+        Err(e) => {
+            return Ok(
+                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
+                    ErrorCode::InternalServerError,
+                    format!("批量查询用户失败: {e}"),
+                )),
+            );
+        }
+    };
+
+    // 构建 homework_submissions 和 homework_summaries
     let mut homework_submissions: HashMap<i64, HashMap<i64, StudentHomeworkStatus>> =
         HashMap::new();
     let mut homework_summaries: Vec<HomeworkSummary> = Vec::new();
 
     for homework in &homeworks {
         let hw_id = homework.id;
+        let hw_submissions = submissions_by_hw.get(&hw_id);
 
-        // 获取该作业的所有提交（不分页）
-        let submissions = match storage.list_all_submissions_by_homework(hw_id).await {
-            Ok(subs) => subs,
-            Err(e) => {
-                error!("查询作业 {} 的提交失败: {}", hw_id, e);
-                continue;
-            }
-        };
-
-        // 为每个学生只保留最新版本的提交
-        let mut latest_submissions: HashMap<
-            i64,
-            &crate::models::submissions::responses::SubmissionListItem,
-        > = HashMap::new();
-        for submission in &submissions {
-            if !student_ids.contains(&submission.creator_id) {
-                continue;
-            }
-            let entry = latest_submissions
-                .entry(submission.creator_id)
-                .or_insert(submission);
-            if submission.version > entry.version {
-                *entry = submission;
-            }
-        }
-
-        // 获取评分信息并构建状态映射
         let mut user_statuses: HashMap<i64, StudentHomeworkStatus> = HashMap::new();
         let mut graded_count = 0i64;
         let mut scores: Vec<f64> = Vec::new();
+        let mut submitted_count = 0i64;
 
-        for (&user_id, submission) in &latest_submissions {
-            if let Ok(Some(grade)) = storage.get_grade_by_submission_id(submission.id).await {
-                user_statuses.insert(user_id, StudentHomeworkStatus::Graded(grade.score));
-                graded_count += 1;
-                scores.push(grade.score);
-            } else {
-                user_statuses.insert(user_id, StudentHomeworkStatus::Submitted);
+        if let Some(latest_submissions) = hw_submissions {
+            submitted_count = latest_submissions.len() as i64;
+            for (&user_id, submission) in latest_submissions {
+                if let Some(grade) = grades_map.get(&submission.id) {
+                    user_statuses.insert(user_id, StudentHomeworkStatus::Graded(grade.score));
+                    graded_count += 1;
+                    scores.push(grade.score);
+                } else {
+                    user_statuses.insert(user_id, StudentHomeworkStatus::Submitted);
+                }
             }
         }
 
-        let submitted_count = latest_submissions.len() as i64;
         let avg_score = if !scores.is_empty() {
             Some((scores.iter().sum::<f64>() / scores.len() as f64 * 100.0).round() / 100.0)
         } else {
@@ -230,10 +276,10 @@ pub async fn export_class_report(
         });
     }
 
-    // 构建学生明细数据
+    // 构建学生明细数据（使用已查询的用户信息）
     let mut student_details: Vec<StudentDetail> = Vec::new();
     for student in &students {
-        if let Ok(Some(user)) = storage.get_user_by_id(student.user_id).await {
+        if let Some(user) = users_map.get(&student.user_id) {
             let mut statuses: Vec<StudentHomeworkStatus> = Vec::new();
             let mut total_submitted = 0i64;
             let mut score_sum = 0.0f64;
@@ -267,8 +313,11 @@ pub async fn export_class_report(
             };
 
             student_details.push(StudentDetail {
-                display_name: user.display_name.unwrap_or_else(|| user.username.clone()),
-                username: user.username,
+                display_name: user
+                    .display_name
+                    .clone()
+                    .unwrap_or_else(|| user.username.clone()),
+                username: user.username.clone(),
                 homework_statuses: statuses,
                 total_submitted,
                 total_homeworks,

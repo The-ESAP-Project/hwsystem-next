@@ -1,5 +1,7 @@
 //! 评分存储操作
 
+use std::collections::HashMap;
+
 use super::SeaOrmStorage;
 use crate::entity::grades::{ActiveModel, Column, Entity as Grades};
 use crate::entity::submissions::Column as SubmissionColumn;
@@ -167,5 +169,26 @@ impl SeaOrmStorage {
                 total_pages: pages as i64,
             },
         })
+    }
+
+    /// 批量获取评分（通过提交ID列表）
+    pub async fn get_grades_by_submission_ids_impl(
+        &self,
+        submission_ids: &[i64],
+    ) -> Result<HashMap<i64, Grade>> {
+        if submission_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let grades = Grades::find()
+            .filter(Column::SubmissionId.is_in(submission_ids.to_vec()))
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("批量查询评分失败: {e}")))?;
+
+        Ok(grades
+            .into_iter()
+            .map(|g| (g.submission_id, g.into_grade()))
+            .collect())
     }
 }

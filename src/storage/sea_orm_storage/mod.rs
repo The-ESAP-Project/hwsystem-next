@@ -163,6 +163,7 @@ use crate::models::{
 };
 use crate::storage::Storage;
 use async_trait::async_trait;
+use std::collections::HashMap;
 
 #[async_trait]
 impl Storage for SeaOrmStorage {
@@ -235,6 +236,10 @@ impl Storage for SeaOrmStorage {
 
     async fn get_user_stats(&self, user_id: i64, role: UserRole) -> Result<UserStatsResponse> {
         self.get_user_stats_impl(user_id, role).await
+    }
+
+    async fn get_users_by_ids(&self, ids: &[i64]) -> Result<HashMap<i64, User>> {
+        self.get_users_by_ids_impl(ids).await
     }
 
     // ============================================
@@ -515,6 +520,14 @@ impl Storage for SeaOrmStorage {
             .await
     }
 
+    async fn list_all_submissions_by_homework_ids(
+        &self,
+        homework_ids: &[i64],
+    ) -> Result<Vec<SubmissionListItem>> {
+        self.list_all_submissions_by_homework_ids_impl(homework_ids)
+            .await
+    }
+
     async fn delete_submission(&self, submission_id: i64) -> Result<bool> {
         self.delete_submission_impl(submission_id).await
     }
@@ -589,6 +602,13 @@ impl Storage for SeaOrmStorage {
         query: GradeListQuery,
     ) -> Result<GradeListResponse> {
         self.list_grades_with_pagination_impl(query).await
+    }
+
+    async fn get_grades_by_submission_ids(
+        &self,
+        submission_ids: &[i64],
+    ) -> Result<HashMap<i64, Grade>> {
+        self.get_grades_by_submission_ids_impl(submission_ids).await
     }
 
     // ============================================

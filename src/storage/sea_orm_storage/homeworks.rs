@@ -27,8 +27,10 @@ use crate::models::{
 };
 use crate::utils::escape_like_pattern;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, ExprTrait, FromQueryResult,
-    PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set, TransactionTrait,
+    ActiveModelTrait, ColumnTrait, Condition, ConnectionTrait, EntityTrait, ExprTrait,
+    FromQueryResult, JoinType, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set,
+    TransactionTrait,
+    sea_query::{Expr, Query},
 };
 
 impl SeaOrmStorage {
@@ -679,6 +681,69 @@ impl SeaOrmStorage {
         ))
     }
 
+    /// 构建状态过滤条件（将状态过滤下推到 SQL 层）
+    ///
+    /// 通过 EXISTS/NOT EXISTS 子查询实现：
+    /// - Pending: 没有提交
+    /// - Submitted: 有提交但没评分
+    /// - Graded: 有提交且有评分
+    fn build_status_filter(
+        select: sea_orm::Select<Homeworks>,
+        status: HomeworkUserStatus,
+        user_id: i64,
+    ) -> sea_orm::Select<Homeworks> {
+        // 构建子查询：用户在该作业下是否有提交
+        let submission_exists_subquery = Query::select()
+            .expr(Expr::val(1))
+            .from(Submissions)
+            .cond_where(
+                Condition::all()
+                    .add(
+                        Expr::col((Submissions, SubmissionColumn::HomeworkId))
+                            .equals((Homeworks, Column::Id)),
+                    )
+                    .add(Expr::col((Submissions, SubmissionColumn::CreatorId)).eq(user_id)),
+            )
+            .to_owned();
+
+        // 构建子查询：用户在该作业下是否有评分（需要 JOIN submissions）
+        let grade_exists_subquery = Query::select()
+            .expr(Expr::val(1))
+            .from(Grades)
+            .join(
+                JoinType::InnerJoin,
+                Submissions,
+                Expr::col((Grades, GradeColumn::SubmissionId))
+                    .equals((Submissions, SubmissionColumn::Id)),
+            )
+            .cond_where(
+                Condition::all()
+                    .add(
+                        Expr::col((Submissions, SubmissionColumn::HomeworkId))
+                            .equals((Homeworks, Column::Id)),
+                    )
+                    .add(Expr::col((Submissions, SubmissionColumn::CreatorId)).eq(user_id)),
+            )
+            .to_owned();
+
+        match status {
+            HomeworkUserStatus::Pending => {
+                // 没有提交：NOT EXISTS submission
+                select.filter(Expr::exists(submission_exists_subquery).not())
+            }
+            HomeworkUserStatus::Submitted => {
+                // 有提交但没评分：EXISTS submission AND NOT EXISTS grade
+                select
+                    .filter(Expr::exists(submission_exists_subquery))
+                    .filter(Expr::exists(grade_exists_subquery).not())
+            }
+            HomeworkUserStatus::Graded => {
+                // 有提交且有评分：EXISTS grade
+                select.filter(Expr::exists(grade_exists_subquery))
+            }
+        }
+    }
+
     /// 列出用户所有班级的作业（跨班级）
     pub async fn list_all_homeworks_impl(
         &self,
@@ -775,14 +840,20 @@ impl SeaOrmStorage {
         // 排序
         select = select.order_by_desc(Column::CreatedAt);
 
-        // 3. 获取所有符合条件的作业（用于状态过滤）
-        let all_homeworks: Vec<crate::entity::homeworks::Model> = select
-            .clone()
-            .all(&self.db)
-            .await
-            .map_err(|e| HWSystemError::database_operation(format!("查询作业列表失败: {e}")))?;
+        // 3. 应用状态过滤（下推到 SQL 层）
+        if let Some(status) = query.status {
+            select = Self::build_status_filter(select, status, user_id);
+        }
 
-        if all_homeworks.is_empty() {
+        // 4. 数据库分页
+        let paginator = select.clone().paginate(&self.db, page_size);
+        let total = paginator
+            .num_items()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询作业总数失败: {e}")))?
+            as i64;
+
+        if total == 0 {
             return Ok(AllHomeworksResponse {
                 items: vec![],
                 pagination: PaginationInfo {
@@ -795,10 +866,21 @@ impl SeaOrmStorage {
             });
         }
 
-        // 4. 如果是学生视角且需要状态过滤，先获取提交状态
-        let homework_ids: Vec<i64> = all_homeworks.iter().map(|h| h.id).collect();
+        let total_pages = ((total as f64) / (page_size as f64)).ceil() as i64;
+        let paged_homeworks: Vec<crate::entity::homeworks::Model> = paginator
+            .fetch_page(page - 1)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询作业列表失败: {e}")))?;
 
-        // 查询用户的提交状态
+        // 5. 转换为业务模型
+        let ordered_homeworks: Vec<Homework> = paged_homeworks
+            .into_iter()
+            .map(|m| m.into_homework())
+            .collect();
+
+        let homework_ids: Vec<i64> = ordered_homeworks.iter().map(|h| h.id).collect();
+
+        // 6. 查询用户的提交状态（仅针对分页后的作业）
         let submissions = Submissions::find()
             .filter(SubmissionColumn::HomeworkId.is_in(homework_ids.clone()))
             .filter(SubmissionColumn::CreatorId.eq(user_id))
@@ -836,54 +918,7 @@ impl SeaOrmStorage {
             }
         }
 
-        // 5. 根据状态过滤作业
-        let filtered_homework_ids: Vec<i64> = if let Some(status) = query.status {
-            all_homeworks
-                .iter()
-                .filter(|hw| {
-                    let hw_status = if let Some((sub_id, _, _, _)) = my_submission_map.get(&hw.id) {
-                        if grade_map.contains_key(sub_id) {
-                            HomeworkUserStatus::Graded
-                        } else {
-                            HomeworkUserStatus::Submitted
-                        }
-                    } else {
-                        HomeworkUserStatus::Pending
-                    };
-                    hw_status == status
-                })
-                .map(|hw| hw.id)
-                .collect()
-        } else {
-            homework_ids.clone()
-        };
-
-        // 6. 分页
-        let total = filtered_homework_ids.len() as i64;
-        let total_pages = ((total as f64) / (page_size as f64)).ceil() as i64;
-        let offset = ((page - 1) * page_size) as usize;
-        let paged_ids: Vec<i64> = filtered_homework_ids
-            .into_iter()
-            .skip(offset)
-            .take(page_size as usize)
-            .collect();
-
-        // 7. 获取分页后的作业详情
-        let homeworks: Vec<Homework> = all_homeworks
-            .into_iter()
-            .filter(|hw| paged_ids.contains(&hw.id))
-            .map(|m| m.into_homework())
-            .collect();
-
-        // 保持原始顺序
-        let mut ordered_homeworks: Vec<Homework> = Vec::with_capacity(paged_ids.len());
-        for id in &paged_ids {
-            if let Some(hw) = homeworks.iter().find(|h| h.id == *id) {
-                ordered_homeworks.push(hw.clone());
-            }
-        }
-
-        // 8. 查询创建者信息
+        // 7. 查询创建者信息
         let creator_ids: Vec<i64> = ordered_homeworks
             .iter()
             .map(|h| h.created_by)
@@ -914,7 +949,7 @@ impl SeaOrmStorage {
             }
         }
 
-        // 9. 查询统计信息（如果 include_stats=true）
+        // 8. 查询统计信息（如果 include_stats=true）
         let mut stats_map: HashMap<i64, HomeworkStatsSummary> = HashMap::new();
         if query.include_stats.unwrap_or(false) && !ordered_homeworks.is_empty() {
             // 批量查询每个班级的学生数（按 class_id 去重，单次 GROUP BY）
@@ -1025,7 +1060,7 @@ impl SeaOrmStorage {
             }
         }
 
-        // 10. 构造响应
+        // 9. 构造响应
         let items: Vec<HomeworkListItem> = ordered_homeworks
             .into_iter()
             .map(|homework| {

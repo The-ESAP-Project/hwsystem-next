@@ -345,25 +345,25 @@
 - ~~**问题**: `get_secret()` 每次都 clone String 并重新构建 `DecodingKey`/`EncodingKey`~~
 - ✅ 使用 `OnceLock` 缓存 `EncodingKey` 和 `DecodingKey`，只在首次调用时构建
 
-#### P18. 限流器固定窗口算法
-- **文件**: `src/middlewares/rate_limit.rs:46-51`
-- **问题**: 固定窗口限流在窗口边界允许 2x burst
-- **建议**: 改用滑动窗口或令牌桶算法
+#### P18. ~~限流器固定窗口算法~~ ✅ 已修复
+- **文件**: `src/middlewares/rate_limit.rs:46-96`
+- ~~**问题**: 固定窗口限流在窗口边界允许 2x burst~~
+- ✅ 改用滑动窗口算法，存储请求时间戳列表，精确限流
 
-#### P19. 限流器 hot path 多次字符串分配
-- **文件**: `src/middlewares/rate_limit.rs:237-245`
-- **问题**: 每个请求多次 `format!` 创建新 String
-- **建议**: 预分配或使用 `write!` 到 buffer
+#### P19. ~~限流器 hot path 多次字符串分配~~ ✅ 已修复
+- **文件**: `src/middlewares/rate_limit.rs:160-213, 283-332`
+- ~~**问题**: 每个请求多次 `format!` 创建新 String~~
+- ✅ 新增 `extract_client_ip_into` 函数，使用预分配 buffer 和 `write!` 宏
 
-#### P20. 动态配置每次读取加 RwLock + clone
-- **文件**: `src/services/system/settings_cache.rs:54-60`
-- **问题**: 频繁读取的配置每次都要获取读锁并 clone String
-- **建议**: 使用 `DashMap` 或 `Arc<str>` 减少锁竞争和分配
+#### P20. ~~动态配置每次读取加 RwLock + clone~~ ✅ 已修复
+- **文件**: `src/services/system/settings_cache.rs:17-61`
+- ~~**问题**: 频繁读取的配置每次都要获取读锁并 clone String~~
+- ✅ 使用 `Arc<str>` 替代 `String`，clone Arc 只增加引用计数
 
-#### P21. 缓存注册表使用 RwLock（仅启动时用）
-- **文件**: `src/cache/register.rs:15-32`
-- **问题**: 注册表仅在启动时写入，运行时只读，RwLock 多余
-- **建议**: 改用 `OnceLock` 或 `LazyLock`
+#### P21. ~~缓存注册表使用 RwLock（仅启动时用）~~ ✅ 已修复
+- **文件**: `src/cache/register.rs:15-53`, `src/runtime/lifetime/startup.rs:180`
+- ~~**问题**: 注册表仅在启动时写入，运行时只读，RwLock 多余~~
+- ✅ 改用 `OnceLock<HashMap>` + `Mutex<Vec>` 收集器模式，启动时冻结
 
 ---
 
@@ -374,7 +374,9 @@
 | 🔴 严重 | 3 | 3 | P1 ✅, P2 ✅, P3 ✅ |
 | 🟠 高 | 5 | 5 | P4 ✅, P5 ✅, P6 ✅, P7 ✅, P8 ✅ |
 | 🟡 中 | 7 | 7 | P9 ✅, P10 ✅, P11 ✅, P12 ✅, P13 ✅, P14 ✅, P15 ✅ |
-| 🔵 低 | 6 | 2 | P16 ✅, P17 ✅, P18-P21 |
+| 🔵 低 | 6 | 6 | P16 ✅, P17 ✅, P18 ✅, P19 ✅, P20 ✅, P21 ✅ |
+
+**🎉 全部 21 个性能问题已修复完成！**
 
 ### 建议修复顺序
 

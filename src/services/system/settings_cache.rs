@@ -4,7 +4,7 @@
 //! 使用 RwLock 保护，支持热更新。
 
 use std::collections::HashMap;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
 
 use crate::config::AppConfig;
@@ -15,7 +15,8 @@ static DYNAMIC_CONFIG: OnceLock<RwLock<DynamicConfigCache>> = OnceLock::new();
 /// 动态配置缓存内部结构
 #[derive(Debug, Default)]
 struct DynamicConfigCache {
-    settings: HashMap<String, String>,
+    /// 使用 Arc<str> 避免每次读取时 clone 整个 String
+    settings: HashMap<String, Arc<str>>,
     initialized: bool,
 }
 
@@ -31,7 +32,7 @@ impl DynamicConfig {
         let mut guard = cache.write().await;
         guard.settings.clear();
         for (key, value) in settings {
-            guard.settings.insert(key, value);
+            guard.settings.insert(key, Arc::from(value));
         }
         guard.initialized = true;
 
@@ -45,13 +46,13 @@ impl DynamicConfig {
     pub async fn update(key: &str, value: &str) {
         if let Some(cache) = DYNAMIC_CONFIG.get() {
             let mut guard = cache.write().await;
-            guard.settings.insert(key.to_string(), value.to_string());
+            guard.settings.insert(key.to_string(), Arc::from(value));
             tracing::debug!("动态配置更新: {} = {}", key, value);
         }
     }
 
-    /// 获取字符串配置
-    async fn get_string(key: &str) -> Option<String> {
+    /// 获取字符串配置（返回 Arc<str> 避免复制）
+    async fn get_string(key: &str) -> Option<Arc<str>> {
         if let Some(cache) = DYNAMIC_CONFIG.get() {
             let guard = cache.read().await;
             return guard.settings.get(key).cloned();
@@ -79,6 +80,7 @@ impl DynamicConfig {
     pub async fn system_name() -> String {
         Self::get_string("app.system_name")
             .await
+            .map(|s| s.to_string())
             .unwrap_or_else(|| AppConfig::get().app.system_name.clone())
     }
 

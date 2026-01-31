@@ -1,4 +1,7 @@
-use crate::cache::{ObjectCache, register::get_object_cache_plugin};
+use crate::cache::{
+    ObjectCache,
+    register::{finalize_cache_registry, get_object_cache_plugin},
+};
 use crate::config::AppConfig;
 use crate::models::users::entities::UserRole;
 use crate::models::users::requests::CreateUserRequest;
@@ -175,6 +178,9 @@ pub async fn prepare_server_startup() -> StartupContext {
     rustls::crypto::ring::default_provider()
         .install_default()
         .expect("Failed to install rustls crypto provider");
+
+    // 冻结缓存注册表（在 main() 前通过 ctor 注册的插件）
+    finalize_cache_registry();
 
     if cfg!(debug_assertions) {
         crate::cache::register::debug_object_cache_registry();

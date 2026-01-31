@@ -35,19 +35,62 @@ use actix_web::{
 use futures_util::future::{LocalBoxFuture, Ready, ready};
 use moka::future::Cache;
 use once_cell::sync::Lazy;
+use parking_lot::Mutex;
+use std::collections::VecDeque;
+use std::fmt::Write;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tracing::warn;
 
 use crate::models::{ApiResponse, ErrorCode};
 
+/// 滑动窗口计数器
+///
+/// 存储最近 `window_duration` 内的请求时间戳
+struct SlidingWindow {
+    timestamps: VecDeque<Instant>,
+    window_duration: Duration,
+    max_requests: u32,
+}
+
+impl SlidingWindow {
+    fn new(window_secs: u64, max_requests: u32) -> Self {
+        Self {
+            timestamps: VecDeque::with_capacity(max_requests as usize),
+            window_duration: Duration::from_secs(window_secs),
+            max_requests,
+        }
+    }
+
+    /// 尝试获取一次请求配额
+    ///
+    /// 返回 (是否允许, 剩余配额)
+    fn try_acquire(&mut self) -> (bool, u32) {
+        let now = Instant::now();
+        let cutoff = now - self.window_duration;
+
+        // 移除过期的时间戳
+        while self.timestamps.front().is_some_and(|&t| t < cutoff) {
+            self.timestamps.pop_front();
+        }
+
+        let current_count = self.timestamps.len() as u32;
+        if current_count < self.max_requests {
+            self.timestamps.push_back(now);
+            let remaining = self.max_requests - current_count - 1;
+            (true, remaining)
+        } else {
+            (false, 0)
+        }
+    }
+}
+
 /// 全局速率限制缓存
-/// 键: IP:路由前缀，值: 原子计数器
-static RATE_LIMIT_CACHE: Lazy<Cache<String, Arc<AtomicU32>>> = Lazy::new(|| {
+/// 键: 前缀:用户标识，值: 滑动窗口计数器
+static RATE_LIMIT_CACHE: Lazy<Cache<String, Arc<Mutex<SlidingWindow>>>> = Lazy::new(|| {
     Cache::builder()
-        .time_to_live(Duration::from_secs(60)) // 1分钟过期
+        .time_to_idle(Duration::from_secs(120)) // 无访问 2 分钟后过期
         .max_capacity(100_000)
         .build()
 });
@@ -114,25 +157,19 @@ impl RateLimit {
     }
 }
 
-/// 从请求中提取客户端 IP
+/// 从请求中提取客户端 IP 并写入 buffer（零分配版本）
 ///
 /// 安全注意事项：
 /// - 如果服务部署在反向代理后面，需要在反向代理中配置正确的 X-Forwarded-For / X-Real-IP 头
 /// - 此实现会验证 IP 格式，防止伪造的无效头导致问题
 /// - 在不可信网络中直接暴露服务时，攻击者可能伪造转发头来绕过限制
-fn extract_client_ip(req: &ServiceRequest) -> String {
+fn extract_client_ip_into(req: &ServiceRequest, buf: &mut String) {
     // 尝试从连接信息获取真实 IP（最可信）
-    let connection_ip = req
-        .connection_info()
-        .realip_remote_addr()
-        .map(|s| s.to_string());
-
-    // 如果连接信息有有效 IP，优先使用
-    if let Some(ref ip) = connection_ip
-        && is_valid_ip(ip)
-    {
-        return ip.clone();
-    }
+    if let Some(ip) = req.connection_info().realip_remote_addr()
+        && is_valid_ip(ip) {
+            buf.push_str(ip);
+            return;
+        }
 
     // 从 X-Forwarded-For 头获取（用于反向代理场景）
     // 只取第一个 IP（最接近客户端的）
@@ -142,7 +179,8 @@ fn extract_client_ip(req: &ServiceRequest) -> String {
     {
         let ip = ip.trim();
         if is_valid_ip(ip) {
-            return ip.to_string();
+            buf.push_str(ip);
+            return;
         }
     }
 
@@ -152,12 +190,25 @@ fn extract_client_ip(req: &ServiceRequest) -> String {
     {
         let ip = ip.trim();
         if is_valid_ip(ip) {
-            return ip.to_string();
+            buf.push_str(ip);
+            return;
         }
     }
 
     // 如果都没有有效 IP，使用连接信息的默认值
-    connection_ip.unwrap_or_else(|| "unknown".to_string())
+    if let Some(ip) = req.connection_info().realip_remote_addr() {
+        buf.push_str(ip);
+    } else {
+        buf.push_str("unknown");
+    }
+}
+
+/// 从请求中提取客户端 IP（兼容版本，内部调用零分配版本）
+#[allow(dead_code)]
+fn extract_client_ip(req: &ServiceRequest) -> String {
+    let mut buf = String::with_capacity(45); // IPv6 max length
+    extract_client_ip_into(req, &mut buf);
+    buf
 }
 
 /// 验证 IP 地址格式是否有效
@@ -235,41 +286,38 @@ where
         let key_prefix = self.key_prefix.clone();
 
         Box::pin(async move {
-            // 构建限制键
-            let identifier = extract_user_id(&req)
-                .map(|id| format!("user:{}", id))
-                .unwrap_or_else(|| format!("ip:{}", extract_client_ip(&req)));
-
-            let cache_key = if key_prefix.is_empty() {
-                identifier
+            // 构建限制键（预分配 buffer，减少堆分配）
+            let mut cache_key = String::with_capacity(64);
+            if !key_prefix.is_empty() {
+                let _ = write!(&mut cache_key, "{}:", key_prefix);
+            }
+            if let Some(user_id) = extract_user_id(&req) {
+                let _ = write!(&mut cache_key, "user:{}", user_id);
             } else {
-                format!("{}:{}", key_prefix, identifier)
-            };
+                cache_key.push_str("ip:");
+                extract_client_ip_into(&req, &mut cache_key);
+            }
 
-            // 原子获取或创建计数器
-            let counter = RATE_LIMIT_CACHE
-                .get_with(cache_key.clone(), async { Arc::new(AtomicU32::new(0)) })
+            // 获取或创建滑动窗口计数器
+            let window = RATE_LIMIT_CACHE
+                .get_with(cache_key.clone(), async {
+                    Arc::new(Mutex::new(SlidingWindow::new(window_secs, max_requests)))
+                })
                 .await;
 
-            // 原子递增，返回递增前的值
-            let current_count = counter.fetch_add(1, Ordering::Relaxed);
+            // 尝试获取配额
+            let (allowed, remaining) = window.lock().try_acquire();
 
-            // 检查是否超过限制
-            if current_count >= max_requests {
-                // 回退计数（超限请求不应计入）
-                counter.fetch_sub(1, Ordering::Relaxed);
+            if !allowed {
                 warn!(
-                    "Rate limit exceeded for key: {} (count: {}/{})",
-                    cache_key,
-                    current_count + 1,
-                    max_requests
+                    "Rate limit exceeded for key: {} (limit: {}/{}s)",
+                    cache_key, max_requests, window_secs
                 );
                 return Ok(req
                     .into_response(create_rate_limit_response(window_secs).map_into_right_body()));
             }
 
             // 添加速率限制头
-            let remaining = max_requests.saturating_sub(current_count + 1);
             req.extensions_mut().insert(RateLimitInfo {
                 remaining,
                 limit: max_requests,

@@ -112,7 +112,8 @@ async fn extract_and_validate_jwt(req: &ServiceRequest) -> Result<entities::User
         .and_then(|s| s.strip_prefix(BEARER_PREFIX))
         .ok_or_else(|| "Missing or invalid Authorization header".to_string())?;
 
-    crate::utils::jwt::JwtUtils::verify_access_token(token).map_err(|err| {
+    // 验证 token 并保存 Claims（避免后续重复解码）
+    let verified_claims = crate::utils::jwt::JwtUtils::verify_access_token(token).map_err(|err| {
         info!("JWT token validation failed: {}", err);
         "Invalid JWT token".to_string()
     })?;
@@ -143,12 +144,8 @@ async fn extract_and_validate_jwt(req: &ServiceRequest) -> Result<entities::User
         .get_ref()
         .clone();
 
-    let claims = crate::utils::jwt::JwtUtils::decode_token(token).map_err(|err| {
-        info!("Failed to decode JWT token: {}", err);
-        "Invalid JWT token format".to_string()
-    })?;
-
-    let user_id = claims
+    // 使用已验证的 claims（避免重复解码）
+    let user_id = verified_claims
         .sub
         .parse::<i64>()
         .map_err(|_| "Invalid user ID in JWT".to_string())?;

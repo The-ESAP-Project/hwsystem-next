@@ -1,8 +1,8 @@
 //! 系统设置存储实现
 
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, EntityTrait, Order, PaginatorTrait, QueryFilter, QueryOrder,
-    QuerySelect, Set,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, Order, PaginatorTrait,
+    QueryFilter, QueryOrder, QuerySelect, Set, TransactionTrait,
 };
 
 use crate::entity::prelude::{SystemSettings, SystemSettingsAudit};
@@ -38,9 +38,35 @@ impl SeaOrmStorage {
         Ok(setting.map(|s| s.into_setting()))
     }
 
-    /// 更新设置
+    /// 更新设置（使用事务保护）
     pub(crate) async fn update_setting_impl(
         &self,
+        key: &str,
+        value: &str,
+        user_id: i64,
+        ip_address: Option<String>,
+    ) -> Result<SystemSetting> {
+        let txn = self
+            .db
+            .begin()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("开启事务失败: {e}")))?;
+
+        let result = self
+            .update_setting_txn(&txn, key, value, user_id, ip_address)
+            .await?;
+
+        txn.commit()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("提交事务失败: {e}")))?;
+
+        Ok(result)
+    }
+
+    /// 更新设置（事务版本）
+    async fn update_setting_txn<C: ConnectionTrait>(
+        &self,
+        conn: &C,
         key: &str,
         value: &str,
         user_id: i64,
@@ -50,7 +76,7 @@ impl SeaOrmStorage {
 
         // 获取当前设置
         let existing = SystemSettings::find_by_id(key.to_string())
-            .one(&self.db)
+            .one(conn)
             .await
             .map_err(|e| HWSystemError::database_operation(format!("获取设置失败: {e}")))?
             .ok_or_else(|| HWSystemError::not_found(format!("配置项不存在: {key}")))?;
@@ -64,7 +90,7 @@ impl SeaOrmStorage {
         active_model.updated_by = Set(Some(user_id));
 
         let updated = active_model
-            .update(&self.db)
+            .update(conn)
             .await
             .map_err(|e| HWSystemError::database_operation(format!("更新设置失败: {e}")))?;
 
@@ -80,28 +106,38 @@ impl SeaOrmStorage {
         };
 
         audit
-            .insert(&self.db)
+            .insert(conn)
             .await
             .map_err(|e| HWSystemError::database_operation(format!("创建审计日志失败: {e}")))?;
 
         Ok(updated.into_setting())
     }
 
-    /// 批量更新设置
+    /// 批量更新设置（使用事务保护）
     pub(crate) async fn batch_update_settings_impl(
         &self,
         updates: Vec<(String, String)>,
         user_id: i64,
         ip_address: Option<String>,
     ) -> Result<Vec<SystemSetting>> {
+        let txn = self
+            .db
+            .begin()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("开启事务失败: {e}")))?;
+
         let mut results = Vec::new();
 
         for (key, value) in updates {
             let setting = self
-                .update_setting_impl(&key, &value, user_id, ip_address.clone())
+                .update_setting_txn(&txn, &key, &value, user_id, ip_address.clone())
                 .await?;
             results.push(setting);
         }
+
+        txn.commit()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("提交事务失败: {e}")))?;
 
         Ok(results)
     }

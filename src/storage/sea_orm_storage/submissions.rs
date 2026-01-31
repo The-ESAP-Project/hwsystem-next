@@ -26,27 +26,33 @@ use crate::models::{
     },
 };
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, EntityTrait, FromQueryResult, PaginatorTrait, QueryFilter,
-    QueryOrder, QuerySelect, Set,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, PaginatorTrait,
+    QueryFilter, QueryOrder, QuerySelect, Set, TransactionTrait,
 };
 
 impl SeaOrmStorage {
-    /// 创建提交（自动计算版本号）
+    /// 创建提交（自动计算版本号，使用事务保护）
     pub async fn create_submission_impl(
         &self,
         creator_id: i64,
         req: CreateSubmissionRequest,
     ) -> Result<Submission> {
+        let txn = self
+            .db
+            .begin()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("开启事务失败: {e}")))?;
+
         let now = chrono::Utc::now().timestamp();
 
-        // 查询当前最大版本号
+        // 查询当前最大版本号（在事务中查询）
         let max_version = Submissions::find()
             .filter(Column::HomeworkId.eq(req.homework_id))
             .filter(Column::CreatorId.eq(creator_id))
             .select_only()
             .column_as(Column::Version.max(), "max_version")
             .into_tuple::<Option<i32>>()
-            .one(&self.db)
+            .one(&txn)
             .await
             .map_err(|e| HWSystemError::database_operation(format!("查询最大版本号失败: {e}")))?
             .flatten()
@@ -84,15 +90,19 @@ impl SeaOrmStorage {
         };
 
         let result = model
-            .insert(&self.db)
+            .insert(&txn)
             .await
             .map_err(|e| HWSystemError::database_operation(format!("创建提交失败: {e}")))?;
 
         // 处理附件
         if let Some(attachments) = req.attachments {
-            self.set_submission_files_impl(result.id, attachments, creator_id)
+            self.set_submission_files_txn(&txn, result.id, attachments, creator_id)
                 .await?;
         }
+
+        txn.commit()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("提交事务失败: {e}")))?;
 
         Ok(result.into_submission())
     }
@@ -356,13 +366,24 @@ impl SeaOrmStorage {
         submission_id: i64,
         status: &str,
     ) -> Result<bool> {
+        self.update_submission_status_txn(&self.db, submission_id, status)
+            .await
+    }
+
+    /// 更新提交状态（事务版本）
+    pub async fn update_submission_status_txn<C: ConnectionTrait>(
+        &self,
+        conn: &C,
+        submission_id: i64,
+        status: &str,
+    ) -> Result<bool> {
         let result = Submissions::update_many()
             .col_expr(
                 Column::Status,
                 sea_orm::sea_query::Expr::value(status.to_string()),
             )
             .filter(Column::Id.eq(submission_id))
-            .exec(&self.db)
+            .exec(conn)
             .await
             .map_err(|e| HWSystemError::database_operation(format!("更新提交状态失败: {e}")))?;
 
@@ -387,10 +408,22 @@ impl SeaOrmStorage {
         tokens: Vec<String>,
         user_id: i64,
     ) -> Result<()> {
+        self.set_submission_files_txn(&self.db, submission_id, tokens, user_id)
+            .await
+    }
+
+    /// 设置提交附件（事务版本）
+    pub async fn set_submission_files_txn<C: ConnectionTrait>(
+        &self,
+        conn: &C,
+        submission_id: i64,
+        tokens: Vec<String>,
+        user_id: i64,
+    ) -> Result<()> {
         // 先删除旧的关联
         SubmissionFiles::delete_many()
             .filter(SubmissionFileColumn::SubmissionId.eq(submission_id))
-            .exec(&self.db)
+            .exec(conn)
             .await
             .map_err(|e| HWSystemError::database_operation(format!("删除旧附件关联失败: {e}")))?;
 
@@ -414,12 +447,12 @@ impl SeaOrmStorage {
             };
 
             model
-                .insert(&self.db)
+                .insert(conn)
                 .await
                 .map_err(|e| HWSystemError::database_operation(format!("创建附件关联失败: {e}")))?;
 
             // 增加文件引用计数
-            self.increment_file_citation_impl(file.id).await?;
+            self.increment_file_citation_txn(conn, file.id).await?;
         }
 
         Ok(())

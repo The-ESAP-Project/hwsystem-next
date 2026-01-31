@@ -17,16 +17,22 @@ use crate::models::{
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, EntityTrait, JoinType, PaginatorTrait, QueryFilter, QueryOrder,
-    QuerySelect, RelationTrait, Set,
+    QuerySelect, RelationTrait, Set, TransactionTrait,
 };
 
 impl SeaOrmStorage {
-    /// 创建评分
+    /// 创建评分（使用事务保护）
     pub async fn create_grade_impl(
         &self,
         grader_id: i64,
         req: CreateGradeRequest,
     ) -> Result<Grade> {
+        let txn = self
+            .db
+            .begin()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("开启事务失败: {e}")))?;
+
         let now = chrono::Utc::now().timestamp();
 
         let model = ActiveModel {
@@ -40,13 +46,17 @@ impl SeaOrmStorage {
         };
 
         let result = model
-            .insert(&self.db)
+            .insert(&txn)
             .await
             .map_err(|e| HWSystemError::database_operation(format!("创建评分失败: {e}")))?;
 
         // 更新提交状态为已评分
-        self.update_submission_status_impl(req.submission_id, SubmissionStatus::GRADED)
+        self.update_submission_status_txn(&txn, req.submission_id, SubmissionStatus::GRADED)
             .await?;
+
+        txn.commit()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("提交事务失败: {e}")))?;
 
         Ok(result.into_grade())
     }

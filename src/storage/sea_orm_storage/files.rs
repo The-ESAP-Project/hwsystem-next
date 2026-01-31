@@ -5,7 +5,7 @@ use crate::config::AppConfig;
 use crate::entity::files::{ActiveModel, Column, Entity as Files};
 use crate::errors::{HWSystemError, Result};
 use crate::models::files::entities::File;
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, ExprTrait, QueryFilter, Set};
+use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, ExprTrait, QueryFilter, Set};
 use uuid::Uuid;
 
 impl SeaOrmStorage {
@@ -68,6 +68,15 @@ impl SeaOrmStorage {
 
     /// 增加文件引用计数
     pub async fn increment_file_citation_impl(&self, file_id: i64) -> Result<bool> {
+        self.increment_file_citation_txn(&self.db, file_id).await
+    }
+
+    /// 增加文件引用计数（事务版本）
+    pub async fn increment_file_citation_txn<C: ConnectionTrait>(
+        &self,
+        conn: &C,
+        file_id: i64,
+    ) -> Result<bool> {
         use sea_orm::sea_query::Expr;
 
         let result = Files::update_many()
@@ -76,7 +85,7 @@ impl SeaOrmStorage {
                 Expr::col(Column::CitationCount).add(1),
             )
             .filter(Column::Id.eq(file_id))
-            .exec(&self.db)
+            .exec(conn)
             .await
             .map_err(|e| HWSystemError::database_operation(format!("增加文件引用计数失败: {e}")))?;
 

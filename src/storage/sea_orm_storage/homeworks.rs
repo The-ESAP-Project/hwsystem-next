@@ -27,17 +27,23 @@ use crate::models::{
 };
 use crate::utils::escape_like_pattern;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, EntityTrait, ExprTrait, FromQueryResult, PaginatorTrait,
-    QueryFilter, QueryOrder, QuerySelect, Set,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, ExprTrait, FromQueryResult,
+    PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set, TransactionTrait,
 };
 
 impl SeaOrmStorage {
-    /// 创建作业
+    /// 创建作业（使用事务保护）
     pub async fn create_homework_impl(
         &self,
         created_by: i64,
         req: CreateHomeworkRequest,
     ) -> Result<Homework> {
+        let txn = self
+            .db
+            .begin()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("开启事务失败: {e}")))?;
+
         let now = chrono::Utc::now().timestamp();
 
         let model = ActiveModel {
@@ -54,15 +60,19 @@ impl SeaOrmStorage {
         };
 
         let result = model
-            .insert(&self.db)
+            .insert(&txn)
             .await
             .map_err(|e| HWSystemError::database_operation(format!("创建作业失败: {e}")))?;
 
         // 处理附件
         if let Some(tokens) = req.attachments {
-            self.set_homework_files_impl(result.id, tokens, created_by)
+            self.set_homework_files_txn(&txn, result.id, tokens, created_by)
                 .await?;
         }
+
+        txn.commit()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("提交事务失败: {e}")))?;
 
         Ok(result.into_homework())
     }
@@ -361,7 +371,7 @@ impl SeaOrmStorage {
         })
     }
 
-    /// 更新作业
+    /// 更新作业（使用事务保护）
     pub async fn update_homework_impl(
         &self,
         homework_id: i64,
@@ -373,6 +383,12 @@ impl SeaOrmStorage {
         if existing.is_none() {
             return Ok(None);
         }
+
+        let txn = self
+            .db
+            .begin()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("开启事务失败: {e}")))?;
 
         let now = chrono::Utc::now().timestamp();
 
@@ -403,15 +419,19 @@ impl SeaOrmStorage {
         }
 
         model
-            .update(&self.db)
+            .update(&txn)
             .await
             .map_err(|e| HWSystemError::database_operation(format!("更新作业失败: {e}")))?;
 
         // 处理附件
         if let Some(tokens) = update.attachments {
-            self.set_homework_files_impl(homework_id, tokens, user_id)
+            self.set_homework_files_txn(&txn, homework_id, tokens, user_id)
                 .await?;
         }
+
+        txn.commit()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("提交事务失败: {e}")))?;
 
         self.get_homework_by_id_impl(homework_id).await
     }
@@ -451,10 +471,22 @@ impl SeaOrmStorage {
         tokens: Vec<String>,
         user_id: i64,
     ) -> Result<()> {
+        self.set_homework_files_txn(&self.db, homework_id, tokens, user_id)
+            .await
+    }
+
+    /// 设置作业附件（事务版本）
+    pub async fn set_homework_files_txn<C: ConnectionTrait>(
+        &self,
+        conn: &C,
+        homework_id: i64,
+        tokens: Vec<String>,
+        user_id: i64,
+    ) -> Result<()> {
         // 先删除旧的关联
         HomeworkFiles::delete_many()
             .filter(HomeworkFileColumn::HomeworkId.eq(homework_id))
-            .exec(&self.db)
+            .exec(conn)
             .await
             .map_err(|e| HWSystemError::database_operation(format!("删除旧附件关联失败: {e}")))?;
 
@@ -478,12 +510,12 @@ impl SeaOrmStorage {
             };
 
             model
-                .insert(&self.db)
+                .insert(conn)
                 .await
                 .map_err(|e| HWSystemError::database_operation(format!("创建附件关联失败: {e}")))?;
 
             // 增加文件引用计数
-            self.increment_file_citation_impl(file.id).await?;
+            self.increment_file_citation_txn(conn, file.id).await?;
         }
 
         Ok(())

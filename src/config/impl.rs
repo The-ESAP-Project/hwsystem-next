@@ -51,6 +51,17 @@ impl AppConfig {
             app_config.server.workers = num_cpus::get().min(app_config.server.max_workers);
         }
 
+        // 确保数据库连接池足够
+        if app_config.database.pool_size < app_config.server.workers as u32 {
+            eprintln!(
+                "WARNING: 数据库连接池 ({}) 小于工作线程数 ({})，已自动调整为 {}",
+                app_config.database.pool_size,
+                app_config.server.workers,
+                (app_config.server.workers as u32).max(10)
+            );
+            app_config.database.pool_size = (app_config.server.workers as u32).max(10);
+        }
+
         Ok(app_config)
     }
 

@@ -321,15 +321,15 @@
 - ✅ 文件下载接口设置 `Cache-Control: private, max-age=31536000, immutable`
 - ✅ 前端静态资源已在 `frontend.rs` 中有独立缓存策略
 
-#### P14. 数据库连接池可能不足
-- **文件**: `config.example.toml`
-- **问题**: `pool_size = 10`，但 `max_workers` 可达 32。高并发时连接池成为瓶颈
-- **建议**: `pool_size >= workers * 2`
+#### P14. ~~数据库连接池可能不足~~ ✅ 已修复
+- **文件**: `src/config/impl.rs:54-62`
+- ~~**问题**: `pool_size = 10`，但 `max_workers` 可达 32。高并发时连接池成为瓶颈~~
+- ✅ 启动时自动检测 `pool_size < workers`，自动调整为 `max(workers, 10)` 并输出警告
 
-#### P15. XLSX 导出阻塞请求线程
-- **文件**: `src/services/classes/export.rs:290-327`
-- **问题**: XLSX 文件生成在 Actix worker 线程同步执行，大数据量时阻塞线程
-- **建议**: 使用 `actix_web::web::block` 放到线程池执行
+#### P15. ~~XLSX 导出阻塞请求线程~~ ✅ 已修复
+- **文件**: `src/services/classes/export.rs:343-387`
+- ~~**问题**: XLSX 文件生成在 Actix worker 线程同步执行，大数据量时阻塞线程~~
+- ✅ 使用 `actix_web::web::block` 将 XLSX 生成移到线程池执行，避免阻塞 worker
 
 ---
 
@@ -373,7 +373,7 @@
 |---------|------|--------|---------|
 | 🔴 严重 | 3 | 3 | P1 ✅, P2 ✅, P3 ✅ |
 | 🟠 高 | 5 | 5 | P4 ✅, P5 ✅, P6 ✅, P7 ✅, P8 ✅ |
-| 🟡 中 | 7 | 5 | P9 ✅, P10 ✅, P11 ✅, P12 ✅, P13 ✅, P14, P15 |
+| 🟡 中 | 7 | 7 | P9 ✅, P10 ✅, P11 ✅, P12 ✅, P13 ✅, P14 ✅, P15 ✅ |
 | 🔵 低 | 6 | 2 | P16 ✅, P17 ✅, P18-P21 |
 
 ### 建议修复顺序
@@ -398,7 +398,8 @@
 
 4. **第四批 — 运行时优化**
    - [x] P13: Cache-Control 分层设置 ✅
-   - [ ] P14, P15 及低优先级项
+   - [x] P14: 数据库连接池动态调整 ✅
+   - [x] P15: XLSX 线程池执行 ✅
 
 ---
 

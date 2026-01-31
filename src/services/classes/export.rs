@@ -1,6 +1,6 @@
 //! 班级报表导出服务
 
-use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
+use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};
 use chrono::Utc;
 use rust_xlsxwriter::{Format, Workbook, Worksheet};
 use std::collections::{HashMap, HashSet};
@@ -336,43 +336,55 @@ pub async fn export_class_report(
         0.0
     };
 
-    // 生成 XLSX
+    // P15 优化：在线程池中生成 XLSX，避免阻塞 worker 线程
     let homework_titles: Vec<String> = homeworks.iter().map(|h| h.title.clone()).collect();
+    let class_name = class.name.clone();
 
-    let xlsx_result = generate_xlsx(
-        &class.name,
-        total_students,
-        total_homeworks,
-        avg_submission_rate,
-        &homework_summaries,
-        &student_details,
-        &homework_titles,
-        show_scores,
-    );
-
-    match xlsx_result {
-        Ok(buffer) => {
-            let timestamp = Utc::now().format("%Y%m%d_%H%M%S").to_string();
-            let filename = format!("class_{class_id}_report_{timestamp}.xlsx");
-
-            Ok(HttpResponse::Ok()
-                .content_type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                .insert_header((
-                    "Content-Disposition",
-                    format!("attachment; filename=\"{filename}\""),
-                ))
-                .body(buffer))
-        }
-        Err(e) => {
+    let xlsx_buffer = match web::block(move || {
+        generate_xlsx(
+            &class_name,
+            total_students,
+            total_homeworks,
+            avg_submission_rate,
+            &homework_summaries,
+            &student_details,
+            &homework_titles,
+            show_scores,
+        )
+    })
+    .await
+    {
+        Ok(Ok(buffer)) => buffer,
+        Ok(Err(e)) => {
             error!("生成 XLSX 失败: {}", e);
-            Ok(
+            return Ok(
                 HttpResponse::InternalServerError().json(ApiResponse::error_empty(
                     ErrorCode::InternalServerError,
                     format!("生成报表失败: {e}"),
                 )),
-            )
+            );
         }
-    }
+        Err(e) => {
+            error!("XLSX 生成线程错误: {}", e);
+            return Ok(
+                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
+                    ErrorCode::InternalServerError,
+                    "生成报表失败：线程错误",
+                )),
+            );
+        }
+    };
+
+    let timestamp = Utc::now().format("%Y%m%d_%H%M%S").to_string();
+    let filename = format!("class_{class_id}_report_{timestamp}.xlsx");
+
+    Ok(HttpResponse::Ok()
+        .content_type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        .insert_header((
+            "Content-Disposition",
+            format!("attachment; filename=\"{filename}\""),
+        ))
+        .body(xlsx_buffer))
 }
 
 /// 生成 XLSX 文件

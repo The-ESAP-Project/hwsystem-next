@@ -8,7 +8,10 @@ use crate::models::{
     ApiResponse, ErrorCode,
     system::{
         requests::{SettingAuditQuery, UpdateSettingRequest},
-        responses::{AdminSettingsListResponse, SettingResponse, SystemSettingsResponse},
+        responses::{
+            AdminSettingsListResponse, ClientConfigResponse, SettingResponse,
+            SystemSettingsResponse,
+        },
     },
 };
 use crate::storage::Storage;
@@ -34,6 +37,26 @@ pub async fn get_settings(
     Ok(HttpResponse::Ok().json(ApiResponse::success(
         response,
         "Settings retrieved successfully",
+    )))
+}
+
+/// 获取前端客户端配置
+pub async fn get_client_config(
+    service: &SystemService,
+    _req: &HttpRequest,
+) -> ActixResult<HttpResponse> {
+    let config = service.get_config();
+
+    let response = ClientConfigResponse {
+        api_timeout: config.server.timeouts.client_request,
+        file_operation_timeout: config.upload.timeout,
+        max_file_size: DynamicConfig::upload_max_size().await as u64,
+        allowed_file_types: DynamicConfig::upload_allowed_types().await,
+    };
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success(
+        response,
+        "Client config retrieved successfully",
     )))
 }
 

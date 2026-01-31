@@ -101,10 +101,11 @@ pub struct CorsConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UploadConfig {
-    pub dir: String,                // 上传目录
-    pub max_size: usize,            // 单文件最大字节数
-    pub allowed_types: Vec<String>, // 允许的MIME类型或扩展名
-    pub timeout: u64,               // 文件操作超时（毫秒）
+    pub dir: String,     // 上传目录
+    pub max_size: usize, // 单文件最大字节数
+    #[serde(default)]
+    pub allowed_types: Option<Vec<String>>, // 已废弃：请使用数据库动态配置（upload.allowed_types）
+    pub timeout: u64,    // 文件操作超时（毫秒）
 }
 
 /// Argon2 密码哈希配置

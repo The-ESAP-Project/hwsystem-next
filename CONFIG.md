@@ -114,7 +114,8 @@ URL 格式：
 |------|------|------|
 | dir | string | 上传目录 |
 | max_size | usize | 单文件最大字节数 |
-| allowed_types | Vec<string> | 允许的 MIME 类型或扩展名 |
+| ~~allowed_types~~ | ~~Vec<string>~~ | **已废弃**：请使用数据库动态配置（系统设置 > upload.allowed_types） |
+| timeout | u64 | 文件操作超时（毫秒） |
 
 ### argon2 - 密码哈希设置
 

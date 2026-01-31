@@ -17,6 +17,18 @@ pub struct SystemSettingsResponse {
     pub log_level: String,   // 日志级别
 }
 
+/// 前端客户端配置响应
+#[derive(Debug, Serialize, TS)]
+#[ts(export, export_to = "../frontend/src/types/generated/system.ts")]
+pub struct ClientConfigResponse {
+    pub api_timeout: u64,            // API 请求超时（毫秒）
+    pub file_operation_timeout: u64, // 文件操作超时（毫秒）
+    #[serde(serialize_with = "serialize_u64_as_string")]
+    #[ts(type = "string")]
+    pub max_file_size: u64, // 最大文件大小（字节）
+    pub allowed_file_types: Vec<String>, // 允许的文件类型
+}
+
 /// WebSocket 状态响应
 #[derive(Debug, Serialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/system.ts")]

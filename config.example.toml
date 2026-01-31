@@ -89,8 +89,7 @@ max_age = 3600
 dir = "uploads"
 # 单文件最大字节数
 max_size = 10485760 # 10MB
-# 允许的 MIME 类型或扩展名
-allowed_types = ["image/png", "image/jpeg", "application/pdf"]
+# 注意：allowed_types 已迁移到数据库动态配置，请在系统设置中管理
 # 文件操作超时 (毫秒)
 timeout = 120000 # 2分钟
 

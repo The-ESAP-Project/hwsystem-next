@@ -18,8 +18,13 @@ impl SystemService {
         AppConfig::get()
     }
 
-    // Handle file upload
+    // Handle get settings
     pub async fn get_settings(&self, request: &HttpRequest) -> ActixResult<HttpResponse> {
         settings::get_settings(self, request).await
+    }
+
+    // Handle get client config
+    pub async fn get_client_config(&self, request: &HttpRequest) -> ActixResult<HttpResponse> {
+        settings::get_client_config(self, request).await
     }
 }

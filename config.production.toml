@@ -32,4 +32,4 @@ pool_size = 20
 [upload]
 dir = "uploads"
 max_size = 10485760 # 10MB
-allowed_types = ["image/png", "image/jpeg", "application/pdf"]
+# 注意：allowed_types 已迁移到数据库动态配置，请在系统设置中管理

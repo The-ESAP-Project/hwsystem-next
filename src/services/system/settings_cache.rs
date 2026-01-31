@@ -117,7 +117,15 @@ impl DynamicConfig {
     pub async fn upload_allowed_types() -> Vec<String> {
         Self::get_json_array("upload.allowed_types")
             .await
-            .unwrap_or_else(|| AppConfig::get().upload.allowed_types.clone())
+            .unwrap_or_else(|| {
+                // config.toml 中的 allowed_types 已废弃
+                // 如果数据库未配置，返回空数组（表示无限制）
+                AppConfig::get()
+                    .upload
+                    .allowed_types
+                    .clone()
+                    .unwrap_or_default()
+            })
     }
 
     /// 获取允许的跨域来源

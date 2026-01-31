@@ -243,12 +243,32 @@ async fn get_class_user_by_user_id_and_class_id(
     let cache_key = class_user_cache_key(user_id, class_id);
 
     // 先查缓存
-    if let Some(ref cache) = cache
-        && let CacheResult::Found(json) = cache.get_raw(&cache_key).await
-        && let Ok(class_user) = serde_json::from_str::<ClassUser>(&json)
-    {
-        tracing::debug!("Class user cache hit: {}", cache_key);
-        return Some(class_user);
+    if let Some(ref cache) = cache {
+        match cache.get_raw(&cache_key).await {
+            CacheResult::Found(json) => {
+                match serde_json::from_str::<ClassUser>(&json) {
+                    Ok(class_user) => {
+                        tracing::debug!("Class user cache hit: {}", cache_key);
+                        return Some(class_user);
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            cache_key = %cache_key,
+                            error = %e,
+                            json_preview = %json.chars().take(200).collect::<String>(),
+                            "班级用户缓存反序列化失败，可能是数据格式版本不匹配。将从数据库重新加载。"
+                        );
+                        // 不主动删除，靠 TTL 过期
+                    }
+                }
+            }
+            CacheResult::NotFound => {
+                tracing::debug!("Class user cache miss: {}", cache_key);
+            }
+            CacheResult::ExistsButNoValue => {
+                tracing::debug!("Class user cache exists but no value: {}", cache_key);
+            }
+        }
     }
 
     // 缓存未命中，查数据库
@@ -261,8 +281,23 @@ async fn get_class_user_by_user_id_and_class_id(
         .await
     {
         Ok(Some(class_user)) => class_user,
-        Ok(None) => return None,
-        Err(_) => return None,
+        Ok(None) => {
+            tracing::debug!(
+                user_id = user_id,
+                class_id = class_id,
+                "Class user not found in database"
+            );
+            return None;
+        }
+        Err(e) => {
+            tracing::error!(
+                user_id = user_id,
+                class_id = class_id,
+                error = %e,
+                "Failed to query class user from database"
+            );
+            return None;
+        }
     };
 
     // 存入缓存

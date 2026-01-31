@@ -140,15 +140,27 @@ async fn extract_and_validate_jwt(req: &ServiceRequest) -> Result<entities::User
 
     // 从缓存中获取用户信息
     match cache.get_raw(&cache_key).await {
-        CacheResult::Found(json) => match serde_json::from_str::<entities::User>(&json) {
-            Ok(user) => return Ok(user),
-            Err(_) => {
-                cache.remove(&cache_key).await;
-                info!("Failed to deserialize user from cache");
+        CacheResult::Found(json) => {
+            match serde_json::from_str::<entities::User>(&json) {
+                Ok(user) => return Ok(user),
+                Err(e) => {
+                    // 记录详细错误信息，帮助诊断问题
+                    tracing::warn!(
+                        cache_key = %cache_key,
+                        error = %e,
+                        json_preview = %json.chars().take(200).collect::<String>(),
+                        "JWT缓存反序列化失败，可能是数据格式版本不匹配。将从数据库重新加载用户。"
+                    );
+                    // 移除删除操作，避免并发竞争
+                    // 依赖TTL自动过期，或使用后台任务清理
+                }
             }
-        },
-        _ => {
-            debug!("User not found in cache");
+        }
+        CacheResult::NotFound => {
+            debug!("JWT用户缓存未命中: {}", cache_key);
+        }
+        CacheResult::ExistsButNoValue => {
+            debug!("JWT用户缓存存在但无值: {}", cache_key);
         }
     };
 

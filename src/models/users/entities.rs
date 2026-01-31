@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::models::common::serialization::serialize_i64_as_string;
+use crate::models::common::serialization;
 
 // 用户角色
 #[derive(Debug, Clone, Serialize, PartialEq, TS)]
@@ -126,7 +126,7 @@ impl std::str::FromStr for UserStatus {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../frontend/src/types/generated/user.ts")]
 pub struct User {
-    #[serde(serialize_with = "serialize_i64_as_string")]
+    #[serde(with = "serialization::i64_as_string")]
     #[ts(type = "string")]
     pub id: i64,
     pub username: String,

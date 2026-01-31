@@ -193,3 +193,66 @@ where
 
     deserializer.deserialize_any(OptionI64Visitor)
 }
+
+/// Serde module: i64 序列化/反序列化为字符串
+///
+/// 使用方式：
+/// ```rust,ignore
+/// use crate::models::common::serialization;
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct Example {
+///     #[serde(with = "serialization::i64_as_string")]
+///     id: i64,
+/// }
+/// ```
+pub mod i64_as_string {
+    use super::*;
+
+    pub fn serialize<S>(value: &i64, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&value.to_string())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<i64, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        super::deserialize_string_to_i64(deserializer)
+    }
+}
+
+/// Serde module: Option<i64> 序列化/反序列化为字符串
+///
+/// 使用方式：
+/// ```rust,ignore
+/// use crate::models::common::serialization;
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct Example {
+///     #[serde(with = "serialization::option_i64_as_string")]
+///     user_id: Option<i64>,
+/// }
+/// ```
+pub mod option_i64_as_string {
+    use super::*;
+
+    pub fn serialize<S>(value: &Option<i64>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match value {
+            Some(v) => serializer.serialize_some(&v.to_string()),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        super::deserialize_option_string_to_i64(deserializer)
+    }
+}

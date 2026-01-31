@@ -2,6 +2,19 @@ use crate::config::AppConfig;
 use actix_web::cookie::{Cookie, SameSite};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
+
+/// 缓存 JWT 编解码 Key，避免每次操作都重新构建
+static JWT_KEYS: OnceLock<(EncodingKey, DecodingKey)> = OnceLock::new();
+
+fn get_jwt_keys() -> &'static (EncodingKey, DecodingKey) {
+    JWT_KEYS.get_or_init(|| {
+        let secret = AppConfig::get().jwt.secret.clone();
+        let encoding = EncodingKey::from_secret(secret.as_bytes());
+        let decoding = DecodingKey::from_secret(secret.as_bytes());
+        (encoding, decoding)
+    })
+}
 
 // JWT Claims 结构体
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,11 +36,6 @@ pub struct TokenPair {
 pub struct JwtUtils;
 
 impl JwtUtils {
-    // 获取 JWT 密钥
-    fn get_secret() -> String {
-        AppConfig::get().jwt.secret.clone()
-    }
-
     // 生成 Access Token
     pub fn generate_access_token(
         user_id: i64,
@@ -78,10 +86,8 @@ impl JwtUtils {
             iat: now.timestamp() as usize,
         };
 
-        let secret = Self::get_secret();
-        let encoding_key = EncodingKey::from_secret(secret.as_ref());
-
-        encode(&Header::default(), &claims, &encoding_key)
+        let (encoding_key, _) = get_jwt_keys();
+        encode(&Header::default(), &claims, encoding_key)
     }
 
     // 生成完整的 Token 响应（包含 access 和 refresh token）
@@ -101,11 +107,9 @@ impl JwtUtils {
 
     // 验证 JWT token
     pub fn verify_token(token: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
-        let secret = Self::get_secret();
-        let decoding_key = DecodingKey::from_secret(secret.as_ref());
+        let (_, decoding_key) = get_jwt_keys();
         let validation = Validation::default();
-
-        decode::<Claims>(token, &decoding_key, &validation).map(|token_data| token_data.claims)
+        decode::<Claims>(token, decoding_key, &validation).map(|token_data| token_data.claims)
     }
 
     // 验证 token 是否为指定类型
@@ -133,11 +137,9 @@ impl JwtUtils {
     }
 
     pub fn decode_token(token: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
-        let secret = Self::get_secret();
-        let decoding_key = DecodingKey::from_secret(secret.as_ref());
+        let (_, decoding_key) = get_jwt_keys();
         let validation = Validation::default();
-
-        decode::<Claims>(token, &decoding_key, &validation).map(|token_data| token_data.claims)
+        decode::<Claims>(token, decoding_key, &validation).map(|token_data| token_data.claims)
     }
 
     // 使用 Refresh Token 生成新的 Access Token

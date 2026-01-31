@@ -76,11 +76,21 @@ use actix_web::{
     http::header::CONTENT_TYPE,
 };
 use futures_util::future::{LocalBoxFuture, Ready, ready};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::{rc::Rc, sync::Arc};
 use tracing::{debug, info};
 
 const BEARER_PREFIX: &str = "Bearer ";
 const AUTHORIZATION_HEADER: &str = "Authorization";
+
+/// 对 token 进行 hash，用于缩短缓存 key 长度
+/// 原始 token 200-500+ 字符，hash 后只有 16 字符
+fn hash_token(token: &str) -> String {
+    let mut hasher = DefaultHasher::new();
+    token.hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
+}
 
 #[derive(Clone)]
 pub struct RequireJWT;
@@ -125,17 +135,20 @@ async fn extract_and_validate_jwt(req: &ServiceRequest) -> Result<entities::User
         .get_ref()
         .clone();
 
+    // 使用 hash 后的 token 作为缓存 key，节省内存
+    let cache_key = format!("user:jwt:{}", hash_token(token));
+
     // 从缓存中获取用户信息
-    match cache.get_raw(&format!("user:{token}")).await {
+    match cache.get_raw(&cache_key).await {
         CacheResult::Found(json) => match serde_json::from_str::<entities::User>(&json) {
             Ok(user) => return Ok(user),
             Err(_) => {
-                cache.remove(&format!("user:{token}")).await;
-                info!("Failed to deserialize user from cache for token: {}", token);
+                cache.remove(&cache_key).await;
+                info!("Failed to deserialize user from cache");
             }
         },
         _ => {
-            info!("User not found in cache for token: {}", token);
+            debug!("User not found in cache");
         }
     };
 
@@ -165,11 +178,7 @@ async fn extract_and_validate_jwt(req: &ServiceRequest) -> Result<entities::User
     let app_config = AppConfig::get();
     if let Ok(user_json) = serde_json::to_string(&user) {
         cache
-            .insert_raw(
-                format!("user:{token}"),
-                user_json,
-                app_config.cache.default_ttl,
-            )
+            .insert_raw(cache_key, user_json, app_config.cache.default_ttl)
             .await;
     }
 

@@ -120,6 +120,7 @@ async fn main() -> std::io::Result<()> {
                         "Keep-Alive",
                         format!("timeout={}, max=1000", config.server.timeouts.keep_alive),
                     ))
+                    // API 默认禁用缓存（下载接口和前端静态资源会覆盖此设置）
                     .add(("Cache-Control", "no-cache, no-store, must-revalidate")),
             )
             .app_data(web::QueryConfig::default().error_handler(query_error_handler)) // 设置查询参数错误处理器

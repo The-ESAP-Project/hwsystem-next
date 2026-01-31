@@ -243,14 +243,12 @@ async fn get_class_user_by_user_id_and_class_id(
     let cache_key = class_user_cache_key(user_id, class_id);
 
     // 先查缓存
-    if let Some(ref cache) = cache {
-        if let CacheResult::Found(json) = cache.get_raw(&cache_key).await {
-            if let Ok(class_user) = serde_json::from_str::<ClassUser>(&json) {
+    if let Some(ref cache) = cache
+        && let CacheResult::Found(json) = cache.get_raw(&cache_key).await
+            && let Ok(class_user) = serde_json::from_str::<ClassUser>(&json) {
                 tracing::debug!("Class user cache hit: {}", cache_key);
                 return Some(class_user);
             }
-        }
-    }
 
     // 缓存未命中，查数据库
     let storage = req
@@ -267,13 +265,12 @@ async fn get_class_user_by_user_id_and_class_id(
     };
 
     // 存入缓存
-    if let Some(cache) = cache {
-        if let Ok(json) = serde_json::to_string(&class_user) {
+    if let Some(cache) = cache
+        && let Ok(json) = serde_json::to_string(&class_user) {
             cache
                 .insert_raw(cache_key, json, CLASS_USER_CACHE_TTL)
                 .await;
         }
-    }
 
     Some(class_user)
 }

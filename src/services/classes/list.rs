@@ -124,19 +124,22 @@ async fn enrich_class_list(
         .collect();
 
     // 批量获取教师信息
-    let mut teacher_map: HashMap<i64, TeacherInfo> = HashMap::new();
-    for teacher_id in teacher_ids {
-        if let Ok(Some(teacher)) = storage.get_user_by_id(teacher_id).await {
-            teacher_map.insert(
-                teacher_id,
+    let teacher_map: HashMap<i64, TeacherInfo> = storage
+        .get_users_by_ids(&teacher_ids)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(id, user)| {
+            (
+                id,
                 TeacherInfo {
-                    id: teacher.id,
-                    username: teacher.username,
-                    display_name: teacher.display_name,
+                    id: user.id,
+                    username: user.username,
+                    display_name: user.display_name,
                 },
-            );
-        }
-    }
+            )
+        })
+        .collect();
 
     // 组装详情列表
     let mut items = Vec::with_capacity(response.items.len());

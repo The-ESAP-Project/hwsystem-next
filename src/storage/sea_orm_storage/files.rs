@@ -5,7 +5,10 @@ use crate::config::AppConfig;
 use crate::entity::files::{ActiveModel, Column, Entity as Files};
 use crate::errors::{HWSystemError, Result};
 use crate::models::files::entities::File;
-use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, ExprTrait, QueryFilter, Set};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, ExprTrait, QueryFilter, Set,
+};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 impl SeaOrmStorage {
@@ -151,5 +154,20 @@ impl SeaOrmStorage {
         }
 
         Ok(true)
+    }
+
+    /// 批量获取文件信息
+    pub async fn get_files_by_ids_impl(&self, ids: &[i64]) -> Result<HashMap<i64, File>> {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let files = Files::find()
+            .filter(Column::Id.is_in(ids.to_vec()))
+            .all(&self.db)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("批量查询文件失败: {e}")))?;
+
+        Ok(files.into_iter().map(|f| (f.id, f.into_file())).collect())
     }
 }

@@ -12,7 +12,8 @@ use crate::models::{
     },
 };
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set,
+    ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
+    QuerySelect, Set, TransactionTrait,
 };
 
 impl SeaOrmStorage {
@@ -43,16 +44,38 @@ impl SeaOrmStorage {
         Ok(result.into_notification())
     }
 
-    /// 批量创建通知
+    /// 批量创建通知（使用 insert_many 优化）
     pub async fn create_notifications_batch_impl(
         &self,
         reqs: Vec<CreateNotificationRequest>,
     ) -> Result<Vec<Notification>> {
-        let now = chrono::Utc::now().timestamp();
-        let mut notifications = Vec::new();
+        if reqs.is_empty() {
+            return Ok(vec![]);
+        }
 
-        for req in reqs {
-            let model = ActiveModel {
+        let now = chrono::Utc::now().timestamp();
+
+        // 使用事务保证原子性
+        let txn = self
+            .db
+            .begin()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("开启事务失败: {e}")))?;
+
+        // 获取当前最大 ID（用于后续查询插入的记录）
+        let max_id: Option<i64> = Notifications::find()
+            .select_only()
+            .column_as(Column::Id.max(), "max_id")
+            .into_tuple()
+            .one(&txn)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询最大 ID 失败: {e}")))?;
+        let max_id = max_id.unwrap_or(0);
+
+        // 构建批量插入模型
+        let models: Vec<ActiveModel> = reqs
+            .into_iter()
+            .map(|req| ActiveModel {
                 user_id: Set(req.user_id),
                 notification_type: Set(req.notification_type),
                 title: Set(req.title),
@@ -62,17 +85,31 @@ impl SeaOrmStorage {
                 is_read: Set(false),
                 created_at: Set(now),
                 ..Default::default()
-            };
+            })
+            .collect();
 
-            let result = model
-                .insert(&self.db)
-                .await
-                .map_err(|e| HWSystemError::database_operation(format!("批量创建通知失败: {e}")))?;
+        // 批量插入
+        Notifications::insert_many(models)
+            .exec(&txn)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("批量创建通知失败: {e}")))?;
 
-            notifications.push(result.into_notification());
-        }
+        // 查询新插入的记录
+        let notifications = Notifications::find()
+            .filter(Column::Id.gt(max_id))
+            .order_by_asc(Column::Id)
+            .all(&txn)
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("查询新通知失败: {e}")))?;
 
-        Ok(notifications)
+        txn.commit()
+            .await
+            .map_err(|e| HWSystemError::database_operation(format!("提交事务失败: {e}")))?;
+
+        Ok(notifications
+            .into_iter()
+            .map(|m| m.into_notification())
+            .collect())
     }
 
     /// 通过 ID 获取通知

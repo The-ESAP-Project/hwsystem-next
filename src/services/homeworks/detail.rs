@@ -52,22 +52,28 @@ pub async fn get_homework(
                 }
             }
 
-            // 获取附件完整信息
+            // 批量获取附件完整信息
             let file_ids = storage
                 .get_homework_file_ids(homework_id)
                 .await
                 .unwrap_or_default();
-            let mut attachments = Vec::new();
-            for file_id in file_ids {
-                if let Ok(Some(file)) = storage.get_file_by_id(file_id).await {
-                    attachments.push(FileInfo {
-                        download_token: file.download_token,
-                        original_name: file.original_name,
+
+            let files_map = storage
+                .get_files_by_ids(&file_ids)
+                .await
+                .unwrap_or_default();
+
+            let attachments: Vec<FileInfo> = file_ids
+                .iter()
+                .filter_map(|id| {
+                    files_map.get(id).map(|file| FileInfo {
+                        download_token: file.download_token.clone(),
+                        original_name: file.original_name.clone(),
                         file_size: file.file_size,
-                        file_type: file.file_type,
-                    });
-                }
-            }
+                        file_type: file.file_type.clone(),
+                    })
+                })
+                .collect();
 
             // 获取创建者信息
             let creator = match storage.get_user_by_id(homework.created_by).await {

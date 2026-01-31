@@ -175,12 +175,6 @@ impl SeaOrmStorage {
         id: i64,
         update: UpdateUserRequest,
     ) -> Result<Option<User>> {
-        // 先检查用户是否存在
-        let existing = self.get_user_by_id_impl(id).await?;
-        if existing.is_none() {
-            return Ok(None);
-        }
-
         let now = chrono::Utc::now().timestamp();
 
         let mut model = ActiveModel {
@@ -213,12 +207,19 @@ impl SeaOrmStorage {
             model.avatar_url = Set(Some(avatar_url));
         }
 
-        model
-            .update(&self.db)
-            .await
-            .map_err(|e| HWSystemError::database_operation(format!("更新用户失败: {e}")))?;
-
-        self.get_user_by_id_impl(id).await
+        match model.update(&self.db).await {
+            Ok(updated) => Ok(Some(updated.into_user())),
+            Err(e) => {
+                // SeaORM 的 RecordNotUpdated 错误表示记录不存在
+                if e.to_string().contains("RecordNotUpdated") {
+                    Ok(None)
+                } else {
+                    Err(HWSystemError::database_operation(format!(
+                        "更新用户失败: {e}"
+                    )))
+                }
+            }
+        }
     }
 
     /// 删除用户

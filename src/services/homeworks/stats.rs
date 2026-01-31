@@ -148,12 +148,18 @@ pub async fn get_homework_stats(
     let submitted_student_ids: HashSet<i64> =
         student_submissions.iter().map(|s| s.creator_id).collect();
 
-    // 获取所有提交的评分
+    // 批量获取所有提交的评分
+    let submission_ids: Vec<i64> = student_submissions.iter().map(|s| s.id).collect();
+    let grades_map = storage
+        .get_grades_by_submission_ids(&submission_ids)
+        .await
+        .unwrap_or_default();
+
     let mut graded_count = 0i64;
     let mut scores: Vec<f64> = Vec::new();
 
     for submission in &student_submissions {
-        if let Ok(Some(grade)) = storage.get_grade_by_submission_id(submission.id).await {
+        if let Some(grade) = grades_map.get(&submission.id) {
             graded_count += 1;
             scores.push(grade.score);
         }
@@ -186,19 +192,30 @@ pub async fn get_homework_stats(
     };
 
     // 获取未提交学生列表
-    let mut unsubmitted_students: Vec<UnsubmittedStudent> = Vec::new();
-    for student in &students {
-        if !submitted_student_ids.contains(&student.user_id)
-            && let Ok(Some(user)) = storage.get_user_by_id(student.user_id).await
-        {
-            unsubmitted_students.push(UnsubmittedStudent {
-                id: user.id,
-                username: user.username,
-                display_name: user.display_name,
-                avatar_url: user.avatar_url,
-            });
-        }
-    }
+    let unsubmitted_user_ids: Vec<i64> = students
+        .iter()
+        .filter(|s| !submitted_student_ids.contains(&s.user_id))
+        .map(|s| s.user_id)
+        .collect();
+
+    let unsubmitted_users_map = storage
+        .get_users_by_ids(&unsubmitted_user_ids)
+        .await
+        .unwrap_or_default();
+
+    let unsubmitted_students: Vec<UnsubmittedStudent> = unsubmitted_user_ids
+        .iter()
+        .filter_map(|user_id| {
+            unsubmitted_users_map
+                .get(user_id)
+                .map(|user| UnsubmittedStudent {
+                    id: user.id,
+                    username: user.username.clone(),
+                    display_name: user.display_name.clone(),
+                    avatar_url: user.avatar_url.clone(),
+                })
+        })
+        .collect();
 
     let response = HomeworkStatsResponse {
         homework_id,

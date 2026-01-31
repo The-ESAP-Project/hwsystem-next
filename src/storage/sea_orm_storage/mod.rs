@@ -278,6 +278,10 @@ impl Storage for SeaOrmStorage {
         self.delete_file_impl(token, user_id).await
     }
 
+    async fn get_files_by_ids(&self, ids: &[i64]) -> Result<HashMap<i64, File>> {
+        self.get_files_by_ids_impl(ids).await
+    }
+
     // ============================================
     // 班级模块
     // ============================================

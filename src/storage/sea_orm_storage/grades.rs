@@ -91,12 +91,6 @@ impl SeaOrmStorage {
         grade_id: i64,
         update: UpdateGradeRequest,
     ) -> Result<Option<Grade>> {
-        // 先检查评分是否存在
-        let existing = self.get_grade_by_id_impl(grade_id).await?;
-        if existing.is_none() {
-            return Ok(None);
-        }
-
         let now = chrono::Utc::now().timestamp();
 
         let mut model = ActiveModel {
@@ -113,12 +107,19 @@ impl SeaOrmStorage {
             model.comment = Set(Some(comment));
         }
 
-        model
-            .update(&self.db)
-            .await
-            .map_err(|e| HWSystemError::database_operation(format!("更新评分失败: {e}")))?;
-
-        self.get_grade_by_id_impl(grade_id).await
+        match model.update(&self.db).await {
+            Ok(updated) => Ok(Some(updated.into_grade())),
+            Err(e) => {
+                // SeaORM 的 RecordNotUpdated 错误表示记录不存在
+                if e.to_string().contains("RecordNotUpdated") {
+                    Ok(None)
+                } else {
+                    Err(HWSystemError::database_operation(format!(
+                        "更新评分失败: {e}"
+                    )))
+                }
+            }
+        }
     }
 
     /// 列出评分（分页）

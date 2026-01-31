@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use moka::future::Cache;
 use moka::Expiry;
+use moka::future::Cache;
 use std::time::{Duration, Instant};
 use tracing::debug;
 
@@ -106,9 +106,23 @@ impl ObjectCache for MokaCacheWrapper {
     }
 
     async fn insert_raw(&self, key: String, value: String, ttl: u64) {
-        debug!("Cache insert: {} (TTL: {}s)", key, if ttl == 0 { "default".to_string() } else { ttl.to_string() });
+        debug!(
+            "Cache insert: {} (TTL: {}s)",
+            key,
+            if ttl == 0 {
+                "default".to_string()
+            } else {
+                ttl.to_string()
+            }
+        );
         self.inner
-            .insert(key, CacheValue { data: value, ttl_secs: ttl })
+            .insert(
+                key,
+                CacheValue {
+                    data: value,
+                    ttl_secs: ttl,
+                },
+            )
             .await;
     }
 

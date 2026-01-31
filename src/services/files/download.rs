@@ -62,7 +62,13 @@ pub async fn handle_download(
                 )],
             });
 
-            Ok(file.into_response(request))
+            // 构建响应并设置缓存头（文件内容不变，可长期缓存）
+            let mut response = file.into_response(request);
+            response.headers_mut().insert(
+                header::CACHE_CONTROL,
+                header::HeaderValue::from_static("private, max-age=31536000, immutable"),
+            );
+            Ok(response)
         }
         Err(e) => {
             tracing::error!("{:?}", HWSystemError::file_operation(format!("{e:?}")));

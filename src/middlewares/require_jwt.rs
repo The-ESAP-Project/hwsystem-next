@@ -113,10 +113,11 @@ async fn extract_and_validate_jwt(req: &ServiceRequest) -> Result<entities::User
         .ok_or_else(|| "Missing or invalid Authorization header".to_string())?;
 
     // 验证 token 并保存 Claims（避免后续重复解码）
-    let verified_claims = crate::utils::jwt::JwtUtils::verify_access_token(token).map_err(|err| {
-        info!("JWT token validation failed: {}", err);
-        "Invalid JWT token".to_string()
-    })?;
+    let verified_claims =
+        crate::utils::jwt::JwtUtils::verify_access_token(token).map_err(|err| {
+            info!("JWT token validation failed: {}", err);
+            "Invalid JWT token".to_string()
+        })?;
 
     let cache = req
         .app_data::<actix_web::web::Data<Arc<dyn ObjectCache>>>()

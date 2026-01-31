@@ -1,3 +1,8 @@
+//! ⚠️ DEPRECATED: 此模块已被 `infer` crate 替代
+//!
+//! 请使用 `infer::get()` 进行文件类型检测，而不是 `validate_magic_bytes()`。
+//! 保留此模块仅供参考，未来版本可能移除。
+
 /// 验证文件内容的魔术字节是否与扩展名匹配
 ///
 /// # Arguments

@@ -33,6 +33,7 @@ pub enum ErrorCode {
     FileTypeNotAllowed = 3002,        // 文件类型不被允许
     FileSizeExceeded = 3003,          // 文件大小超出限制
     MultifileUploadNotAllowed = 3004, // 不允许多文件上传
+    FileOperationTimeout = 3005,      // 文件操作超时
 
     // 用户相关错误
     UserNotFound = 4000,            // 用户未找到

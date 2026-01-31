@@ -166,10 +166,11 @@ impl RateLimit {
 fn extract_client_ip_into(req: &ServiceRequest, buf: &mut String) {
     // 尝试从连接信息获取真实 IP（最可信）
     if let Some(ip) = req.connection_info().realip_remote_addr()
-        && is_valid_ip(ip) {
-            buf.push_str(ip);
-            return;
-        }
+        && is_valid_ip(ip)
+    {
+        buf.push_str(ip);
+        return;
+    }
 
     // 从 X-Forwarded-For 头获取（用于反向代理场景）
     // 只取第一个 IP（最接近客户端的）

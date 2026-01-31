@@ -22,9 +22,9 @@ max_workers = 32
 
 [server.timeouts]
 # 客户端请求超时 (毫秒)
-client_request = 5000
+client_request = 60000
 # 客户端断连超时 (毫秒)
-client_disconnect = 1000
+client_disconnect = 60000
 # Keep-Alive 超时 (秒)
 keep_alive = 30
 
@@ -85,3 +85,5 @@ max_age = 3600
 dir = "uploads"
 max_size = 10485760 # 10MB
 allowed_types = ["image/png", "image/jpeg", "application/pdf"]
+# 文件操作超时 (毫秒)
+timeout = 120000 # 2分钟

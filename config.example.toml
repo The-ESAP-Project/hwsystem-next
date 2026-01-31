@@ -91,6 +91,8 @@ dir = "uploads"
 max_size = 10485760 # 10MB
 # 允许的 MIME 类型或扩展名
 allowed_types = ["image/png", "image/jpeg", "application/pdf"]
+# 文件操作超时 (毫秒)
+timeout = 120000 # 2分钟
 
 [argon2]
 # Argon2 密码哈希配置

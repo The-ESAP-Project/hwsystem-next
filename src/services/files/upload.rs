@@ -15,7 +15,6 @@ use crate::models::ErrorCode;
 use crate::models::{ApiResponse, files::responses::FileUploadResponse};
 use crate::services::StorageProvider;
 use crate::services::system::DynamicConfig;
-use crate::utils::validate_magic_bytes;
 
 pub async fn handle_upload(
     service: &FileService,
@@ -110,12 +109,49 @@ pub async fn handle_upload(
                 // 第一个 chunk 时验证魔术字节
                 if first_chunk {
                     first_chunk = false;
-                    if !validate_magic_bytes(&data, &extension) {
-                        let _ = fs::remove_file(&file_path);
-                        return Ok(HttpResponse::BadRequest().json(ApiResponse::error_empty(
-                            ErrorCode::FileTypeNotAllowed,
-                            "文件内容与扩展名不匹配",
-                        )));
+
+                    // 用 infer 检测实际文件类型
+                    match infer::get(&data) {
+                        Some(kind) => {
+                            let detected_ext = format!(".{}", kind.extension());
+
+                            // 检查检测到的扩展名是否与用户声称的扩展名一致
+                            if detected_ext.to_lowercase() != extension.to_lowercase() {
+                                let _ = fs::remove_file(&file_path);
+                                return Ok(HttpResponse::BadRequest().json(
+                                    ApiResponse::error_empty(
+                                        ErrorCode::FileTypeNotAllowed,
+                                        format!(
+                                            "文件内容与扩展名不匹配: 检测到 {}, 声称 {}",
+                                            detected_ext, extension
+                                        ),
+                                    ),
+                                ));
+                            }
+                        }
+                        None => {
+                            // 如果 infer 无法识别，对于文本文件允许通过，其他拒绝
+                            if !matches!(
+                                extension.as_str(),
+                                ".txt"
+                                    | ".md"
+                                    | ".json"
+                                    | ".csv"
+                                    | ".xml"
+                                    | ".html"
+                                    | ".css"
+                                    | ".js"
+                                    | ".ts"
+                            ) {
+                                let _ = fs::remove_file(&file_path);
+                                return Ok(HttpResponse::BadRequest().json(
+                                    ApiResponse::error_empty(
+                                        ErrorCode::FileTypeNotAllowed,
+                                        "无法识别的文件类型",
+                                    ),
+                                ));
+                            }
+                        }
                     }
                 }
 

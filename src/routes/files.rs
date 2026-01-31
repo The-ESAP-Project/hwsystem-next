@@ -3,6 +3,7 @@ use once_cell::sync::Lazy;
 
 use crate::config::AppConfig;
 use crate::middlewares::{self, RateLimit};
+use crate::models::{ApiResponse, ErrorCode};
 use crate::services::FileService;
 use crate::utils::SafeFileToken;
 
@@ -13,7 +14,26 @@ pub async fn handle_upload(
     request: HttpRequest,
     payload: actix_multipart::Multipart,
 ) -> ActixResult<HttpResponse> {
-    FILE_SERVICE.handle_upload(&request, payload).await
+    let timeout_ms = AppConfig::get().upload.timeout;
+    let timeout_duration = std::time::Duration::from_millis(timeout_ms);
+
+    match tokio::time::timeout(
+        timeout_duration,
+        FILE_SERVICE.handle_upload(&request, payload),
+    )
+    .await
+    {
+        Ok(result) => result,
+        Err(_) => {
+            tracing::warn!("文件上传超时 ({}ms)", timeout_ms);
+            Ok(
+                HttpResponse::RequestTimeout().json(ApiResponse::<()>::error_empty(
+                    ErrorCode::FileOperationTimeout,
+                    "文件上传超时",
+                )),
+            )
+        }
+    }
 }
 
 pub async fn handle_download(

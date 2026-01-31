@@ -1,6 +1,7 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, middleware, web};
 use once_cell::sync::Lazy;
 
+use crate::config::AppConfig;
 use crate::middlewares::{self, RateLimit};
 use crate::services::FileService;
 use crate::utils::SafeFileToken;
@@ -31,6 +32,8 @@ pub async fn handle_delete(
 
 // 配置路由
 pub fn configure_file_routes(cfg: &mut web::ServiceConfig) {
+    let config = AppConfig::get();
+
     cfg.service(
         web::scope("/api/v1/files")
             .wrap(middlewares::RequireJWT)
@@ -38,6 +41,8 @@ pub fn configure_file_routes(cfg: &mut web::ServiceConfig) {
             // 文件上传：10次/分钟/用户
             .service(
                 web::resource("/upload")
+                    // 为文件上传路由单独设置 payload 限制（使用 upload.max_size）
+                    .app_data(web::PayloadConfig::new(config.upload.max_size))
                     .wrap(RateLimit::file_upload())
                     .route(web::post().to(handle_upload)),
             )

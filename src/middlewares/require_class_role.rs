@@ -43,6 +43,7 @@ use futures_util::future::{LocalBoxFuture, Ready, ready};
 use std::{rc::Rc, sync::Arc};
 
 use crate::{
+    cache::{CacheResult, ObjectCache},
     models::{
         ErrorCode,
         class_users::entities::{ClassUser, ClassUserRole},
@@ -222,21 +223,57 @@ impl RequireClassRole {
     }
 }
 
+/// 班级用户缓存 TTL（秒）
+const CLASS_USER_CACHE_TTL: u64 = 300;
+
+/// 生成班级用户缓存键
+pub fn class_user_cache_key(user_id: i64, class_id: i64) -> String {
+    format!("class_user:{}:{}", user_id, class_id)
+}
+
 async fn get_class_user_by_user_id_and_class_id(
     req: &ServiceRequest,
     user_id: i64,
     class_id: i64,
 ) -> Option<ClassUser> {
+    let cache = req
+        .app_data::<actix_web::web::Data<Arc<dyn ObjectCache>>>()
+        .map(|data| data.get_ref().clone());
+
+    let cache_key = class_user_cache_key(user_id, class_id);
+
+    // 先查缓存
+    if let Some(ref cache) = cache {
+        if let CacheResult::Found(json) = cache.get_raw(&cache_key).await {
+            if let Ok(class_user) = serde_json::from_str::<ClassUser>(&json) {
+                tracing::debug!("Class user cache hit: {}", cache_key);
+                return Some(class_user);
+            }
+        }
+    }
+
+    // 缓存未命中，查数据库
     let storage = req
         .app_data::<actix_web::web::Data<Arc<dyn Storage>>>()
         .map(|data| data.get_ref().clone())?;
 
-    match storage
+    let class_user = match storage
         .get_class_user_by_user_id_and_class_id(user_id, class_id)
         .await
     {
-        Ok(Some(class_user)) => Some(class_user),
-        Ok(None) => None,
-        Err(_) => None,
+        Ok(Some(class_user)) => class_user,
+        Ok(None) => return None,
+        Err(_) => return None,
+    };
+
+    // 存入缓存
+    if let Some(cache) = cache {
+        if let Ok(json) = serde_json::to_string(&class_user) {
+            cache
+                .insert_raw(cache_key, json, CLASS_USER_CACHE_TTL)
+                .await;
+        }
     }
+
+    Some(class_user)
 }

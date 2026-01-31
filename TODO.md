@@ -262,21 +262,24 @@
 - ✅ 保存 `verify_access_token()` 返回的 Claims，在缓存未命中时直接使用
 - ✅ 每个请求只执行一次 JWT 解码
 
-#### P6. 班级角色中间件每请求查数据库
+#### P6. ~~班级角色中间件每请求查数据库~~ ✅ 已修复
 - **文件**: `src/middlewares/require_class_role.rs:225-242`
-- **问题**: `RequireClassRole` 中间件无缓存，每个请求都查 `class_user` 表
-- **影响**: 班级相关接口在高并发下产生大量重复查询
-- **建议**: 短期缓存（如 5 分钟）班级成员角色信息，成员变动时失效
+- ~~**问题**: `RequireClassRole` 中间件无缓存，每个请求都查 `class_user` 表~~
+- ~~**影响**: 班级相关接口在高并发下产生大量重复查询~~
+- ✅ 添加班级成员角色缓存（TTL 300秒）
+- ✅ 在 join/update/leave 班级时主动失效缓存
 
-#### P7. Moka 缓存忽略单项 TTL
+#### P7. ~~Moka 缓存忽略单项 TTL~~ ✅ 已修复
 - **文件**: `src/cache/object_cache/moka.rs:49-58`
-- **问题**: `insert_raw` 的 `ttl` 参数被完全忽略，所有缓存项使用全局 TTL
-- **建议**: 使用 Moka 的 `policy::expiration()` 或 `expiry` trait 支持按项 TTL
+- ~~**问题**: `insert_raw` 的 `ttl` 参数被完全忽略，所有缓存项使用全局 TTL~~
+- ✅ 使用 Moka `Expiry` trait 实现按项 TTL
+- ✅ `ttl=0` 使用默认 TTL，`ttl>0` 使用指定值
 
-#### P8. payload 限制与上传限制冲突
+#### P8. ~~payload 限制与上传限制冲突~~ ✅ 已修复
 - **文件**: `config.example.toml`
-- **问题**: `max_payload_size = 1MB`，但 `upload.max_size = 10MB`，大文件上传会被全局 payload 限制直接拒绝
-- **建议**: 将 `max_payload_size` 调整为 >= `upload.max_size`，或对上传接口单独配置
+- ~~**问题**: `max_payload_size = 1MB`，但 `upload.max_size = 10MB`，大文件上传会被全局 payload 限制直接拒绝~~
+- ✅ 为文件上传路由 `/api/v1/files/upload` 单独配置 `PayloadConfig`
+- ✅ 为用户导入路由 `/api/v1/users/import` 单独配置 `PayloadConfig`
 
 ---
 
@@ -365,7 +368,7 @@
 | 严重程度 | 数量 | 已修复 | 问题编号 |
 |---------|------|--------|---------|
 | 🔴 严重 | 3 | 3 | P1 ✅, P2 ✅, P3 ✅ |
-| 🟠 高 | 5 | 2 | P4 ✅, P5 ✅, P6-P8 |
+| 🟠 高 | 5 | 5 | P4 ✅, P5 ✅, P6 ✅, P7 ✅, P8 ✅ |
 | 🟡 中 | 7 | 0 | P9-P15 |
 | 🔵 低 | 6 | 0 | P16-P21 |
 
@@ -377,8 +380,9 @@
 
 2. **第二批 — 高频路径优化**
    - [x] P5: JWT 去重解码 ✅
-   - [ ] P6: 中间件缓存
-   - [ ] P8: payload 限制修正
+   - [x] P6: 中间件缓存 ✅
+   - [x] P7: Moka 按项 TTL ✅
+   - [x] P8: payload 限制修正 ✅
 
 3. **第三批 — 查询优化**
    - [x] P2: 导出报表 N+1 ✅
@@ -387,7 +391,7 @@
    - [ ] P12: 数据库层分页
 
 4. **第四批 — 运行时优化**
-   - [ ] P7, P13, P14, P15 及低优先级项
+   - [ ] P13, P14, P15 及低优先级项
 
 ---
 

@@ -73,10 +73,12 @@ impl ClassUserService {
     }
 }
 
-use crate::services::StorageProvider;
+use crate::services::{CacheProvider, StorageProvider};
 
 impl StorageProvider for ClassUserService {
     fn storage_ref(&self) -> Option<Arc<dyn Storage>> {
         self.storage.clone()
     }
 }
+
+impl CacheProvider for ClassUserService {}

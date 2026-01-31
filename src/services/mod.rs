@@ -11,6 +11,7 @@ pub mod users;
 pub mod websocket;
 
 // Storage provider trait for all services
+use crate::cache::ObjectCache;
 use crate::models::ApiResponse;
 use crate::models::ErrorCode;
 use crate::storage::Storage;
@@ -46,6 +47,16 @@ pub trait StorageProvider {
     /// Return a reference to the internal Storage if available.
     /// Implement this by returning `self.storage.clone()` or `None`.
     fn storage_ref(&self) -> Option<Arc<dyn Storage>>;
+}
+
+/// Trait for services that need to access cache.
+pub trait CacheProvider {
+    /// Get the ObjectCache instance from the request.
+    fn get_cache(&self, request: &HttpRequest) -> Option<Arc<dyn ObjectCache>> {
+        request
+            .app_data::<actix_web::web::Data<Arc<dyn ObjectCache>>>()
+            .map(|data| data.get_ref().clone())
+    }
 }
 
 pub use auth::AuthService;

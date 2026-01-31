@@ -1,10 +1,11 @@
 use crate::{
     middlewares::RequireJWT,
+    middlewares::require_class_role::class_user_cache_key,
     models::{
         ApiResponse, ErrorCode, class_users::entities::ClassUser, classes::entities::Class,
         users::entities::UserRole,
     },
-    services::{ClassUserService, StorageProvider},
+    services::{CacheProvider, ClassUserService, StorageProvider},
 };
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
@@ -88,9 +89,18 @@ pub async fn delete_class_user(
         .leave_class(target_class_user.user_id, class_id)
         .await
     {
-        Ok(true) => Ok(HttpResponse::Ok().json(ApiResponse::success_empty(
-            "Class user deleted successfully",
-        ))),
+        Ok(true) => {
+            // 失效缓存
+            if let Some(cache) = service.get_cache(req) {
+                cache
+                    .remove(&class_user_cache_key(target_class_user.user_id, class_id))
+                    .await;
+            }
+
+            Ok(HttpResponse::Ok().json(ApiResponse::success_empty(
+                "Class user deleted successfully",
+            )))
+        }
         Ok(false) => Ok(HttpResponse::NotFound().json(ApiResponse::error_empty(
             ErrorCode::ClassUserNotFound,
             "Class user not found",

@@ -2,9 +2,10 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use tracing::error;
 
 use super::ClassUserService;
+use crate::middlewares::require_class_role::class_user_cache_key;
 use crate::models::notifications::entities::{NotificationType, ReferenceType};
-use crate::services::StorageProvider;
 use crate::services::notifications::trigger::send_notification;
+use crate::services::{CacheProvider, StorageProvider};
 use crate::{
     middlewares::RequireJWT,
     models::{
@@ -72,6 +73,11 @@ pub async fn join_class(
         .await
     {
         Ok(class_user) => {
+            // 失效缓存
+            if let Some(cache) = service.get_cache(request) {
+                cache.remove(&class_user_cache_key(user_id, class_id)).await;
+            }
+
             // 异步发送通知
             let storage_clone = storage.clone();
 

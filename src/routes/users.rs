@@ -2,6 +2,7 @@ use actix_multipart::Multipart;
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};
 use once_cell::sync::Lazy;
 
+use crate::config::AppConfig;
 use crate::middlewares;
 use crate::models::users::entities::UserRole;
 use crate::models::users::requests::{
@@ -69,6 +70,8 @@ pub async fn get_my_stats(req: HttpRequest) -> ActixResult<HttpResponse> {
 
 // 配置路由
 pub fn configure_user_routes(cfg: &mut web::ServiceConfig) {
+    let config = AppConfig::get();
+
     cfg.service(
         web::scope("/api/v1/users")
             .wrap(middlewares::RequireJWT)
@@ -81,7 +84,12 @@ pub fn configure_user_routes(cfg: &mut web::ServiceConfig) {
                     .route("", web::get().to(list_users))
                     .route("", web::post().to(create_user))
                     .route("/export", web::get().to(export_users))
-                    .route("/import", web::post().to(import_users))
+                    // 为用户导入路由单独设置 payload 限制（使用 upload.max_size）
+                    .service(
+                        web::resource("/import")
+                            .app_data(web::PayloadConfig::new(config.upload.max_size))
+                            .route(web::post().to(import_users)),
+                    )
                     .route("/import/template", web::get().to(download_import_template))
                     .route("/{id}", web::get().to(get_user))
                     .route("/{id}", web::put().to(update_user))

@@ -1,5 +1,6 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
+use crate::middlewares::require_class_role::class_user_cache_key;
 use crate::models::class_users::entities::ClassUserRole;
 use crate::models::notifications::entities::{NotificationType, ReferenceType};
 use crate::services::notifications::trigger::send_notification;
@@ -11,7 +12,7 @@ use crate::{
         classes::entities::Class,
         users::entities::{User, UserRole},
     },
-    services::{ClassUserService, StorageProvider},
+    services::{CacheProvider, ClassUserService, StorageProvider},
 };
 
 pub async fn update_class_user(
@@ -71,6 +72,11 @@ pub async fn update_class_user(
         .await
     {
         Ok(Some(class_user)) => {
+            // 失效缓存
+            if let Some(cache) = service.get_cache(request) {
+                cache.remove(&class_user_cache_key(user_id, class_id)).await;
+            }
+
             // 检查角色是否变化，如果变化则发送通知
             if let Some(new_role) = &update_data.role
                 && old_role.as_ref() != Some(new_role)

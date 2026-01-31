@@ -1,4 +1,4 @@
-# 硬件系统配置文件示例
+# 作业管理系统配置文件示例
 # 复制此文件为 config.toml 或 config.{environment}.toml 并根据需要修改
 
 [app]

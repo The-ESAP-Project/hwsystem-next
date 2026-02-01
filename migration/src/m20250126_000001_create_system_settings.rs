@@ -150,7 +150,7 @@ impl MigrationTrait for Migration {
             ),
             (
                 "upload.allowed_types",
-                r#"[".pdf",".doc",".docx",".xls",".xlsx",".ppt",".pptx",".txt",".zip",".rar",".7z",".jpg",".jpeg",".png",".gif",".bmp",".webp"]"#,
+                r#"[".pdf",".doc",".docx",".xls",".xlsx",".ppt",".pptx",".txt",".zip",".rar",".7z",".jpg",".jpeg",".png",".gif",".bmp",".webp",".csv"]"#,
                 "json_array",
                 "允许上传的文件类型",
             ),

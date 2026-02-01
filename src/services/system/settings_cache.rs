@@ -151,4 +151,48 @@ impl DynamicConfig {
         }
         false
     }
+
+    // ============================================
+    // 图片压缩配置访问方法
+    // ============================================
+
+    /// 获取是否启用前端压缩
+    pub async fn upload_client_compress_enabled() -> bool {
+        Self::get_string("upload.client_compress_enabled")
+            .await
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(false)
+    }
+
+    /// 获取压缩阈值（字节）
+    pub async fn upload_compress_threshold() -> usize {
+        Self::get_i64("upload.compress_threshold")
+            .await
+            .map(|v| v as usize)
+            .unwrap_or(2097152) // 默认2MB
+    }
+
+    /// 获取压缩质量（0-1）
+    pub async fn upload_compress_quality() -> f64 {
+        Self::get_string("upload.compress_quality")
+            .await
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0.85)
+    }
+
+    /// 获取压缩最大宽度
+    pub async fn upload_compress_max_width() -> u32 {
+        Self::get_i64("upload.compress_max_width")
+            .await
+            .map(|v| v as u32)
+            .unwrap_or(1920)
+    }
+
+    /// 获取压缩最大高度
+    pub async fn upload_compress_max_height() -> u32 {
+        Self::get_i64("upload.compress_max_height")
+            .await
+            .map(|v| v as u32)
+            .unwrap_or(1920)
+    }
 }

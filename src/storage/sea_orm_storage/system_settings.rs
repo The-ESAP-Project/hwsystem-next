@@ -96,7 +96,7 @@ impl SeaOrmStorage {
 
         // 创建审计日志
         let audit = crate::entity::system_settings_audit::ActiveModel {
-            id: Set(0), // auto increment
+            id: sea_orm::NotSet, // auto increment by database
             setting_key: Set(key.to_string()),
             old_value: Set(Some(old_value)),
             new_value: Set(value.to_string()),

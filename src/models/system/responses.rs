@@ -27,6 +27,15 @@ pub struct ClientConfigResponse {
     #[ts(type = "string")]
     pub max_file_size: u64, // 最大文件大小（字节）
     pub allowed_file_types: Vec<String>, // 允许的文件类型
+
+    // 图片压缩配置
+    pub client_compress_enabled: bool, // 是否启用前端压缩
+    #[serde(serialize_with = "serialize_u64_as_string")]
+    #[ts(type = "string")]
+    pub compress_threshold: u64, // 压缩阈值（字节）
+    pub compress_quality: f64,         // 压缩质量（0-1）
+    pub compress_max_width: u32,       // 压缩最大宽度（像素）
+    pub compress_max_height: u32,      // 压缩最大高度（像素）
 }
 
 /// WebSocket 状态响应

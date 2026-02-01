@@ -52,6 +52,12 @@ pub async fn get_client_config(
         file_operation_timeout: config.upload.timeout,
         max_file_size: DynamicConfig::upload_max_size().await as u64,
         allowed_file_types: DynamicConfig::upload_allowed_types().await,
+        // 图片压缩配置
+        client_compress_enabled: DynamicConfig::upload_client_compress_enabled().await,
+        compress_threshold: DynamicConfig::upload_compress_threshold().await as u64,
+        compress_quality: DynamicConfig::upload_compress_quality().await,
+        compress_max_width: DynamicConfig::upload_compress_max_width().await,
+        compress_max_height: DynamicConfig::upload_compress_max_height().await,
     };
 
     Ok(HttpResponse::Ok().json(ApiResponse::success(

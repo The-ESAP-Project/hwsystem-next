@@ -70,6 +70,12 @@ pub enum KnownSettingKey {
     UploadAllowedTypes,
     CorsAllowedOrigins,
     CorsMaxAge,
+    // 图片压缩配置
+    UploadClientCompressEnabled,
+    UploadCompressThreshold,
+    UploadCompressQuality,
+    UploadCompressMaxWidth,
+    UploadCompressMaxHeight,
 }
 
 impl KnownSettingKey {
@@ -83,6 +89,11 @@ impl KnownSettingKey {
             KnownSettingKey::UploadAllowedTypes => "upload.allowed_types",
             KnownSettingKey::CorsAllowedOrigins => "cors.allowed_origins",
             KnownSettingKey::CorsMaxAge => "cors.max_age",
+            KnownSettingKey::UploadClientCompressEnabled => "upload.client_compress_enabled",
+            KnownSettingKey::UploadCompressThreshold => "upload.compress_threshold",
+            KnownSettingKey::UploadCompressQuality => "upload.compress_quality",
+            KnownSettingKey::UploadCompressMaxWidth => "upload.compress_max_width",
+            KnownSettingKey::UploadCompressMaxHeight => "upload.compress_max_height",
         }
     }
 
@@ -96,6 +107,11 @@ impl KnownSettingKey {
             KnownSettingKey::UploadAllowedTypes => SettingValueType::JsonArray,
             KnownSettingKey::CorsAllowedOrigins => SettingValueType::JsonArray,
             KnownSettingKey::CorsMaxAge => SettingValueType::Integer,
+            KnownSettingKey::UploadClientCompressEnabled => SettingValueType::Boolean,
+            KnownSettingKey::UploadCompressThreshold => SettingValueType::Integer,
+            KnownSettingKey::UploadCompressQuality => SettingValueType::String,
+            KnownSettingKey::UploadCompressMaxWidth => SettingValueType::Integer,
+            KnownSettingKey::UploadCompressMaxHeight => SettingValueType::Integer,
         }
     }
 
@@ -109,6 +125,11 @@ impl KnownSettingKey {
             KnownSettingKey::UploadAllowedTypes,
             KnownSettingKey::CorsAllowedOrigins,
             KnownSettingKey::CorsMaxAge,
+            KnownSettingKey::UploadClientCompressEnabled,
+            KnownSettingKey::UploadCompressThreshold,
+            KnownSettingKey::UploadCompressQuality,
+            KnownSettingKey::UploadCompressMaxWidth,
+            KnownSettingKey::UploadCompressMaxHeight,
         ]
     }
 }
@@ -128,6 +149,11 @@ impl std::str::FromStr for KnownSettingKey {
             "upload.allowed_types" => Ok(KnownSettingKey::UploadAllowedTypes),
             "cors.allowed_origins" => Ok(KnownSettingKey::CorsAllowedOrigins),
             "cors.max_age" => Ok(KnownSettingKey::CorsMaxAge),
+            "upload.client_compress_enabled" => Ok(KnownSettingKey::UploadClientCompressEnabled),
+            "upload.compress_threshold" => Ok(KnownSettingKey::UploadCompressThreshold),
+            "upload.compress_quality" => Ok(KnownSettingKey::UploadCompressQuality),
+            "upload.compress_max_width" => Ok(KnownSettingKey::UploadCompressMaxWidth),
+            "upload.compress_max_height" => Ok(KnownSettingKey::UploadCompressMaxHeight),
             _ => Err(format!("Unknown setting key: {s}")),
         }
     }

@@ -6,8 +6,8 @@ use crate::models::homeworks::requests::UpdateHomeworkRequest;
 use crate::models::notifications::entities::{NotificationType, ReferenceType};
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
 use crate::services::notifications::trigger::{get_class_student_ids, send_notifications};
+use crate::services::{StorageProvider, error_response};
 
 pub async fn update_homework(
     service: &HomeworkService,
@@ -29,12 +29,7 @@ pub async fn update_homework(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询作业失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -85,11 +80,6 @@ pub async fn update_homework(
             ErrorCode::HomeworkNotFound,
             "作业不存在",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::HomeworkUpdateFailed,
-                format!("更新作业失败: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

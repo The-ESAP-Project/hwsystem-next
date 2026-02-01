@@ -3,7 +3,7 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use super::NotificationService;
 use crate::middlewares::RequireJWT;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn delete_notification(
     service: &NotificationService,
@@ -33,12 +33,7 @@ pub async fn delete_notification(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询通知失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -56,11 +51,6 @@ pub async fn delete_notification(
             ErrorCode::NotificationNotFound,
             "通知不存在",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("删除通知失败: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

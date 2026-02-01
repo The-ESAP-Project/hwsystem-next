@@ -7,6 +7,7 @@ use crate::models::class_users::entities::ClassUserRole;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
 use crate::services::StorageProvider;
+use crate::services::error_response;
 use crate::services::submissions::SubmissionService;
 
 /// 获取作业提交概览（按学生聚合）
@@ -48,12 +49,7 @@ pub async fn get_submission_summary(
             );
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::<()>::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询作业失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -77,12 +73,7 @@ pub async fn get_submission_summary(
                 );
             }
             Err(e) => {
-                return Ok(HttpResponse::InternalServerError().json(
-                    ApiResponse::<()>::error_empty(
-                        ErrorCode::InternalServerError,
-                        format!("查询班级成员失败: {e}"),
-                    ),
-                ));
+                return Ok(error_response(e));
             }
         };
 
@@ -112,12 +103,7 @@ pub async fn get_submission_summary(
     {
         Ok(s) => s,
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::<()>::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询提交概览失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -158,12 +144,7 @@ pub async fn list_user_submissions_for_teacher(
             );
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::<()>::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询作业失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -187,12 +168,7 @@ pub async fn list_user_submissions_for_teacher(
                 );
             }
             Err(e) => {
-                return Ok(HttpResponse::InternalServerError().json(
-                    ApiResponse::<()>::error_empty(
-                        ErrorCode::InternalServerError,
-                        format!("查询班级成员失败: {e}"),
-                    ),
-                ));
+                return Ok(error_response(e));
             }
         };
 
@@ -219,12 +195,7 @@ pub async fn list_user_submissions_for_teacher(
     {
         Ok(s) => s,
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::<()>::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询提交历史失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 

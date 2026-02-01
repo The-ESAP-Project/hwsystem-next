@@ -8,7 +8,7 @@ use crate::utils::jwt;
 use crate::utils::password::verify_password;
 
 use super::AuthService;
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn handle_login(
     service: &AuthService,
@@ -76,11 +76,6 @@ pub async fn handle_login(
             ErrorCode::AuthFailed,
             "Username or password is incorrect",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("Login failed: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

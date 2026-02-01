@@ -3,7 +3,7 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use super::UserService;
 use crate::models::users::responses::UserResponse;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn get_user(
     service: &UserService,
@@ -21,11 +21,6 @@ pub async fn get_user(
             ErrorCode::UserNotFound,
             "User not found",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("Failed to get user information: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

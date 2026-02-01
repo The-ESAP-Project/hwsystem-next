@@ -6,8 +6,8 @@ use crate::models::grades::requests::CreateGradeRequest;
 use crate::models::notifications::entities::{NotificationType, ReferenceType};
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
 use crate::services::notifications::trigger::send_notification;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn create_grade(
     service: &GradeService,
@@ -28,12 +28,7 @@ pub async fn create_grade(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询提交失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -47,12 +42,7 @@ pub async fn create_grade(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询作业失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -66,12 +56,7 @@ pub async fn create_grade(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询班级失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -103,12 +88,7 @@ pub async fn create_grade(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询评分失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
         _ => {}
     }
@@ -137,11 +117,6 @@ pub async fn create_grade(
 
             Ok(HttpResponse::Created().json(ApiResponse::success(grade, "评分成功")))
         }
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::GradeCreateFailed,
-                format!("创建评分失败: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

@@ -5,7 +5,7 @@ use crate::middlewares::RequireJWT;
 use crate::models::submissions::requests::SubmissionListQuery;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn list_submissions(
     service: &SubmissionService,
@@ -62,11 +62,6 @@ pub async fn list_submissions(
 
     match storage.list_submissions_with_pagination(query).await {
         Ok(response) => Ok(HttpResponse::Ok().json(ApiResponse::success(response, "查询成功"))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("查询提交列表失败: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

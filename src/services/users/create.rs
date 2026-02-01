@@ -6,7 +6,7 @@ use crate::models::{
     ApiResponse, ErrorCode,
     users::{requests::CreateUserRequest, responses::UserResponse},
 };
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 use crate::utils::password::hash_password;
 use crate::utils::validate::{validate_email, validate_password_simple, validate_username};
 
@@ -38,12 +38,7 @@ pub async fn create_user(
     user_data.password = match hash_password(&user_data.password) {
         Ok(hash) => hash,
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("Password hashing failed: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 

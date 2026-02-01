@@ -9,7 +9,7 @@ use crate::models::class_users::entities::ClassUserRole;
 use crate::models::classes::requests::CreateClassRequest;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 use crate::storage::Storage;
 
 /// 创建班级
@@ -125,12 +125,7 @@ async fn check_class_create_permission(
                 ))),
                 Err(e) => {
                     error!("Failed to get user by id: {}", e);
-                    Err(
-                        HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                            ErrorCode::InternalServerError,
-                            "Internal server error while fetching user",
-                        )),
-                    )
+                    Err(error_response(e))
                 }
             }
         }

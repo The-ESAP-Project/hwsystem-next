@@ -5,7 +5,7 @@ use crate::{
         ApiResponse, ErrorCode, class_users::entities::ClassUser, classes::entities::Class,
         users::entities::UserRole,
     },
-    services::{CacheProvider, ClassUserService, StorageProvider},
+    services::{CacheProvider, ClassUserService, StorageProvider, error_response},
 };
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
@@ -38,12 +38,7 @@ pub async fn delete_class_user(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("Failed to get class information: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -60,12 +55,7 @@ pub async fn delete_class_user(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("Failed to get class user: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -105,12 +95,7 @@ pub async fn delete_class_user(
             ErrorCode::ClassUserNotFound,
             "Class user not found",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("Failed to delete class user: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }
 

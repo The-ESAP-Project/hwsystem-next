@@ -3,7 +3,7 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use super::FileService;
 use crate::middlewares::RequireJWT;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn handle_delete(
     service: &FileService,
@@ -36,12 +36,7 @@ pub async fn handle_delete(
                 )));
             }
             tracing::error!("删除文件失败: {:?}", e);
-            Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("删除文件失败: {e}"),
-                )),
-            )
+            Ok(error_response(e))
         }
     }
 }

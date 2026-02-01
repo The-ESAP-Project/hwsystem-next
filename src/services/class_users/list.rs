@@ -5,13 +5,13 @@ use tracing::error;
 
 use crate::{
     models::{
-        ApiResponse, ErrorCode,
+        ApiResponse,
         class_users::{
             requests::ClassUserListQuery,
             responses::{ClassUserDetail, ClassUserDetailListResponse, UserInfo},
         },
     },
-    services::{ClassUserService, StorageProvider},
+    services::{ClassUserService, StorageProvider, error_response},
 };
 
 pub async fn list_class_users_with_pagination(
@@ -84,12 +84,7 @@ pub async fn list_class_users_with_pagination(
         }
         Err(err) => {
             error!("Failed to retrieve class users: {}", err);
-            Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    "Failed to retrieve class users",
-                )),
-            )
+            Ok(error_response(err))
         }
     }
 }

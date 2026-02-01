@@ -6,7 +6,7 @@ use crate::models::{
     ApiResponse, ErrorCode,
     users::{entities::UserRole, requests::UpdateUserRequest, responses::UserResponse},
 };
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 use crate::utils::validate::validate_password_simple;
 
 pub async fn update_user(
@@ -36,12 +36,7 @@ pub async fn update_user(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询用户失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -76,12 +71,7 @@ pub async fn update_user(
         match crate::utils::password::hash_password(password) {
             Ok(hash) => update_data.password = Some(hash),
             Err(e) => {
-                return Ok(
-                    HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                        ErrorCode::InternalServerError,
-                        format!("密码哈希失败: {e}"),
-                    )),
-                );
+                return Ok(error_response(e));
             }
         }
     }

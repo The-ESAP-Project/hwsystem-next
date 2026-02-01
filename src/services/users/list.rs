@@ -1,8 +1,8 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use super::UserService;
-use crate::models::{ApiResponse, ErrorCode, users::requests::UserListQuery};
-use crate::services::StorageProvider;
+use crate::models::{ApiResponse, users::requests::UserListQuery};
+use crate::services::{StorageProvider, error_response};
 
 pub async fn list_users(
     service: &UserService,
@@ -16,11 +16,6 @@ pub async fn list_users(
             response,
             "User list retrieved successfully",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("Failed to retrieve user list: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

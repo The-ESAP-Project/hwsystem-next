@@ -12,7 +12,7 @@ use crate::{
         classes::entities::Class,
         users::entities::{User, UserRole},
     },
-    services::{CacheProvider, ClassUserService, StorageProvider},
+    services::{CacheProvider, ClassUserService, StorageProvider, error_response},
 };
 
 pub async fn update_class_user(
@@ -44,12 +44,7 @@ pub async fn update_class_user(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("Failed to get class information: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -115,12 +110,7 @@ pub async fn update_class_user(
             ErrorCode::ClassUserNotFound,
             "Class user not found",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("Failed to get class user: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }
 

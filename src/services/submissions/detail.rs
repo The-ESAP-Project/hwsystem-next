@@ -5,7 +5,7 @@ use crate::middlewares::RequireJWT;
 use crate::models::class_users::entities::ClassUserRole;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn get_submission(
     service: &SubmissionService,
@@ -36,12 +36,7 @@ pub async fn get_submission(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询提交失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -63,12 +58,7 @@ pub async fn get_submission(
                 )));
             }
             Err(e) => {
-                return Ok(
-                    HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                        ErrorCode::InternalServerError,
-                        format!("查询作业失败: {e}"),
-                    )),
-                );
+                return Ok(error_response(e));
             }
         };
 
@@ -105,12 +95,7 @@ pub async fn get_submission(
                 )));
             }
             Err(e) => {
-                return Ok(
-                    HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                        ErrorCode::InternalServerError,
-                        format!("查询班级成员失败: {e}"),
-                    )),
-                );
+                return Ok(error_response(e));
             }
         }
     }
@@ -140,11 +125,6 @@ pub async fn get_latest_submission(
                 Ok(HttpResponse::Ok().json(ApiResponse::success_empty("暂无提交")))
             }
         }
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("查询提交失败: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

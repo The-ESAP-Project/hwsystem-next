@@ -4,7 +4,7 @@ use super::SubmissionService;
 use crate::middlewares::RequireJWT;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn delete_submission(
     service: &SubmissionService,
@@ -25,12 +25,7 @@ pub async fn delete_submission(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询提交失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -56,11 +51,6 @@ pub async fn delete_submission(
             ErrorCode::SubmissionNotFound,
             "提交不存在",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("撤回提交失败: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

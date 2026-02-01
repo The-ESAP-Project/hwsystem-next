@@ -4,8 +4,8 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use crate::middlewares::RequireJWT;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
 use crate::services::users::UserService;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn get_my_stats(
     service: &UserService,
@@ -32,12 +32,7 @@ pub async fn get_my_stats(
         Ok(stats) => Ok(HttpResponse::Ok().json(ApiResponse::success(stats, "获取用户统计成功"))),
         Err(e) => {
             tracing::error!("获取用户统计失败: {:?}", e);
-            Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("获取用户统计失败: {e}"),
-                )),
-            )
+            Ok(error_response(e))
         }
     }
 }

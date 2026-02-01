@@ -7,6 +7,7 @@ use crate::models::homeworks::requests::AllHomeworksQuery;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
 use crate::services::StorageProvider;
+use crate::services::error_response;
 use crate::services::homeworks::HomeworkService;
 
 pub async fn list_all_homeworks(
@@ -38,12 +39,7 @@ pub async fn list_all_homeworks(
         Ok(resp) => Ok(HttpResponse::Ok().json(ApiResponse::success(resp, "获取作业列表成功"))),
         Err(e) => {
             tracing::error!("获取跨班级作业列表失败: {:?}", e);
-            Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("获取作业列表失败: {e}"),
-                )),
-            )
+            Ok(error_response(e))
         }
     }
 }

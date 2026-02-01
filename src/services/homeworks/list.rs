@@ -4,7 +4,7 @@ use crate::models::{ApiResponse, ErrorCode, homeworks::requests::HomeworkListQue
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use super::HomeworkService;
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn list_homeworks(
     service: &HomeworkService,
@@ -57,12 +57,7 @@ pub async fn list_homeworks(
                         }
                     }
                     Err(e) => {
-                        return Ok(HttpResponse::InternalServerError().json(
-                            ApiResponse::error_empty(
-                                ErrorCode::InternalServerError,
-                                format!("验证班级权限失败: {e}"),
-                            ),
-                        ));
+                        return Ok(error_response(e));
                     }
                 }
             } else {
@@ -88,12 +83,7 @@ pub async fn list_homeworks(
                         )));
                     }
                     Err(e) => {
-                        return Ok(HttpResponse::InternalServerError().json(
-                            ApiResponse::error_empty(
-                                ErrorCode::InternalServerError,
-                                format!("验证班级成员资格失败: {e}"),
-                            ),
-                        ));
+                        return Ok(error_response(e));
                     }
                 }
             } else {
@@ -118,11 +108,6 @@ pub async fn list_homeworks(
         .await
     {
         Ok(resp) => Ok(HttpResponse::Ok().json(ApiResponse::success(resp, "获取作业列表成功"))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("获取作业列表失败: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

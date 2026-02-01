@@ -1,3 +1,4 @@
+use actix_web::http::StatusCode;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use ts_rs::TS;
 
@@ -90,4 +91,56 @@ pub enum ErrorCode {
 
     // 通知相关错误
     NotificationNotFound = 11000, // 通知未找到
+}
+
+impl ErrorCode {
+    pub fn http_status(&self) -> StatusCode {
+        match self {
+            ErrorCode::Success => StatusCode::OK,
+
+            ErrorCode::BadRequest
+            | ErrorCode::PasswordPolicyViolation
+            | ErrorCode::FileTypeNotAllowed
+            | ErrorCode::FileSizeExceeded
+            | ErrorCode::MultifileUploadNotAllowed
+            | ErrorCode::UserNameInvalid
+            | ErrorCode::UserEmailInvalid
+            | ErrorCode::UserPasswordInvalid
+            | ErrorCode::ClassInviteCodeInvalid
+            | ErrorCode::ImportFileParseFailed
+            | ErrorCode::ImportFileFormatInvalid
+            | ErrorCode::ImportFileMissingColumn
+            | ErrorCode::ImportFileDataInvalid => StatusCode::BAD_REQUEST,
+
+            ErrorCode::Unauthorized | ErrorCode::AuthFailed | ErrorCode::RegisterFailed => {
+                StatusCode::UNAUTHORIZED
+            }
+
+            ErrorCode::Forbidden
+            | ErrorCode::PermissionDenied
+            | ErrorCode::ClassPermissionDenied
+            | ErrorCode::ClassJoinForbidden => StatusCode::FORBIDDEN,
+
+            ErrorCode::NotFound
+            | ErrorCode::FileNotFound
+            | ErrorCode::UserNotFound
+            | ErrorCode::ClassNotFound
+            | ErrorCode::ClassUserNotFound
+            | ErrorCode::HomeworkNotFound
+            | ErrorCode::SubmissionNotFound
+            | ErrorCode::GradeNotFound
+            | ErrorCode::NotificationNotFound => StatusCode::NOT_FOUND,
+
+            ErrorCode::Conflict
+            | ErrorCode::UserAlreadyExists
+            | ErrorCode::UserNameAlreadyExists
+            | ErrorCode::UserEmailAlreadyExists
+            | ErrorCode::ClassAlreadyExists
+            | ErrorCode::ClassAlreadyJoined => StatusCode::CONFLICT,
+
+            ErrorCode::RateLimitExceeded => StatusCode::TOO_MANY_REQUESTS,
+
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
 }

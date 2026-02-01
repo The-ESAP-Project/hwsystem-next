@@ -9,7 +9,7 @@ use crate::models::homeworks::stats_responses::{
 };
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn get_homework_stats(
     service: &HomeworkService,
@@ -39,12 +39,7 @@ pub async fn get_homework_stats(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询作业失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -68,12 +63,7 @@ pub async fn get_homework_stats(
                 )));
             }
             Err(e) => {
-                return Ok(
-                    HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                        ErrorCode::InternalServerError,
-                        format!("查询班级成员失败: {e}"),
-                    )),
-                );
+                return Ok(error_response(e));
             }
         };
 
@@ -92,12 +82,7 @@ pub async fn get_homework_stats(
     let class_users = match storage.list_all_class_users(class_id).await {
         Ok(users) => users,
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询班级成员失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -113,12 +98,7 @@ pub async fn get_homework_stats(
     let submissions = match storage.list_all_submissions_by_homework(homework_id).await {
         Ok(subs) => subs,
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询提交失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use super::ClassService;
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 use crate::{
     middlewares::RequireJWT,
     models::{
@@ -91,12 +91,7 @@ pub async fn get_class(
             ErrorCode::ClassNotFound,
             "Class not found",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("Failed to get class information: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }
 
@@ -154,11 +149,6 @@ pub async fn get_class_by_code(
             ErrorCode::ClassNotFound,
             "Class not found",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("Failed to get class information: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

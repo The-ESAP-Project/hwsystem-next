@@ -1,7 +1,7 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use super::ClassService;
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 use crate::{
     middlewares::RequireJWT,
     models::{ApiResponse, ErrorCode, classes::entities::Class, users::entities::UserRole},
@@ -35,12 +35,7 @@ pub async fn delete_class(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("Failed to get class information: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -57,12 +52,7 @@ pub async fn delete_class(
             ErrorCode::ClassNotFound,
             "Class not found",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::ClassDeleteFailed,
-                format!("Class deletion failed: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }
 

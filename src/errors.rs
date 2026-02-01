@@ -4,6 +4,8 @@
 
 use std::fmt;
 
+use crate::models::ErrorCode;
+
 /// 定义错误类型的宏
 ///
 /// 自动生成：
@@ -98,6 +100,46 @@ impl fmt::Display for HWSystemError {
 }
 
 impl std::error::Error for HWSystemError {}
+
+impl From<HWSystemError> for ErrorCode {
+    fn from(err: HWSystemError) -> Self {
+        match err {
+            HWSystemError::CacheConnection(_) => ErrorCode::InternalServerError,
+            HWSystemError::CachePluginNotFound(_) => ErrorCode::InternalServerError,
+            HWSystemError::DatabaseConfig(_) => ErrorCode::InternalServerError,
+            HWSystemError::DatabaseConnection(_) => ErrorCode::InternalServerError,
+            HWSystemError::DatabaseOperation(_) => ErrorCode::InternalServerError,
+            HWSystemError::FileOperation(_) => ErrorCode::FileUploadFailed,
+            HWSystemError::Validation(_) => ErrorCode::BadRequest,
+            HWSystemError::NotFound(_) => ErrorCode::NotFound,
+            HWSystemError::Serialization(_) => ErrorCode::InternalServerError,
+            HWSystemError::StoragePluginNotFound(_) => ErrorCode::InternalServerError,
+            HWSystemError::DateParse(_) => ErrorCode::BadRequest,
+            HWSystemError::Authentication(_) => ErrorCode::AuthFailed,
+            HWSystemError::Authorization(_) => ErrorCode::Forbidden,
+        }
+    }
+}
+
+impl From<&HWSystemError> for ErrorCode {
+    fn from(err: &HWSystemError) -> Self {
+        match err {
+            HWSystemError::CacheConnection(_) => ErrorCode::InternalServerError,
+            HWSystemError::CachePluginNotFound(_) => ErrorCode::InternalServerError,
+            HWSystemError::DatabaseConfig(_) => ErrorCode::InternalServerError,
+            HWSystemError::DatabaseConnection(_) => ErrorCode::InternalServerError,
+            HWSystemError::DatabaseOperation(_) => ErrorCode::InternalServerError,
+            HWSystemError::FileOperation(_) => ErrorCode::FileUploadFailed,
+            HWSystemError::Validation(_) => ErrorCode::BadRequest,
+            HWSystemError::NotFound(_) => ErrorCode::NotFound,
+            HWSystemError::Serialization(_) => ErrorCode::InternalServerError,
+            HWSystemError::StoragePluginNotFound(_) => ErrorCode::InternalServerError,
+            HWSystemError::DateParse(_) => ErrorCode::BadRequest,
+            HWSystemError::Authentication(_) => ErrorCode::AuthFailed,
+            HWSystemError::Authorization(_) => ErrorCode::Forbidden,
+        }
+    }
+}
 
 // 为常见的错误类型实现 From trait
 impl From<sea_orm::DbErr> for HWSystemError {

@@ -1,9 +1,9 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use super::SubmissionService;
+use crate::models::ApiResponse;
 use crate::models::submissions::responses::UserSubmissionHistoryResponse;
-use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn list_user_submissions(
     service: &SubmissionService,
@@ -18,11 +18,6 @@ pub async fn list_user_submissions(
             let response = UserSubmissionHistoryResponse { items };
             Ok(HttpResponse::Ok().json(ApiResponse::success(response, "查询成功")))
         }
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("查询提交历史失败: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

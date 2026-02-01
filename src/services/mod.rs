@@ -12,12 +12,20 @@ pub mod websocket;
 
 // Storage provider trait for all services
 use crate::cache::ObjectCache;
+use crate::errors::HWSystemError;
 use crate::models::ApiResponse;
 use crate::models::ErrorCode;
 use crate::storage::Storage;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use std::sync::Arc;
+
+/// 将 HWSystemError 转换为带正确 HTTP 状态码的 HttpResponse
+pub fn error_response(err: HWSystemError) -> HttpResponse {
+    let code = ErrorCode::from(&err);
+    HttpResponse::build(code.http_status())
+        .json(ApiResponse::<()>::error_empty(code, err.message()))
+}
 
 /// Trait for services that need to access storage.
 /// This centralizes the logic for obtaining Storage from the request context

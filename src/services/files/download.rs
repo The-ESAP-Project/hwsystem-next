@@ -6,7 +6,7 @@ use super::FileService;
 use crate::config::AppConfig;
 use crate::errors::HWSystemError;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 // TODO: 实现更细粒度的文件访问权限检查
 // 目前 download_token 已经提供了一定程度的保护（需要知道 token 才能下载）
@@ -31,12 +31,7 @@ pub async fn handle_download(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("File query failed: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -71,13 +66,9 @@ pub async fn handle_download(
             Ok(response)
         }
         Err(e) => {
-            tracing::error!("{:?}", HWSystemError::file_operation(format!("{e:?}")));
-            Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    "File open failed",
-                )),
-            )
+            let hw_err = HWSystemError::file_operation(format!("{e:?}"));
+            tracing::error!("{:?}", hw_err);
+            Ok(error_response(hw_err))
         }
     }
 }

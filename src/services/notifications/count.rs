@@ -1,9 +1,9 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use super::NotificationService;
+use crate::models::ApiResponse;
 use crate::models::notifications::responses::UnreadCountResponse;
-use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn get_unread_count(
     service: &NotificationService,
@@ -19,11 +19,6 @@ pub async fn get_unread_count(
             },
             "查询成功",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("查询未读通知数量失败: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

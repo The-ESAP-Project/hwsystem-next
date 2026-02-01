@@ -14,6 +14,7 @@ use crate::models::{
         },
     },
 };
+use crate::services::error_response;
 use crate::storage::Storage;
 use crate::utils::SafeSettingKey;
 
@@ -74,12 +75,7 @@ pub async fn get_admin_settings(
     let settings = match storage.list_all_settings().await {
         Ok(s) => s,
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::<()>::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("获取配置列表失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -126,12 +122,7 @@ pub async fn update_setting(
     {
         Ok(s) => s,
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::<()>::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("更新配置失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -155,12 +146,7 @@ pub async fn get_setting_audits(
     let audits = match storage.list_setting_audits(query.into_inner()).await {
         Ok(a) => a,
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::<()>::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("获取审计日志失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 

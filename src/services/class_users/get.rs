@@ -5,7 +5,7 @@ use crate::{
         class_users::entities::{ClassUser, ClassUserRole},
         users::entities::{User, UserRole},
     },
-    services::{ClassUserService, StorageProvider},
+    services::{ClassUserService, StorageProvider, error_response},
 };
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
@@ -41,12 +41,7 @@ pub async fn get_class_user(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("Internal error: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 

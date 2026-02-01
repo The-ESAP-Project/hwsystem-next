@@ -9,7 +9,7 @@ use crate::utils::password::hash_password;
 use crate::utils::validate::validate_password_simple;
 
 use super::AuthService;
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn handle_update_profile(
     service: &AuthService,
@@ -53,12 +53,7 @@ pub async fn handle_update_profile(
         match hash_password(password) {
             Ok(hash) => Some(hash),
             Err(e) => {
-                return Ok(
-                    HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                        ErrorCode::InternalServerError,
-                        format!("密码哈希失败: {e}"),
-                    )),
-                );
+                return Ok(error_response(e));
             }
         }
     } else {

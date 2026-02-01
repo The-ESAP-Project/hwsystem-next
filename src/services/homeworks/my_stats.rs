@@ -6,7 +6,7 @@ use crate::models::{ApiResponse, ErrorCode};
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use super::HomeworkService;
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn get_my_homework_stats(
     service: &HomeworkService,
@@ -33,11 +33,6 @@ pub async fn get_my_homework_stats(
             };
             Ok(HttpResponse::Ok().json(ApiResponse::success(response, "获取作业统计成功")))
         }
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("获取作业统计失败: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

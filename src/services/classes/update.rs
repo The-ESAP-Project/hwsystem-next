@@ -2,7 +2,7 @@ use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 use tracing::error;
 
 use super::ClassService;
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 use crate::{
     middlewares::RequireJWT,
     models::{
@@ -35,12 +35,7 @@ pub async fn update_class(
     let class_opt = match storage.get_class_by_id(class_id).await {
         Ok(class) => class,
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("Failed to get class information: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 

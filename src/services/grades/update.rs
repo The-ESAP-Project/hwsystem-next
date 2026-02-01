@@ -6,8 +6,8 @@ use crate::models::grades::requests::UpdateGradeRequest;
 use crate::models::notifications::entities::{NotificationType, ReferenceType};
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
 use crate::services::notifications::trigger::send_notification;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn update_grade(
     service: &GradeService,
@@ -29,12 +29,7 @@ pub async fn update_grade(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询评分失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -95,11 +90,6 @@ pub async fn update_grade(
             ErrorCode::GradeNotFound,
             "评分不存在",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::GradeUpdateFailed,
-                format!("更新评分失败: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

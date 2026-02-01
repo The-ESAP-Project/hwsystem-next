@@ -4,7 +4,7 @@ use std::sync::Arc;
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use super::ClassService;
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 use crate::{
     middlewares::RequireJWT,
     models::{
@@ -73,12 +73,7 @@ pub async fn list_classes(
                 "Class list retrieved successfully",
             )))
         }
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("Failed to retrieve class list: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }
 
@@ -100,12 +95,7 @@ async fn list_user_classes_with_details(
                 "User class list retrieved successfully",
             )))
         }
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("Failed to retrieve user class list: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }
 

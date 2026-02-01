@@ -7,7 +7,7 @@ use tracing::error;
 use super::UserService;
 use crate::models::users::requests::UserExportParams;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 /// 导出用户列表
 pub async fn export_users(
@@ -25,12 +25,7 @@ pub async fn export_users(
         Ok(users) => users,
         Err(e) => {
             error!("导出用户失败: {}", e);
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("导出用户失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 

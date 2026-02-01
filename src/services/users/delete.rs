@@ -1,7 +1,7 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
 
 use super::UserService;
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 use crate::{
     middlewares::RequireJWT,
     models::{ApiResponse, ErrorCode, users::entities::UserRole},
@@ -41,12 +41,7 @@ pub async fn delete_user(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询用户失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 

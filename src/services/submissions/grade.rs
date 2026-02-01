@@ -6,7 +6,7 @@ use crate::middlewares::RequireJWT;
 use crate::models::class_users::entities::ClassUserRole;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 use crate::storage::Storage;
 
 /// 检查用户是否有权限访问某个提交的评分
@@ -30,12 +30,7 @@ async fn check_grade_access_permission(
             )));
         }
         Err(e) => {
-            return Err(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询提交失败: {e}"),
-                )),
-            );
+            return Err(error_response(e));
         }
     };
 
@@ -54,12 +49,7 @@ async fn check_grade_access_permission(
             )));
         }
         Err(e) => {
-            return Err(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询作业失败: {e}"),
-                )),
-            );
+            return Err(error_response(e));
         }
     };
 
@@ -76,12 +66,7 @@ async fn check_grade_access_permission(
             )));
         }
         Err(e) => {
-            return Err(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询班级成员失败: {e}"),
-                )),
-            );
+            return Err(error_response(e));
         }
     };
 
@@ -127,11 +112,6 @@ pub async fn get_submission_grade(
             ErrorCode::GradeNotFound,
             "该提交尚未评分",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("查询评分失败: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

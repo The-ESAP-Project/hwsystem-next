@@ -4,7 +4,7 @@ use super::NotificationService;
 use crate::middlewares::RequireJWT;
 use crate::models::notifications::responses::MarkAllReadResponse;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn mark_as_read(
     service: &NotificationService,
@@ -34,12 +34,7 @@ pub async fn mark_as_read(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询通知失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -57,12 +52,7 @@ pub async fn mark_as_read(
             ErrorCode::NotificationNotFound,
             "通知不存在",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("标记通知已读失败: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }
 
@@ -80,11 +70,6 @@ pub async fn mark_all_as_read(
             },
             "操作成功",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("标记全部通知已读失败: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

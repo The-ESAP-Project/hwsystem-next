@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::errors::HWSystemError;
 use crate::models::ErrorCode;
 
 // 统一的API响应结构
@@ -48,6 +49,15 @@ impl ApiResponse<()> {
         Self {
             code: code as i32,
             message: message.into(),
+            data: None,
+            timestamp: chrono::Utc::now(),
+        }
+    }
+
+    pub fn from_error(err: HWSystemError) -> Self {
+        Self {
+            code: ErrorCode::from(&err) as i32,
+            message: err.message().to_string(),
             data: None,
             timestamp: chrono::Utc::now(),
         }

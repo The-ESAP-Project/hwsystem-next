@@ -4,7 +4,7 @@ use super::HomeworkService;
 use crate::middlewares::RequireJWT;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn delete_homework(
     service: &HomeworkService,
@@ -25,12 +25,7 @@ pub async fn delete_homework(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询作业失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -59,11 +54,6 @@ pub async fn delete_homework(
             ErrorCode::HomeworkNotFound,
             "作业不存在",
         ))),
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::InternalServerError,
-                format!("删除作业失败: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

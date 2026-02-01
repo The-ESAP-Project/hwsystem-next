@@ -11,7 +11,7 @@ use crate::middlewares::RequireJWT;
 use crate::models::class_users::entities::ClassUserRole;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
+use crate::services::{StorageProvider, error_response};
 
 /// 学生作业状态
 #[derive(Debug, Clone)]
@@ -73,12 +73,7 @@ pub async fn export_class_report(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询班级失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -100,12 +95,7 @@ pub async fn export_class_report(
                 )));
             }
             Err(e) => {
-                return Ok(
-                    HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                        ErrorCode::InternalServerError,
-                        format!("查询班级成员失败: {e}"),
-                    )),
-                );
+                return Ok(error_response(e));
             }
         };
 
@@ -129,12 +119,7 @@ pub async fn export_class_report(
     let class_users = match storage.list_all_class_users(class_id).await {
         Ok(users) => users,
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询班级成员失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -150,12 +135,7 @@ pub async fn export_class_report(
     let homeworks = match storage.list_all_homeworks_by_class(class_id).await {
         Ok(hws) => hws,
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询作业失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -171,12 +151,7 @@ pub async fn export_class_report(
     {
         Ok(subs) => subs,
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("批量查询提交失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -208,12 +183,7 @@ pub async fn export_class_report(
     {
         Ok(grades) => grades,
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("批量查询评分失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -222,12 +192,7 @@ pub async fn export_class_report(
     let users_map = match storage.get_users_by_ids(&student_user_ids).await {
         Ok(users) => users,
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("批量查询用户失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 

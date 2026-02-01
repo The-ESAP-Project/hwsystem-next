@@ -5,8 +5,8 @@ use crate::models::notifications::entities::{NotificationType, ReferenceType};
 use crate::models::submissions::requests::CreateSubmissionRequest;
 use crate::models::users::entities::UserRole;
 use crate::models::{ApiResponse, ErrorCode};
-use crate::services::StorageProvider;
 use crate::services::notifications::trigger::send_notification;
+use crate::services::{StorageProvider, error_response};
 
 pub async fn create_submission(
     service: &SubmissionService,
@@ -27,12 +27,7 @@ pub async fn create_submission(
             )));
         }
         Err(e) => {
-            return Ok(
-                HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                    ErrorCode::InternalServerError,
-                    format!("查询作业失败: {e}"),
-                )),
-            );
+            return Ok(error_response(e));
         }
     };
 
@@ -52,12 +47,7 @@ pub async fn create_submission(
                 )));
             }
             Err(e) => {
-                return Ok(
-                    HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                        ErrorCode::InternalServerError,
-                        format!("验证班级成员资格失败: {e}"),
-                    )),
-                );
+                return Ok(error_response(e));
             }
         }
     }
@@ -91,11 +81,6 @@ pub async fn create_submission(
 
             Ok(HttpResponse::Created().json(ApiResponse::success(submission, "提交成功")))
         }
-        Err(e) => Ok(
-            HttpResponse::InternalServerError().json(ApiResponse::error_empty(
-                ErrorCode::SubmissionCreateFailed,
-                format!("创建提交失败: {e}"),
-            )),
-        ),
+        Err(e) => Ok(error_response(e)),
     }
 }

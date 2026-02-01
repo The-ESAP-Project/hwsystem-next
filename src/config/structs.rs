@@ -17,9 +17,14 @@ pub struct AppConfig {
 /// 应用设置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
+    #[serde(default = "default_system_name")]
     pub system_name: String,
     pub environment: String,
     pub log_level: String,
+}
+
+fn default_system_name() -> String {
+    "作业管理系统".to_string()
 }
 
 /// 服务器配置
@@ -53,9 +58,24 @@ pub struct LimitConfig {
 pub struct JwtConfig {
     #[serde(skip_serializing, default)] // 不序列化到JSON响应中
     pub secret: String,
+    #[serde(default = "default_access_token_expiry")]
     pub access_token_expiry: i64,
+    #[serde(default = "default_refresh_token_expiry")]
     pub refresh_token_expiry: i64,
+    #[serde(default = "default_refresh_token_remember_me_expiry")]
     pub refresh_token_remember_me_expiry: i64,
+}
+
+fn default_access_token_expiry() -> i64 {
+    60
+}
+
+fn default_refresh_token_expiry() -> i64 {
+    7
+}
+
+fn default_refresh_token_remember_me_expiry() -> i64 {
+    30
 }
 
 /// 数据库配置
@@ -93,19 +113,37 @@ pub struct MemoryConfig {
 /// CORS 配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CorsConfig {
+    #[serde(default = "default_cors_allowed_origins")]
     pub allowed_origins: Vec<String>,
     pub allowed_methods: Vec<String>,
     pub allowed_headers: Vec<String>,
+    #[serde(default = "default_cors_max_age")]
     pub max_age: usize,
+}
+
+fn default_cors_allowed_origins() -> Vec<String> {
+    vec![
+        "http://localhost:3000".to_string(),
+        "http://localhost:5173".to_string(),
+    ]
+}
+
+fn default_cors_max_age() -> usize {
+    86400
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UploadConfig {
     pub dir: String,     // 上传目录
+    #[serde(default = "default_upload_max_size")]
     pub max_size: usize, // 单文件最大字节数
     #[serde(default)]
     pub allowed_types: Option<Vec<String>>, // 已废弃：请使用数据库动态配置（upload.allowed_types）
     pub timeout: u64,    // 文件操作超时（毫秒）
+}
+
+fn default_upload_max_size() -> usize {
+    52428800  // 50MB
 }
 
 /// Argon2 密码哈希配置

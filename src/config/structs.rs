@@ -134,16 +134,16 @@ fn default_cors_max_age() -> usize {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UploadConfig {
-    pub dir: String,     // 上传目录
+    pub dir: String, // 上传目录
     #[serde(default = "default_upload_max_size")]
     pub max_size: usize, // 单文件最大字节数
     #[serde(default)]
     pub allowed_types: Option<Vec<String>>, // 已废弃：请使用数据库动态配置（upload.allowed_types）
-    pub timeout: u64,    // 文件操作超时（毫秒）
+    pub timeout: u64, // 文件操作超时（毫秒）
 }
 
 fn default_upload_max_size() -> usize {
-    52428800  // 50MB
+    52428800 // 50MB
 }
 
 /// Argon2 密码哈希配置

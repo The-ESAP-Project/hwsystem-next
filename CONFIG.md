@@ -28,7 +28,7 @@ cp config.example.toml config.toml
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| system_name | string | 系统名称 |
+| ~~system_name~~ | ~~string~~ | **已迁移**：请使用数据库动态配置（系统设置 > app.system_name） |
 | environment | string | 运行环境 (development/production) |
 | log_level | string | 日志级别 (trace/debug/info/warn/error) |
 
@@ -61,9 +61,9 @@ cp config.example.toml config.toml
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | secret | string | JWT 密钥（生产环境务必使用强密钥） |
-| access_token_expiry | i64 | Access Token 有效期 (分钟) |
-| refresh_token_expiry | i64 | Refresh Token 有效期 (天) |
-| refresh_token_remember_me_expiry | i64 | 记住我选项有效期 (天) |
+| ~~access_token_expiry~~ | ~~i64~~ | **已迁移**：请使用数据库动态配置（系统设置 > jwt.access_token_expiry） |
+| ~~refresh_token_expiry~~ | ~~i64~~ | **已迁移**：请使用数据库动态配置（系统设置 > jwt.refresh_token_expiry） |
+| ~~refresh_token_remember_me_expiry~~ | ~~i64~~ | **已迁移**：请使用数据库动态配置（系统设置 > jwt.refresh_token_remember_me_expiry） |
 
 ### database - 数据库设置
 
@@ -103,18 +103,18 @@ URL 格式：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| allowed_origins | Vec<string> | 允许的源（空数组=允许所有） |
+| ~~allowed_origins~~ | ~~Vec<string>~~ | **已迁移**：请使用数据库动态配置（系统设置 > cors.allowed_origins） |
 | allowed_methods | Vec<string> | 允许的方法 |
 | allowed_headers | Vec<string> | 允许的头部 |
-| max_age | usize | 预检请求缓存时间 (秒) |
+| ~~max_age~~ | ~~usize~~ | **已迁移**：请使用数据库动态配置（系统设置 > cors.max_age） |
 
 ### upload - 上传设置
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | dir | string | 上传目录 |
-| max_size | usize | 单文件最大字节数 |
-| ~~allowed_types~~ | ~~Vec<string>~~ | **已废弃**：请使用数据库动态配置（系统设置 > upload.allowed_types） |
+| ~~max_size~~ | ~~usize~~ | **已迁移**：请使用数据库动态配置（系统设置 > upload.max_size） |
+| ~~allowed_types~~ | ~~Vec<string>~~ | **已迁移**：请使用数据库动态配置（系统设置 > upload.allowed_types） |
 | timeout | u64 | 文件操作超时（毫秒） |
 
 ### argon2 - 密码哈希设置

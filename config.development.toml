@@ -1,7 +1,8 @@
 # 开发环境配置
 
 [app]
-system_name = "Homework Management System"
+# system_name - 已迁移到数据库 (app.system_name)
+# system_name = "Homework Management System"
 environment = "development"
 log_level = "debug"
 
@@ -12,9 +13,10 @@ workers = 4
 
 [jwt]
 # 开发环境使用较长的过期时间以便于调试
-access_token_expiry = 60
-refresh_token_expiry = 1
-refresh_token_remember_me_expiry = 3
+# 注意：以下配置已迁移到数据库，在此仅作为默认值参考
+# access_token_expiry = 60
+# refresh_token_expiry = 1
+# refresh_token_remember_me_expiry = 3
 
 [database]
 url = "hwsystem_dev.db"

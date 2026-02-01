@@ -391,12 +391,27 @@ CREATE TABLE system_settings (
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
-| key | TEXT | PK | 设置键名，如 `upload_max_size` |
+| key | TEXT | PK | 设置键名，如 `upload.max_size` |
 | value | TEXT | NOT NULL | 设置值（字符串形式存储） |
-| value_type | TEXT | NOT NULL | 值类型：`string` / `integer` / `boolean` / `json` |
+| value_type | TEXT | NOT NULL | 值类型：`string` / `integer` / `boolean` / `json_array` |
 | description | TEXT | - | 设置描述 |
 | updated_at | INTEGER | NOT NULL | Unix 时间戳 |
 | updated_by | INTEGER | FK | 最后更新者 ID |
+
+**默认配置项**：
+
+以下配置项已从 config.toml 迁移到数据库动态管理：
+
+| 键名 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| app.system_name | string | "作业管理系统" | 系统名称 |
+| jwt.access_token_expiry | integer | 60 | Access Token 有效期（分钟） |
+| jwt.refresh_token_expiry | integer | 7 | Refresh Token 有效期（天） |
+| jwt.refresh_token_remember_me_expiry | integer | 30 | 记住我 Refresh Token 有效期（天） |
+| upload.max_size | integer | 52428800 | 单文件最大大小（字节，默认 50MB） |
+| upload.allowed_types | json_array | [".pdf", ".doc", ...] | 允许上传的文件类型 |
+| cors.allowed_origins | json_array | ["http://localhost:3000", ...] | 允许的跨域来源 |
+| cors.max_age | integer | 86400 | 预检请求缓存时间（秒） |
 
 ### 3.12 system_settings_audit（设置审计日志表）
 

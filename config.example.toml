@@ -2,8 +2,8 @@
 # 复制此文件为 config.toml 或 config.{environment}.toml 并根据需要修改
 
 [app]
-# 系统名称
-system_name = "Homework Management System"
+# 系统名称 - 已迁移到数据库，请在系统设置中管理 (app.system_name)
+# system_name = "Homework Management System"
 # 应用环境: development, production
 environment = "development"
 # 日志级别: trace, debug, info, warn, error
@@ -36,12 +36,12 @@ max_payload_size = 1048576  # 1MB
 [jwt]
 # JWT 密钥 (生产环境务必使用强密钥)
 secret = "your_super_secret_jwt_key_here"
-# Access Token 有效期 (分钟)
-access_token_expiry = 15
-# Refresh Token 有效期 (天)
-refresh_token_expiry = 7
-# Refresh Token 记住我选项有效期 (天)
-refresh_token_remember_me_expiry = 30
+# Access Token 有效期 (分钟) - 已迁移到数据库 (jwt.access_token_expiry)
+# access_token_expiry = 15
+# Refresh Token 有效期 (天) - 已迁移到数据库 (jwt.refresh_token_expiry)
+# refresh_token_expiry = 7
+# Refresh Token 记住我选项有效期 (天) - 已迁移到数据库 (jwt.refresh_token_remember_me_expiry)
+# refresh_token_remember_me_expiry = 30
 
 [database]
 # 数据库连接 URL（从 URL 自动推断类型）
@@ -73,23 +73,23 @@ pool_size = 10
 max_capacity = 10000
 
 [cors]
-# 允许的源 (空数组表示允许所有)
+# 允许的源 (空数组表示允许所有) - 已迁移到数据库 (cors.allowed_origins)
 # 例如: ["https://example.com", "https://app.example.com"]
-allowed_origins = []
+# allowed_origins = []
 # 允许的方法
 allowed_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
 # 允许的头部
 allowed_headers = ["*"]
-# 预检请求缓存时间 (秒)
-max_age = 3600
+# 预检请求缓存时间 (秒) - 已迁移到数据库 (cors.max_age)
+# max_age = 3600
 
 [upload]
 # 文件上传配置
 # 上传目录 (相对于项目根目录)
 dir = "uploads"
-# 单文件最大字节数
-max_size = 10485760 # 10MB
-# 注意：allowed_types 已迁移到数据库动态配置，请在系统设置中管理
+# 单文件最大字节数 - 已迁移到数据库 (upload.max_size)
+# max_size = 10485760 # 10MB
+# allowed_types - 已迁移到数据库 (upload.allowed_types)
 # 文件操作超时 (毫秒)
 timeout = 120000 # 2分钟
 

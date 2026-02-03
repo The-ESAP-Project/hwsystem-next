@@ -1,5 +1,6 @@
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, middleware, web};
 use once_cell::sync::Lazy;
+use serde::Deserialize;
 
 use crate::config::AppConfig;
 use crate::middlewares::{self, RateLimit};
@@ -9,6 +10,14 @@ use crate::utils::SafeFileToken;
 
 // 懒加载的全局 FileService 实例
 static FILE_SERVICE: Lazy<FileService> = Lazy::new(FileService::new_lazy);
+
+/// 下载请求的查询参数
+#[derive(Debug, Deserialize)]
+pub struct DownloadQuery {
+    /// 是否请求缩略图
+    #[serde(default)]
+    pub thumbnail: bool,
+}
 
 pub async fn handle_upload(
     request: HttpRequest,
@@ -39,8 +48,13 @@ pub async fn handle_upload(
 pub async fn handle_download(
     request: HttpRequest,
     file_token: SafeFileToken,
+    query: web::Query<DownloadQuery>,
 ) -> ActixResult<HttpResponse> {
-    FILE_SERVICE.handle_download(&request, file_token.0).await
+    if query.thumbnail {
+        FILE_SERVICE.handle_thumbnail(&request, file_token.0).await
+    } else {
+        FILE_SERVICE.handle_download(&request, file_token.0).await
+    }
 }
 
 pub async fn handle_delete(

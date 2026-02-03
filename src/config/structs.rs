@@ -140,10 +140,45 @@ pub struct UploadConfig {
     #[serde(default)]
     pub allowed_types: Option<Vec<String>>, // 已废弃：请使用数据库动态配置（upload.allowed_types）
     pub timeout: u64, // 文件操作超时（毫秒）
+    #[serde(default)]
+    pub thumbnail: ThumbnailConfig, // 缩略图配置
 }
 
 fn default_upload_max_size() -> usize {
     52428800 // 50MB
+}
+
+/// 缩略图配置
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThumbnailConfig {
+    #[serde(default = "default_thumbnail_max_width")]
+    pub max_width: u32, // 缩略图最大宽度
+    #[serde(default = "default_thumbnail_max_height")]
+    pub max_height: u32, // 缩略图最大高度
+    #[serde(default = "default_thumbnail_quality")]
+    pub quality: u8, // JPEG 质量 (1-100)
+}
+
+impl Default for ThumbnailConfig {
+    fn default() -> Self {
+        Self {
+            max_width: default_thumbnail_max_width(),
+            max_height: default_thumbnail_max_height(),
+            quality: default_thumbnail_quality(),
+        }
+    }
+}
+
+fn default_thumbnail_max_width() -> u32 {
+    200
+}
+
+fn default_thumbnail_max_height() -> u32 {
+    200
+}
+
+fn default_thumbnail_quality() -> u8 {
+    80
 }
 
 /// Argon2 密码哈希配置

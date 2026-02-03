@@ -76,6 +76,10 @@ pub enum KnownSettingKey {
     UploadCompressQuality,
     UploadCompressMaxWidth,
     UploadCompressMaxHeight,
+    // 缩略图配置
+    UploadThumbnailMaxWidth,
+    UploadThumbnailMaxHeight,
+    UploadThumbnailQuality,
 }
 
 impl KnownSettingKey {
@@ -94,6 +98,9 @@ impl KnownSettingKey {
             KnownSettingKey::UploadCompressQuality => "upload.compress_quality",
             KnownSettingKey::UploadCompressMaxWidth => "upload.compress_max_width",
             KnownSettingKey::UploadCompressMaxHeight => "upload.compress_max_height",
+            KnownSettingKey::UploadThumbnailMaxWidth => "upload.thumbnail_max_width",
+            KnownSettingKey::UploadThumbnailMaxHeight => "upload.thumbnail_max_height",
+            KnownSettingKey::UploadThumbnailQuality => "upload.thumbnail_quality",
         }
     }
 
@@ -112,6 +119,9 @@ impl KnownSettingKey {
             KnownSettingKey::UploadCompressQuality => SettingValueType::String,
             KnownSettingKey::UploadCompressMaxWidth => SettingValueType::Integer,
             KnownSettingKey::UploadCompressMaxHeight => SettingValueType::Integer,
+            KnownSettingKey::UploadThumbnailMaxWidth => SettingValueType::Integer,
+            KnownSettingKey::UploadThumbnailMaxHeight => SettingValueType::Integer,
+            KnownSettingKey::UploadThumbnailQuality => SettingValueType::Integer,
         }
     }
 
@@ -130,6 +140,9 @@ impl KnownSettingKey {
             KnownSettingKey::UploadCompressQuality,
             KnownSettingKey::UploadCompressMaxWidth,
             KnownSettingKey::UploadCompressMaxHeight,
+            KnownSettingKey::UploadThumbnailMaxWidth,
+            KnownSettingKey::UploadThumbnailMaxHeight,
+            KnownSettingKey::UploadThumbnailQuality,
         ]
     }
 }
@@ -154,6 +167,9 @@ impl std::str::FromStr for KnownSettingKey {
             "upload.compress_quality" => Ok(KnownSettingKey::UploadCompressQuality),
             "upload.compress_max_width" => Ok(KnownSettingKey::UploadCompressMaxWidth),
             "upload.compress_max_height" => Ok(KnownSettingKey::UploadCompressMaxHeight),
+            "upload.thumbnail_max_width" => Ok(KnownSettingKey::UploadThumbnailMaxWidth),
+            "upload.thumbnail_max_height" => Ok(KnownSettingKey::UploadThumbnailMaxHeight),
+            "upload.thumbnail_quality" => Ok(KnownSettingKey::UploadThumbnailQuality),
             _ => Err(format!("Unknown setting key: {s}")),
         }
     }

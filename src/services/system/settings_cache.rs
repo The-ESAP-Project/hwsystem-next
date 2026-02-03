@@ -195,4 +195,32 @@ impl DynamicConfig {
             .map(|v| v as u32)
             .unwrap_or(1920)
     }
+
+    // ============================================
+    // 缩略图配置访问方法
+    // ============================================
+
+    /// 获取缩略图最大宽度
+    pub async fn upload_thumbnail_max_width() -> u32 {
+        Self::get_i64("upload.thumbnail_max_width")
+            .await
+            .map(|v| v as u32)
+            .unwrap_or_else(|| AppConfig::get().upload.thumbnail.max_width)
+    }
+
+    /// 获取缩略图最大高度
+    pub async fn upload_thumbnail_max_height() -> u32 {
+        Self::get_i64("upload.thumbnail_max_height")
+            .await
+            .map(|v| v as u32)
+            .unwrap_or_else(|| AppConfig::get().upload.thumbnail.max_height)
+    }
+
+    /// 获取缩略图质量 (1-100)
+    pub async fn upload_thumbnail_quality() -> u8 {
+        Self::get_i64("upload.thumbnail_quality")
+            .await
+            .map(|v| v as u8)
+            .unwrap_or_else(|| AppConfig::get().upload.thumbnail.quality)
+    }
 }

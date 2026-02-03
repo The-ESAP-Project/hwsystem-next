@@ -1,5 +1,6 @@
 pub mod delete;
 pub mod download;
+pub mod thumbnail;
 pub mod upload;
 
 use actix_multipart::Multipart;
@@ -42,6 +43,15 @@ impl FileService {
         file_token: String,
     ) -> ActixResult<HttpResponse> {
         delete::handle_delete(self, request, file_token).await
+    }
+
+    // Handle thumbnail request
+    pub async fn handle_thumbnail(
+        &self,
+        request: &HttpRequest,
+        file_token: String,
+    ) -> ActixResult<HttpResponse> {
+        thumbnail::handle_thumbnail(self, request, file_token).await
     }
 }
 

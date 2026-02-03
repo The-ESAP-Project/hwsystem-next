@@ -73,3 +73,4 @@ csv = "1.4"
 calamine = "0.26"
 rust_xlsxwriter = "0.82"
 infer = "0.16"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp"] }

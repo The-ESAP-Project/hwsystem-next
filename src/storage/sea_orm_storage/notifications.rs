@@ -63,14 +63,15 @@ impl SeaOrmStorage {
             .map_err(|e| HWSystemError::database_operation(format!("开启事务失败: {e}")))?;
 
         // 获取当前最大 ID（用于后续查询插入的记录）
-        let max_id: Option<i64> = Notifications::find()
+        let max_id = Notifications::find()
             .select_only()
             .column_as(Column::Id.max(), "max_id")
-            .into_tuple()
+            .into_tuple::<Option<i64>>()
             .one(&txn)
             .await
-            .map_err(|e| HWSystemError::database_operation(format!("查询最大 ID 失败: {e}")))?;
-        let max_id = max_id.unwrap_or(0);
+            .map_err(|e| HWSystemError::database_operation(format!("查询最大 ID 失败: {e}")))?
+            .flatten()
+            .unwrap_or(0);
 
         // 构建批量插入模型
         let models: Vec<ActiveModel> = reqs

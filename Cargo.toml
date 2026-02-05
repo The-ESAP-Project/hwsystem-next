@@ -57,7 +57,7 @@ dashmap = "6.1.0"
 moka = { version = "0.12.13", features = ["future"] }
 actix-service = "2.0.3"
 config = "0.15.19"
-regex = "1.12.2"
+regex = "1.12.3"
 actix-multipart = "0.7.2"
 actix-files = "0.6"
 uuid = "1.20.0"
@@ -70,7 +70,7 @@ rust-embed = "8.11.0"
 ts-rs = { version = "12.0", features = ["chrono-impl", "serde-json-impl", "no-serde-warnings"] }
 actix-ws = { version = "0.3.1", default-features = false }
 csv = "1.4"
-calamine = "0.32"
+calamine = "0.33"
 rust_xlsxwriter = "0.93"
 infer = "0.19"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp"] }

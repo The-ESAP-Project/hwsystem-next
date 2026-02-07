@@ -5,6 +5,7 @@ description = "A next-generation homework system based on Rust and Actix-web."
 license = "MIT"
 authors = ["AptS-1547 <apts-1547@esaps.net>", "Cg8-5712 <cg8.5712@gmail.com>"]
 edition = "2024"
+rust-version = "1.93"
 
 [workspace]
 members = [".", "migration"]
